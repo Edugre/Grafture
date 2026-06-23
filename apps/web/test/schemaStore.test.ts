@@ -188,6 +188,28 @@ describe("schemaStore", () => {
       expect(store.getState().schema.tables[0]).toMatchObject({ x: 0, y: 0 });
     });
 
+    it("applies a batched moveTables as a single undo step", () => {
+      const makeId = makeTestIds();
+      const store = createSchemaStore({ makeId });
+
+      store.getState().addTable("users", { x: 0, y: 0 });
+      store.getState().addTable("orders", { x: 0, y: 0 });
+      const [users, orders] = store.getState().schema.tables;
+
+      store.getState().moveTables([
+        { tableId: users!.id, x: 100, y: 200 },
+        { tableId: orders!.id, x: 300, y: 400 },
+      ]);
+
+      expect(store.getState().schema.tables[0]).toMatchObject({ x: 100, y: 200 });
+      expect(store.getState().schema.tables[1]).toMatchObject({ x: 300, y: 400 });
+
+      store.getState().undo();
+
+      expect(store.getState().schema.tables[0]).toMatchObject({ x: 0, y: 0 });
+      expect(store.getState().schema.tables[1]).toMatchObject({ x: 0, y: 0 });
+    });
+
     it("undoes source changes", () => {
       const store = createSchemaStore({ makeId: makeTestIds() });
       const source = sampleSource("source-1");

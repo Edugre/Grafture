@@ -10,3 +10,5 @@ coverage/
 *.tsbuildinfo
 .vite/
 ROADMAP.md
+# Local Claude Code launch config (machine-specific paths)
+.claude/

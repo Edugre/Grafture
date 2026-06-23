@@ -47,6 +47,7 @@ export type SchemaStore = {
   setCardinality: (relationshipId: string, cardinality: Cardinality) => RunActionsResult;
 
   moveTable: (tableId: string, x: number, y: number) => void;
+  moveTables: (positions: Array<{ tableId: string; x: number; y: number }>) => void;
 
   addSource: (source: Source) => void;
   removeSource: (sourceId: string) => void;
@@ -354,6 +355,22 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             pushHistory(draft._history, before, `move:${tableId}`);
             table.x = x;
             table.y = y;
+          });
+        },
+
+        moveTables: (positions) => {
+          if (positions.length === 0) {
+            return;
+          }
+
+          commitSnapshot((draft) => {
+            for (const { tableId, x, y } of positions) {
+              const table = findTableById(draft.schema, tableId);
+              if (table) {
+                table.x = x;
+                table.y = y;
+              }
+            }
           });
         },
 
