@@ -3,21 +3,9 @@ import { useMemo, useState } from "react";
 import type { AiProvider } from "@schema-studio/core";
 
 import { AnthropicBrowserProvider } from "./ai/AnthropicBrowserProvider";
+import { SourcesPanel } from "./sources";
 import "./App.css";
 import { CanvasPanel } from "./canvas/index.js";
-
-function SourcesPanel() {
-  return (
-    <section className="panel">
-      <header className="panel-header">Sources</header>
-      <div className="panel-body">
-        <p className="sources-placeholder">
-          Drop CSV, Excel, or JSON files here. Parsing will be wired up in a later task.
-        </p>
-      </div>
-    </section>
-  );
-}
 
 function CopilotPanel({
   apiKey,
