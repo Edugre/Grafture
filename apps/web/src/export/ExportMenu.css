@@ -1,0 +1,108 @@
+.export-menu {
+  position: fixed;
+  top: 12px;
+  right: 332px;
+  z-index: 10;
+}
+
+.export-menu__toggle {
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 6px;
+  border: 1px solid #3d4657;
+  background: #1b2130;
+  color: #cdd5e4;
+  cursor: pointer;
+}
+
+.export-menu__toggle:hover {
+  border-color: #5b8def;
+  color: #fff;
+}
+
+.export-menu__panel {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  width: 420px;
+  max-width: 80vw;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #2a2f3a;
+  background: #151922;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.export-menu__tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.export-menu__tab {
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #3d4657;
+  background: #1b2130;
+  color: #9aa3b2;
+  cursor: pointer;
+}
+
+.export-menu__tab:hover {
+  color: #e8eaed;
+}
+
+.export-menu__tab.is-active {
+  border-color: #5b8def;
+  color: #fff;
+}
+
+.export-menu__code {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #2a2f3a;
+  background: #0f1117;
+  color: #cdd5e4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.export-menu__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.export-menu__actions button {
+  padding: 6px 12px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #3d4657;
+  background: #1b2130;
+  color: #cdd5e4;
+  cursor: pointer;
+}
+
+.export-menu__actions button:hover {
+  border-color: #5b8def;
+  color: #fff;
+}
+
+.export-menu__empty {
+  margin: 0;
+  padding: 8px 4px;
+  color: #9aa3b2;
+  font-size: 0.82rem;
+}

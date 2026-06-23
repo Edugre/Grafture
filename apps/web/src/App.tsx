@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import type { AiProvider } from "@schema-studio/core";
 
 import { AnthropicBrowserProvider } from "./ai/AnthropicBrowserProvider";
+import { ExportMenu } from "./export";
 import { SourcesPanel } from "./sources";
 import "./App.css";
 
@@ -136,6 +137,7 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <ExportMenu />
       <SourcesPanel />
       <CanvasPanel />
       <CopilotPanel apiKey={apiKey} onApiKeyChange={setApiKey} provider={provider} />
