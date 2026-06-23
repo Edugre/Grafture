@@ -1,6 +1,14 @@
 export type { ApplyActionsOptions, ApplyResult, SchemaAction } from "./actions.js";
 export { SchemaActionSchema, applyActions } from "./actions.js";
 export type { AiProvider, AiProviderResult } from "./ai/provider.js";
+export type {
+  DetectOptions,
+  FieldRef,
+  FormatIssue,
+  FormatMismatch,
+  JoinKeyCandidate,
+} from "./detect/index.js";
+export { detectFormatMismatch, detectJoinKeys } from "./detect/index.js";
 export { toDbml, toPrisma, toSql } from "./export/index.js";
 export type { Cardinality, Field, Relationship, Schema, Table } from "./model.js";
 export {
