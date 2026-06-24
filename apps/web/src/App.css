@@ -16,13 +16,13 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid #2a2f3a;
-  background: #151922;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
 }
 
 .panel:last-child {
   border-right: none;
-  border-left: 1px solid #2a2f3a;
+  border-left: 1px solid var(--border-subtle);
 }
 
 .panel-header {
@@ -31,8 +31,8 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #9aa3b2;
-  border-bottom: 1px solid #2a2f3a;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .panel-body {
@@ -44,7 +44,7 @@
 
 .canvas-panel {
   border-right: none;
-  background: #0f1117;
+  background: var(--bg-app);
 }
 
 .canvas-panel .panel-body {
@@ -52,7 +52,7 @@
 }
 
 .sources-placeholder {
-  color: #9aa3b2;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -61,20 +61,59 @@
   height: 100%;
 }
 
+/* ReactFlow controls/minimap/background — themed so the control icons stay
+   legible in both appearances (they inherit currentColor). */
+.schema-canvas {
+  --xy-background-pattern-color: var(--border-subtle);
+}
+
+.react-flow__controls {
+  box-shadow: var(--shadow-node);
+}
+
+.react-flow__controls-button {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
+  fill: currentColor;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--surface-hover);
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  background: var(--bg-panel);
+}
+
+.react-flow__minimap-mask {
+  fill: var(--bg-app);
+  fill-opacity: 0.6;
+}
+
+.react-flow__attribution {
+  background: transparent;
+  color: var(--text-dim);
+}
+
 .table-node {
   min-width: 180px;
-  border: 1px solid #3d4657;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #1b2130;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  background: var(--surface);
+  box-shadow: var(--shadow-node);
   overflow: hidden;
 }
 
 .table-node__title {
   padding: 10px 12px;
   font-weight: 600;
-  background: #252c3d;
-  border-bottom: 1px solid #3d4657;
+  background: var(--surface-strong);
+  border-bottom: 1px solid var(--border);
 }
 
 .table-node__field {
@@ -85,7 +124,7 @@
   gap: 12px;
   padding: 8px 12px;
   font-size: 0.85rem;
-  border-bottom: 1px solid #2a2f3a;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .table-node__field:last-child {
@@ -93,30 +132,30 @@
 }
 
 .table-node__type {
-  color: #9aa3b2;
+  color: var(--text-muted);
   font-size: 0.78rem;
 }
 
 .table-node.is-selected {
-  border-color: #5b8def;
+  border-color: var(--accent);
   box-shadow:
-    0 0 0 1px #5b8def,
-    0 8px 24px rgba(0, 0, 0, 0.3);
+    0 0 0 1px var(--accent),
+    var(--shadow-node);
 }
 
 .table-node__title-input {
   width: 100%;
   padding: 10px 12px;
   font-weight: 600;
-  background: #252c3d;
+  background: var(--surface-strong);
   border: none;
-  border-bottom: 1px solid #3d4657;
-  color: #e8eaed;
-  outline: 1px solid #5b8def;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  outline: 1px solid var(--accent);
 }
 
 .table-node__field.is-selected {
-  background: #20283a;
+  background: var(--surface-hover);
 }
 
 .table-node__field-name {
@@ -130,25 +169,25 @@
   padding: 0;
   border: none;
   background: none;
-  color: #f0c14b;
+  color: var(--pk);
   cursor: pointer;
   line-height: 1;
 }
 
 .table-node__pk.is-pk {
-  color: #f0c14b;
+  color: var(--pk);
 }
 
 .table-node__pk:not(.is-pk) {
-  color: #5b6478;
+  color: var(--text-dim);
 }
 
 .table-node__fk {
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: #8fb3ff;
-  border: 1px solid #34406b;
+  color: var(--accent-soft);
+  border: 1px solid var(--fk-border);
   border-radius: 4px;
   padding: 1px 4px;
 }
@@ -157,7 +196,7 @@
   padding: 0 2px;
   border: none;
   background: none;
-  color: #5b6478;
+  color: var(--text-dim);
   cursor: pointer;
   line-height: 1;
   opacity: 0;
@@ -169,7 +208,7 @@
 }
 
 .table-node__remove:hover {
-  color: #e26b6b;
+  color: var(--danger);
 }
 
 .table-node__add,
@@ -179,26 +218,26 @@
   font-size: 0.8rem;
   text-align: left;
   border: none;
-  background: #161b27;
-  color: #9aa3b2;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
   cursor: pointer;
 }
 
 .table-node__add:hover {
-  color: #e8eaed;
+  color: var(--text);
 }
 
 .table-node__add-input {
   cursor: text;
-  color: #e8eaed;
-  outline: 1px solid #5b8def;
+  color: var(--text);
+  outline: 1px solid var(--accent);
 }
 
 .field-handle {
   width: 9px;
   height: 9px;
-  background: #5b8def;
-  border: 1px solid #0f1117;
+  background: var(--accent);
+  border: 1px solid var(--bg-app);
 }
 
 .field-handle--source {
@@ -216,20 +255,20 @@
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 10px;
-  border: 1px solid #3d4657;
-  background: #1b2130;
-  color: #cdd5e4;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .relationship-label:hover {
-  border-color: #5b8def;
-  color: #fff;
+  border-color: var(--accent);
+  color: var(--text-strong);
 }
 
 .relationship-label.is-selected {
-  border-color: #5b8def;
-  color: #fff;
+  border-color: var(--accent);
+  color: var(--text-strong);
 }
 
 .canvas-toolbar {
@@ -251,15 +290,15 @@
   letter-spacing: 0.02em;
   text-transform: none;
   border-radius: 6px;
-  border: 1px solid #3d4657;
-  background: #1b2130;
-  color: #cdd5e4;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .canvas-toolbar__actions button:hover:not(:disabled) {
-  border-color: #5b8def;
-  color: #fff;
+  border-color: var(--accent);
+  color: var(--text-strong);
 }
 
 .canvas-toolbar__actions button:disabled {

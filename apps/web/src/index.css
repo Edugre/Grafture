@@ -9,8 +9,87 @@
     sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #e8eaed;
-  background-color: #0f1117;
+
+  /* Theme tokens — dark is the default. The light overrides below swap these
+     based on the OS appearance via prefers-color-scheme. */
+  --bg-app: #0f1117;
+  --bg-panel: #151922;
+  --surface: #1b2130;
+  --surface-strong: #252c3d;
+  --surface-sunken: #121826;
+  --surface-hover: #20283a;
+
+  --border: #3d4657;
+  --border-subtle: #2a2f3a;
+
+  --text: #e8eaed;
+  --text-secondary: #cdd5e4;
+  --text-muted: #9aa3b2;
+  --text-faint: #7d8798;
+  --text-dim: #5b6478;
+  --text-strong: #fff;
+
+  --accent: #5b8def;
+  --accent-soft: #8fb3ff;
+  --accent-text: #a8c4f5;
+  --accent-bg: rgba(91, 141, 239, 0.12);
+  --accent-border: rgba(91, 141, 239, 0.35);
+
+  --pk: #f0c14b;
+  --warning: #e0b050;
+
+  --danger: #e26b6b;
+  --danger-text: #f0a0a0;
+  --danger-bg: rgba(220, 80, 80, 0.12);
+  --danger-border: rgba(220, 80, 80, 0.35);
+
+  --fk-border: #34406b;
+
+  --shadow-node: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.45);
+
+  color: var(--text);
+  background-color: var(--bg-app);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-app: #f4f6fa;
+    --bg-panel: #ffffff;
+    --surface: #ffffff;
+    --surface-strong: #eef1f6;
+    --surface-sunken: #f0f3f8;
+    --surface-hover: #e6ebf3;
+
+    --border: #c7ced8;
+    --border-subtle: #e2e6ee;
+
+    --text: #1c2128;
+    --text-secondary: #2f3742;
+    --text-muted: #5b6675;
+    --text-faint: #7d8798;
+    --text-dim: #9aa3b2;
+    --text-strong: #0b0e14;
+
+    --accent: #2f6fe0;
+    --accent-soft: #2f6fe0;
+    --accent-text: #1f5bc0;
+    --accent-bg: rgba(47, 111, 224, 0.1);
+    --accent-border: rgba(47, 111, 224, 0.35);
+
+    --pk: #b8860b;
+    --warning: #9a6b00;
+
+    --danger: #cc3b3b;
+    --danger-text: #b42525;
+    --danger-bg: rgba(204, 59, 59, 0.1);
+    --danger-border: rgba(204, 59, 59, 0.3);
+
+    --fk-border: #b7c4ec;
+
+    --shadow-node: 0 8px 24px rgba(20, 30, 50, 0.1);
+    --shadow-popover: 0 16px 40px rgba(20, 30, 50, 0.18);
+  }
 }
 
 *,
