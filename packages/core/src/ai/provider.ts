@@ -1,9 +1,18 @@
 import type { Schema } from "../model.js";
 import type { ParsedSource } from "../parse/index.js";
 
+/**
+ * The model's view of where the request stands, used to drive the correction loop:
+ * - "complete": the request is satisfied; stop.
+ * - "needs_revision": more work or a fix is expected; the loop may continue.
+ * - "blocked": the goal cannot be achieved (explained in `reply`); stop.
+ */
+export type CopilotStatus = "complete" | "needs_revision" | "blocked";
+
 export type AiProviderResult = {
   reply: string;
   actions: unknown[];
+  status?: CopilotStatus;
 };
 
 /** A prior turn in the copilot conversation, in the order it occurred. */

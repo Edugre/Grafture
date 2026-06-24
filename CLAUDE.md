@@ -41,7 +41,7 @@ A `Schema` is `{ tables: Table[], relationships: Relationship[] }`.
 
 The AI mutates the canvas only through the **action protocol** — a discriminated union
 validated by zod in `packages/core`:
-`add_table | add_field | remove_field | remove_table | rename_table | add_relationship`.
+`add_table | add_field | remove_field | remove_table | rename_table | add_relationship | remove_relationship`.
 
 `applyActions(schema, actions)` in core is a **pure, tested** function. AI output and
 manual edits both flow through it.

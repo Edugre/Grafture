@@ -10,18 +10,34 @@ import {
   formatRejectedAction,
   summarizeAppliedActions,
 } from "./formatActions.js";
+import { DEFAULT_MAX_ITERATIONS, type LoopOutcome, runCopilotLoop } from "./agentLoop.js";
 import { buildConversationHistory } from "./conversation.js";
 import { type ChatMessage, nextMessageId } from "./messages.js";
 import { useApiKey } from "./useApiKey.js";
+
+/** A note appended to the reply when the loop stopped for a reason other than clean completion. */
+function outcomeFooter(outcome: LoopOutcome, attempts: number): string | null {
+  switch (outcome) {
+    case "exhausted":
+      return `_Stopped after ${attempts} attempts with unresolved issues — try refining the request._`;
+    case "stalled":
+      return "_Stopped: the same actions kept being rejected._";
+    case "cancelled":
+      return "_Cancelled._";
+    case "complete":
+    case "blocked":
+      return null;
+  }
+}
 
 export function CopilotPanel() {
   const { apiKey, remember, setApiKey, setRemember } = useApiKey();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ attempt: number; max: number } | null>(null);
+  const cancelledRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const schema = useSchemaStore((state) => state.schema);
-  const sources = useSchemaStore((state) => state.sources);
   const runActions = useSchemaStore((state) => state.runActions);
   const selectTable = useSchemaStore((state) => state.selectTable);
   const messages = useSchemaStore((state) => state.chat);
@@ -53,31 +69,65 @@ export function CopilotPanel() {
     setDraft("");
     appendChatMessages([{ id: nextMessageId(), role: "user", text }]);
     setBusy(true);
+    cancelledRef.current = false;
     scrollToBottom();
 
+    let attempt = 0;
+
     try {
-      const { reply, actions } = await provider.propose(schema, sources, text, history);
-      const { applied, rejected } = runActions(actions);
-      const updatedSchema = useSchemaStore.getState().schema;
+      const result = await runCopilotLoop({
+        message: text,
+        history,
+        maxIterations: DEFAULT_MAX_ITERATIONS,
+        isCancelled: () => cancelledRef.current,
+        // Read the schema/sources fresh each round so the model sees the canvas as updated by
+        // the previous round's applied actions, not the stale snapshot from render.
+        propose: async (message, turns) => {
+          attempt += 1;
+          setProgress({ attempt, max: DEFAULT_MAX_ITERATIONS });
+          scrollToBottom();
+          const state = useSchemaStore.getState();
+          const proposed = await provider.propose(state.schema, state.sources, message, turns);
+          return {
+            reply: proposed.reply,
+            actions: proposed.actions,
+            status: proposed.status ?? "needs_revision",
+          };
+        },
+        apply: (actions) => {
+          const { applied, rejected } = runActions(actions);
+          const updatedSchema = useSchemaStore.getState().schema;
 
-      const affectedTableIds = collectAffectedTableIds(applied);
-      if (affectedTableIds[0]) {
-        selectTable(affectedTableIds[0]);
-      }
+          const affectedTableIds = collectAffectedTableIds(applied);
+          if (affectedTableIds[0]) {
+            selectTable(affectedTableIds[0]);
+          }
 
-      const appliedSummary =
-        applied.length > 0 ? summarizeAppliedActions(updatedSchema, applied) : undefined;
-      const rejectedSummary =
-        rejected.length > 0
-          ? rejected.map((entry) => formatRejectedAction(entry.action, entry.reason))
-          : undefined;
+          return {
+            applied: applied.length > 0 ? summarizeAppliedActions(updatedSchema, applied) : [],
+            rejected,
+          };
+        },
+      });
+
+      const last = result.steps[result.steps.length - 1];
+      const appliedAll = result.steps.flatMap((step) => step.applied);
+      const rejectedFinal = last?.rejected ?? [];
+      const footer = outcomeFooter(result.outcome, result.steps.length);
+      const reply = last?.reply || "(No reply text returned.)";
 
       const assistantMessage: ChatMessage = {
         id: nextMessageId(),
         role: "assistant",
-        text: reply || "(No reply text returned.)",
-        ...(appliedSummary ? { applied: appliedSummary } : {}),
-        ...(rejectedSummary ? { rejected: rejectedSummary } : {}),
+        text: footer ? `${reply}\n\n${footer}` : reply,
+        ...(appliedAll.length > 0 ? { applied: appliedAll } : {}),
+        ...(rejectedFinal.length > 0
+          ? {
+              rejected: rejectedFinal.map((entry) =>
+                formatRejectedAction(entry.action, entry.reason),
+              ),
+            }
+          : {}),
       };
       appendChatMessages([assistantMessage]);
     } catch (error) {
@@ -86,6 +136,7 @@ export function CopilotPanel() {
       appendChatMessages([{ id: nextMessageId(), role: "error", text: message }]);
     } finally {
       setBusy(false);
+      setProgress(null);
       scrollToBottom();
     }
   };
@@ -175,7 +226,13 @@ export function CopilotPanel() {
                 </div>
               );
             })}
-            {busy ? <p className="copilot-status">Thinking…</p> : null}
+            {busy ? (
+              <p className="copilot-status">
+                {progress && progress.attempt > 1
+                  ? `Working… (step ${progress.attempt}/${progress.max})`
+                  : "Thinking…"}
+              </p>
+            ) : null}
             <div ref={chatEndRef} />
           </div>
         ) : provider ? (
@@ -200,8 +257,19 @@ export function CopilotPanel() {
             }}
           />
           <div className="copilot-compose__actions">
+            {busy ? (
+              <button
+                type="button"
+                className="copilot-compose__cancel"
+                onClick={() => {
+                  cancelledRef.current = true;
+                }}
+              >
+                Cancel
+              </button>
+            ) : null}
             <button type="button" onClick={() => void handleSend()} disabled={!provider || busy}>
-              {busy ? "Sending…" : "Send"}
+              {busy ? "Working…" : "Send"}
             </button>
           </div>
         </div>

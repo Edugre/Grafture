@@ -94,6 +94,16 @@
   cursor: not-allowed;
 }
 
+.copilot-compose__actions button.copilot-compose__cancel {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.copilot-compose__actions button.copilot-compose__cancel:hover {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
 .copilot-chat {
   display: flex;
   flex-direction: column;

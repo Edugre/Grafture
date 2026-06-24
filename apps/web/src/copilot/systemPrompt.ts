@@ -48,7 +48,8 @@ const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal
 - remove_field: { "op": "remove_field", "table": string, "field": string }
 - remove_table: { "op": "remove_table", "table": string }
 - rename_table: { "op": "rename_table", "table": string, "new_name": string }
-- add_relationship: { "op": "add_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality"?: "1:1" | "1:N" | "N:M" }`;
+- add_relationship: { "op": "add_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality"?: "1:1" | "1:N" | "N:M" }
+- remove_relationship: { "op": "remove_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string }`;
 
 /** System prompt for the schema copilot — includes live schema, sources with samples, and the action protocol. */
 export function buildCopilotSystemPrompt(schema: Schema, sources: Source[]): string {
@@ -66,8 +67,22 @@ export function buildCopilotSystemPrompt(schema: Schema, sources: Source[]): str
     "",
     ACTION_PROTOCOL,
     "",
+    "You work in a correction loop. After your actions are applied, you may receive a follow-up",
+    "message listing actions that were rejected, each with a reason. Analyze every reason and emit",
+    "corrected actions. Never re-emit an action identical to one that was just rejected.",
+    "",
+    'Always include a "status" field:',
+    '- "complete": the request is fully satisfied; emit no further actions.',
+    '- "needs_revision": you are still working or fixing rejected actions.',
+    '- "blocked": the goal cannot be achieved — explain why in "reply" and emit no actions.',
+    "",
+    'When you emit actions to fulfill a request, set "status" to "needs_revision". After they are',
+    "applied you will get a follow-up turn with the updated schema; use it to confirm what changed",
+    'in past tense and then set "status" to "complete". Reserve "complete" with no actions for that',
+    "final confirmation or for a plain question that needs no changes.",
+    "",
     "Respond with ONLY a single JSON object — no markdown fences, no prose outside JSON:",
-    '{ "reply": "<your explanation to the user>", "actions": [ /* zero or more actions */ ] }',
+    '{ "reply": "<your explanation to the user>", "actions": [ /* zero or more actions */ ], "status": "complete" | "needs_revision" | "blocked" }',
     "",
     `Current schema: ${JSON.stringify(summarizeSchema(schema))}`,
     `Source files (fields include sample values): ${JSON.stringify(summarizeSources(sources))}`,

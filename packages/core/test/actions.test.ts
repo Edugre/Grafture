@@ -236,6 +236,51 @@ describe("applyActions", () => {
     });
   });
 
+  describe("remove_relationship", () => {
+    it("removes the matching relationship by table/field names", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [
+          {
+            op: "remove_relationship",
+            from_table: "posts",
+            from_field: "author_id",
+            to_table: "users",
+            to_field: "id",
+          },
+        ],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.relationships).toEqual([]);
+      expect(result.applied[0]).toMatchObject({ op: "remove_relationship" });
+    });
+
+    it("rejects when no matching relationship exists", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [
+          {
+            op: "remove_relationship",
+            from_table: "users",
+            from_field: "email",
+            to_table: "posts",
+            to_field: "id",
+          },
+        ],
+        { makeId },
+      );
+
+      expect(result.schema.relationships).toHaveLength(1);
+      expect(result.rejected[0]?.reason).toContain("no relationship");
+    });
+  });
+
   describe("remove_table", () => {
     it("removes a table and cascades relationships", () => {
       const makeId = makeTestIds();

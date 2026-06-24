@@ -1,7 +1,18 @@
+import type { CopilotStatus } from "@schema-studio/core";
+
 export type ParsedCopilotResponse = {
   reply: string;
   actions: unknown[];
+  status: CopilotStatus;
 };
+
+function parseStatus(value: unknown): CopilotStatus {
+  // Default to needs_revision when absent/unknown: it never forces an early "blocked"
+  // stop, and a clean apply (zero rejections) terminates the loop regardless.
+  return value === "complete" || value === "blocked" || value === "needs_revision"
+    ? value
+    : "needs_revision";
+}
 
 export type ParseCopilotResponseError = {
   error: string;
@@ -50,5 +61,5 @@ export function parseCopilotResponse(
   }
   const actions = Array.isArray(rawActions) ? rawActions : [];
 
-  return { reply, actions };
+  return { reply, actions, status: parseStatus(record["status"]) };
 }

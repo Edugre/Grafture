@@ -36,13 +36,24 @@ describe("parseCopilotResponse", () => {
     expect(result).toEqual({
       reply: "Linked tables.",
       actions: [{ op: "add_table", name: "orgs" }],
+      status: "needs_revision",
     });
   });
 
   it("parses JSON wrapped in markdown fences", () => {
     const result = parseCopilotResponse('```json\n{"reply":"ok","actions":[]}\n```');
 
-    expect(result).toEqual({ reply: "ok", actions: [] });
+    expect(result).toEqual({ reply: "ok", actions: [], status: "needs_revision" });
+  });
+
+  it("parses an explicit status", () => {
+    const result = parseCopilotResponse('{"reply":"Done.","actions":[],"status":"complete"}');
+    expect(result).toMatchObject({ status: "complete" });
+  });
+
+  it("defaults an unknown status to needs_revision", () => {
+    const result = parseCopilotResponse('{"reply":"x","actions":[],"status":"whatever"}');
+    expect(result).toMatchObject({ status: "needs_revision" });
   });
 
   it("returns an error for invalid JSON", () => {

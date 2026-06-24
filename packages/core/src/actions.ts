@@ -52,6 +52,14 @@ const addRelationshipActionSchema = z.object({
   cardinality: CardinalitySchema.default("1:N"),
 });
 
+const removeRelationshipActionSchema = z.object({
+  op: z.literal("remove_relationship"),
+  from_table: z.string(),
+  from_field: z.string(),
+  to_table: z.string(),
+  to_field: z.string(),
+});
+
 export const SchemaActionSchema = z.discriminatedUnion("op", [
   addTableActionSchema,
   addFieldActionSchema,
@@ -59,6 +67,7 @@ export const SchemaActionSchema = z.discriminatedUnion("op", [
   removeTableActionSchema,
   renameTableActionSchema,
   addRelationshipActionSchema,
+  removeRelationshipActionSchema,
 ]);
 
 export type SchemaAction = z.infer<typeof SchemaActionSchema>;
@@ -361,6 +370,64 @@ export function applyActions(
           op: action.op,
           tableIds: [fromTable.id, toTable.id],
           relationshipId,
+        });
+        break;
+      }
+
+      case "remove_relationship": {
+        const fromTable = findTableByName(working, action.from_table);
+        if (!fromTable) {
+          rejected.push({ action: rawAction, reason: `table '${action.from_table}' not found` });
+          break;
+        }
+
+        const toTable = findTableByName(working, action.to_table);
+        if (!toTable) {
+          rejected.push({ action: rawAction, reason: `table '${action.to_table}' not found` });
+          break;
+        }
+
+        const fromField = findFieldByName(fromTable, action.from_field);
+        if (!fromField) {
+          rejected.push({
+            action: rawAction,
+            reason: `field '${action.from_field}' not found in table '${fromTable.name}'`,
+          });
+          break;
+        }
+
+        const toField = findFieldByName(toTable, action.to_field);
+        if (!toField) {
+          rejected.push({
+            action: rawAction,
+            reason: `field '${action.to_field}' not found in table '${toTable.name}'`,
+          });
+          break;
+        }
+
+        const relationship = working.relationships.find(
+          (candidate) =>
+            candidate.fromTable === fromTable.id &&
+            candidate.fromField === fromField.id &&
+            candidate.toTable === toTable.id &&
+            candidate.toField === toField.id,
+        );
+        if (!relationship) {
+          rejected.push({
+            action: rawAction,
+            reason: `no relationship from '${fromTable.name}.${fromField.name}' to '${toTable.name}.${toField.name}'`,
+          });
+          break;
+        }
+
+        working.relationships = working.relationships.filter(
+          (candidate) => candidate.id !== relationship.id,
+        );
+
+        applied.push({
+          op: action.op,
+          tableIds: [fromTable.id, toTable.id],
+          relationshipId: relationship.id,
         });
         break;
       }

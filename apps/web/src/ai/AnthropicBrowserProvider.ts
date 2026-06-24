@@ -59,9 +59,11 @@ export class AnthropicBrowserProvider implements AiProvider {
 
     const parsed = parseCopilotResponse(rawText);
     if ("error" in parsed) {
+      // A malformed payload can't be acted on or revised — surface it and stop the loop.
       return {
         reply: `${rawText}\n\n(${parsed.error})`,
         actions: [],
+        status: "blocked",
       };
     }
 

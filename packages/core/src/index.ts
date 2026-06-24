@@ -1,6 +1,11 @@
 export type { ApplyActionsOptions, ApplyResult, SchemaAction } from "./actions.js";
 export { SchemaActionSchema, applyActions } from "./actions.js";
-export type { AiProvider, AiProviderResult, ConversationTurn } from "./ai/provider.js";
+export type {
+  AiProvider,
+  AiProviderResult,
+  ConversationTurn,
+  CopilotStatus,
+} from "./ai/provider.js";
 export type {
   DetectOptions,
   FieldRef,
