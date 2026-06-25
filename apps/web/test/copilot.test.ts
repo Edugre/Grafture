@@ -25,6 +25,40 @@ describe("buildCopilotSystemPrompt", () => {
     expect(prompt).toContain('"reply"');
     expect(prompt).toContain("sample values");
   });
+
+  it("omits the detector-findings section when there is nothing to report", () => {
+    const prompt = buildCopilotSystemPrompt(emptySchema(), [
+      {
+        id: "s1",
+        name: "covered_entities.csv",
+        kind: "csv",
+        fields: [{ name: "grant_number", type: "text", samples: ["01234", "05678"] }],
+      },
+    ]);
+
+    expect(prompt).not.toContain("Detector findings");
+  });
+
+  it("includes deterministic detector findings when sources overlap", () => {
+    const prompt = buildCopilotSystemPrompt(emptySchema(), [
+      {
+        id: "s1",
+        name: "covered_entities.csv",
+        kind: "csv",
+        fields: [{ name: "grant_number", type: "text", samples: ["01234", "05678", "09999"] }],
+      },
+      {
+        id: "s2",
+        name: "organizations.csv",
+        kind: "csv",
+        fields: [{ name: "grant_id", type: "int", samples: ["1234", "5678", "9999"] }],
+      },
+    ]);
+
+    expect(prompt).toContain("Detector findings");
+    expect(prompt).toContain("covered_entities.csv.grant_number");
+    expect(prompt).toContain("strip leading zeros");
+  });
 });
 
 describe("parseCopilotResponse", () => {

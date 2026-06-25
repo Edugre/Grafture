@@ -260,3 +260,77 @@ export function buildSetPkPlan(suggestion: KeySuggestion): { actions: unknown[] 
     ],
   };
 }
+
+/* --------------------------------------------------------------------------------------------
+ * Column type suggestions (SS-9): the parser infers a type from each source column's values. A
+ * field on the canvas whose type disagrees with that inference is a refinement candidate — most
+ * commonly an AI- or hand-added field left as the "text" default whose data is actually numeric.
+ * Tables built from a source already carry the inferred type, so those never appear here. Applied
+ * via `set_type` through the validated path.
+ * ------------------------------------------------------------------------------------------ */
+
+export type TypeSuggestion = {
+  /** Stable key for React + dedupe. */
+  id: string;
+  /** "<table> · <field>" */
+  label: string;
+  tableName: string;
+  field: string;
+  currentType: string;
+  suggestedType: string;
+  reason: string;
+};
+
+const MAX_TYPE_SUGGESTIONS = 8;
+
+/**
+ * Suggest a column type for canvas fields whose current type disagrees with what their source
+ * column's values infer. Only fields already present on the canvas are considered.
+ */
+export function buildTypeSuggestions(sources: Source[], schema: Schema): TypeSuggestion[] {
+  const suggestions: TypeSuggestion[] = [];
+
+  for (const source of sources) {
+    for (const sourceField of source.fields) {
+      const table = tableForSource(schema, source, sourceField.name);
+      if (!table) {
+        continue;
+      }
+
+      const field = table.fields.find((entry) => fieldNamesEqual(entry.name, sourceField.name));
+      if (!field || field.type.toLowerCase() === sourceField.type.toLowerCase()) {
+        continue; // missing, or already the inferred type
+      }
+
+      suggestions.push({
+        id: `${source.id}:${table.name}:${sourceField.name}`,
+        label: `${table.name} · ${sourceField.name}`,
+        tableName: table.name,
+        field: sourceField.name,
+        currentType: field.type,
+        suggestedType: sourceField.type,
+        reason: `data looks like ${sourceField.type}, not ${field.type}`,
+      });
+
+      if (suggestions.length >= MAX_TYPE_SUGGESTIONS) {
+        return suggestions;
+      }
+    }
+  }
+
+  return suggestions;
+}
+
+/** Build the validated `set_type` action batch for a type suggestion. */
+export function buildSetTypePlan(suggestion: TypeSuggestion): { actions: unknown[] } {
+  return {
+    actions: [
+      {
+        op: "set_type",
+        table: suggestion.tableName,
+        field: suggestion.field,
+        type: suggestion.suggestedType,
+      },
+    ],
+  };
+}

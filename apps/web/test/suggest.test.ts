@@ -7,6 +7,8 @@ import {
   buildJoinSuggestions,
   buildKeySuggestions,
   buildSetPkPlan,
+  buildSetTypePlan,
+  buildTypeSuggestions,
 } from "../src/suggest/joinSuggestions.js";
 
 function source(id: string, name: string, field: string, samples: string[]): Source {
@@ -30,7 +32,7 @@ function statSource(
 }
 
 /** A schema with one table built from `name` holding a single `field`. */
-function schemaWith(tableName: string, field: string, pk = false): Schema {
+function schemaWith(tableName: string, field: string, pk = false, type = "int"): Schema {
   return {
     tables: [
       {
@@ -38,7 +40,7 @@ function schemaWith(tableName: string, field: string, pk = false): Schema {
         name: tableName,
         x: 0,
         y: 0,
-        fields: [{ id: `f-${field}`, name: field, type: "int", pk, fk: false }],
+        fields: [{ id: `f-${field}`, name: field, type, pk, fk: false }],
       },
     ],
     relationships: [],
@@ -285,6 +287,46 @@ describe("buildSetPkPlan", () => {
 
     expect(buildSetPkPlan(suggestion)).toEqual({
       actions: [{ op: "set_pk", table: "customers", field: "id", pk: true }],
+    });
+  });
+});
+
+describe("buildTypeSuggestions", () => {
+  it("flags a canvas field whose type disagrees with its source data", () => {
+    // customers.id infers "int" from its values, but the canvas field was left as "text".
+    const [suggestion, ...rest] = buildTypeSuggestions(
+      [customers],
+      schemaWith("customers", "id", false, "text"),
+    );
+
+    expect(rest).toHaveLength(0);
+    expect(suggestion?.label).toBe("customers · id");
+    expect(suggestion?.currentType).toBe("text");
+    expect(suggestion?.suggestedType).toBe("int");
+    expect(suggestion?.reason).toBe("data looks like int, not text");
+  });
+
+  it("stays quiet when the field already matches the inferred type", () => {
+    expect(buildTypeSuggestions([customers], schemaWith("customers", "id", false, "int"))).toEqual(
+      [],
+    );
+  });
+
+  it("does not suggest types for sources whose table is not built yet", () => {
+    expect(buildTypeSuggestions([customers], emptySchema())).toEqual([]);
+  });
+});
+
+describe("buildSetTypePlan", () => {
+  it("emits a single validated set_type action", () => {
+    const [suggestion] = buildTypeSuggestions(
+      [customers],
+      schemaWith("customers", "id", false, "text"),
+    );
+    if (!suggestion) throw new Error("expected a type suggestion");
+
+    expect(buildSetTypePlan(suggestion)).toEqual({
+      actions: [{ op: "set_type", table: "customers", field: "id", type: "int" }],
     });
   });
 });

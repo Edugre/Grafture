@@ -6,7 +6,10 @@ import {
   buildJoinSuggestions,
   buildKeySuggestions,
   buildSetPkPlan,
+  buildSetTypePlan,
+  buildTypeSuggestions,
   type KeySuggestion,
+  type TypeSuggestion,
 } from "./joinSuggestions.js";
 import "./JoinSuggestions.css";
 
@@ -17,6 +20,7 @@ import "./JoinSuggestions.css";
  *  - **Suggested joins** — cross-source join keys by value overlap, with format-mismatch
  *    warnings and an inferred relationship grain (1:1 / 1:N / N:M).
  *  - **Suggested keys** — columns the data shows are unique and non-null (primary-key candidates).
+ *  - **Suggested types** — canvas fields whose type disagrees with their source column's data.
  */
 export function JoinSuggestions() {
   const sources = useSchemaStore((state) => state.sources);
@@ -33,7 +37,9 @@ export function JoinSuggestions() {
 
   const keySuggestions = useMemo(() => buildKeySuggestions(sources, schema), [sources, schema]);
 
-  if (joinSuggestions.length === 0 && keySuggestions.length === 0) {
+  const typeSuggestions = useMemo(() => buildTypeSuggestions(sources, schema), [sources, schema]);
+
+  if (joinSuggestions.length === 0 && keySuggestions.length === 0 && typeSuggestions.length === 0) {
     return null;
   }
 
@@ -74,6 +80,24 @@ export function JoinSuggestions() {
     setMessage({
       kind: "info",
       text: `Set ${suggestion.candidate.field} as the primary key of ${suggestion.tableName}.`,
+    });
+  };
+
+  const handleApplyType = (suggestion: TypeSuggestion) => {
+    const { actions } = buildSetTypePlan(suggestion);
+    const { applied, rejected } = runActions(actions);
+    if (rejected.length > 0) {
+      setMessage({ kind: "error", text: rejected.map((entry) => entry.reason).join("; ") });
+      return;
+    }
+
+    const tableId = applied.at(-1)?.tableIds[0];
+    if (tableId) {
+      selectTable(tableId);
+    }
+    setMessage({
+      kind: "info",
+      text: `Set ${suggestion.field} to ${suggestion.suggestedType}.`,
     });
   };
 
@@ -152,6 +176,39 @@ export function JoinSuggestions() {
                   onClick={() => handleApplyKey(suggestion)}
                 >
                   Set PK
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      {typeSuggestions.length > 0 ? (
+        <>
+          <header className="join-suggestions__header">
+            <span>Suggested types</span>
+            <span className="join-suggestions__subtle">from the values, not the default</span>
+          </header>
+
+          <ul className="join-suggestions__list">
+            {typeSuggestions.map((suggestion) => (
+              <li key={suggestion.id} className="join-suggestions__item">
+                <div className="join-suggestions__pair">
+                  <code>{suggestion.label}</code>
+                  <span className="join-suggestions__arrow" aria-hidden="true">
+                    →
+                  </span>
+                  <code>{suggestion.suggestedType}</code>
+                </div>
+                <div className="join-suggestions__meta">
+                  <span className="join-suggestions__overlap">{suggestion.reason}</span>
+                </div>
+                <button
+                  type="button"
+                  className="join-suggestions__apply"
+                  onClick={() => handleApplyType(suggestion)}
+                >
+                  Set type
                 </button>
               </li>
             ))}

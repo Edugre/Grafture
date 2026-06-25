@@ -534,4 +534,68 @@ describe("applyActions", () => {
       expect(result.rejected).toHaveLength(1);
     });
   });
+
+  describe("set_type", () => {
+    it("changes the type of an existing field", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const usersId = schema.tables[0]!.id;
+
+      const result = applyActions(
+        schema,
+        [{ op: "set_type", table: "users", field: "email", type: "varchar" }],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      expect(result.applied).toEqual([{ op: "set_type", tableIds: [usersId] }]);
+      expect(result.schema.tables[0]!.fields.find((field) => field.name === "email")!.type).toBe(
+        "varchar",
+      );
+    });
+
+    it("matches table and field names case-insensitively", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+
+      const result = applyActions(
+        schema,
+        [{ op: "set_type", table: "Users", field: "Email", type: "int" }],
+        { makeId },
+      );
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.tables[0]!.fields.find((field) => field.name === "email")!.type).toBe(
+        "int",
+      );
+    });
+
+    it("rejects unknown table or field and leaves the schema untouched", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+
+      const badField = applyActions(
+        schema,
+        [{ op: "set_type", table: "users", field: "ghost", type: "int" }],
+        { makeId },
+      );
+      expect(badField.applied).toEqual([]);
+      expect(badField.rejected).toEqual([
+        {
+          action: { op: "set_type", table: "users", field: "ghost", type: "int" },
+          reason: "field 'ghost' not found in table 'users'",
+        },
+      ]);
+      expect(badField.schema).toEqual(schema);
+    });
+
+    it("rejects a set_type missing the type", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(schema, [{ op: "set_type", table: "users", field: "id" }], {
+        makeId,
+      });
+      expect(result.applied).toEqual([]);
+      expect(result.rejected).toHaveLength(1);
+    });
+  });
 });

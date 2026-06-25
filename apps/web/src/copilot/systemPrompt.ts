@@ -1,4 +1,5 @@
 import type { Schema, Source } from "@schema-studio/core";
+import { detectJoinKeys, detectPrimaryKeys } from "@schema-studio/core";
 
 function summarizeSchema(schema: Schema) {
   const tableById = new Map(schema.tables.map((table) => [table.id, table]));
@@ -42,6 +43,40 @@ function summarizeSources(sources: Source[]) {
   }));
 }
 
+const MAX_JOIN_FINDINGS = 8;
+const MAX_PK_FINDINGS = 12;
+
+/**
+ * Deterministic, content-aware findings from the core detectors (SS-9). Feeding these into the
+ * prompt lets the model reason from *computed evidence* — value overlap, inferred grain,
+ * normalize-before-join warnings, primary-key candidates — instead of eyeballing raw samples.
+ * Returns null when there is nothing to report (single source, no stats) so the section is omitted.
+ */
+function summarizeDetectorFindings(sources: Source[]) {
+  const joins = detectJoinKeys(sources)
+    .slice(0, MAX_JOIN_FINDINGS)
+    .map((candidate) => ({
+      left: `${candidate.left.sourceName}.${candidate.left.field}`,
+      right: `${candidate.right.sourceName}.${candidate.right.field}`,
+      overlap: `${Math.round(candidate.normalizedOverlap * 100)}%`,
+      grain: candidate.grain,
+      normalize: candidate.formatMismatch ? candidate.formatMismatch.note : null,
+    }));
+
+  const primaryKeys = detectPrimaryKeys(sources)
+    .slice(0, MAX_PK_FINDINGS)
+    .map((candidate) => ({
+      field: `${candidate.sourceName}.${candidate.field}`,
+      reason: candidate.reason,
+    }));
+
+  if (joins.length === 0 && primaryKeys.length === 0) {
+    return null;
+  }
+
+  return { joins, primaryKeys };
+}
+
 const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal ids):
 - add_table: { "op": "add_table", "name": string, "x"?: number, "y"?: number, "fields"?: [{ "name", "type", "pk"?, "fk"? }] }
 - add_field: { "op": "add_field", "table": string, "name": string, "type": string, "pk"?: boolean, "fk"?: boolean }
@@ -51,8 +86,10 @@ const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal
 - add_relationship: { "op": "add_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality"?: "1:1" | "1:N" | "N:M" }
 - remove_relationship: { "op": "remove_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string }`;
 
-/** System prompt for the schema copilot — includes live schema, sources with samples, and the action protocol. */
+/** System prompt for the schema copilot — includes live schema, sources with samples, the action protocol, and deterministic detector findings. */
 export function buildCopilotSystemPrompt(schema: Schema, sources: Source[]): string {
+  const findings = summarizeDetectorFindings(sources);
+
   return [
     "You are Schema Studio's schema design copilot.",
     "You help users derive a relational schema from raw source files by reasoning over actual sample values — not just column names.",
@@ -86,5 +123,15 @@ export function buildCopilotSystemPrompt(schema: Schema, sources: Source[]): str
     "",
     `Current schema: ${JSON.stringify(summarizeSchema(schema))}`,
     `Source files (fields include sample values): ${JSON.stringify(summarizeSources(sources))}`,
+    ...(findings
+      ? [
+          "",
+          "Detector findings (computed deterministically from the data — strong evidence, but",
+          "confirm against the samples and the user's intent before acting). `grain` is the inferred",
+          "relationship cardinality; `normalize` lists steps needed before the columns will join;",
+          "`primaryKeys` are columns that are unique and non-null in the data:",
+          JSON.stringify(findings),
+        ]
+      : []),
   ].join("\n");
 }
