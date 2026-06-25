@@ -11,9 +11,17 @@ export type {
   FieldRef,
   FormatIssue,
   FormatMismatch,
+  Grain,
   JoinKeyCandidate,
+  PrimaryKeyCandidate,
+  PrimaryKeyOptions,
 } from "./detect/index.js";
-export { detectFormatMismatch, detectJoinKeys } from "./detect/index.js";
+export {
+  detectFormatMismatch,
+  detectJoinKeys,
+  detectPrimaryKeys,
+  inferGrain,
+} from "./detect/index.js";
 export type { SqlDialect } from "./export/index.js";
 export { toDbml, toPrisma, toSql } from "./export/index.js";
 export type { Cardinality, Field, Relationship, Schema, Table } from "./model.js";
@@ -26,6 +34,7 @@ export {
   emptySchema,
 } from "./model.js";
 export type {
+  FieldStats,
   InferredType,
   ParsedSource,
   Source,
@@ -35,6 +44,7 @@ export type {
   ParseOptions,
 } from "./parse/index.js";
 export {
+  FieldStatsSchema,
   InferredTypeSchema,
   MAX_INFERENCE_VALUES,
   MAX_SAMPLES,
@@ -47,6 +57,7 @@ export {
   TYPE_INFERENCE_THRESHOLD,
   collectInferenceValues,
   collectSamples,
+  collectStats,
   inferType,
   parseCsv,
   parseJson,

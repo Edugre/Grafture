@@ -60,6 +60,13 @@ const removeRelationshipActionSchema = z.object({
   to_field: z.string(),
 });
 
+const setPkActionSchema = z.object({
+  op: z.literal("set_pk"),
+  table: z.string(),
+  field: z.string(),
+  pk: z.boolean(),
+});
+
 export const SchemaActionSchema = z.discriminatedUnion("op", [
   addTableActionSchema,
   addFieldActionSchema,
@@ -68,6 +75,7 @@ export const SchemaActionSchema = z.discriminatedUnion("op", [
   renameTableActionSchema,
   addRelationshipActionSchema,
   removeRelationshipActionSchema,
+  setPkActionSchema,
 ]);
 
 export type SchemaAction = z.infer<typeof SchemaActionSchema>;
@@ -429,6 +437,30 @@ export function applyActions(
           tableIds: [fromTable.id, toTable.id],
           relationshipId: relationship.id,
         });
+        break;
+      }
+
+      case "set_pk": {
+        const table = findTableByName(working, action.table);
+        if (!table) {
+          rejected.push({
+            action: rawAction,
+            reason: `table '${action.table}' not found`,
+          });
+          break;
+        }
+
+        const field = findFieldByName(table, action.field);
+        if (!field) {
+          rejected.push({
+            action: rawAction,
+            reason: `field '${action.field}' not found in table '${table.name}'`,
+          });
+          break;
+        }
+
+        field.pk = action.pk;
+        applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
     }

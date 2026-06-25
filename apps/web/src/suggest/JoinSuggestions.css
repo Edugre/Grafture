@@ -74,8 +74,19 @@
   color: #9aa3b2;
 }
 
+.join-suggestions__grain {
+  color: #8fb3ff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .join-suggestions__warning {
   color: #f0c14b;
+}
+
+/* Space the second section ("Suggested keys") away from the joins list above it. */
+.join-suggestions__list + .join-suggestions__header {
+  margin-top: 16px;
 }
 
 .join-suggestions__apply {

@@ -6,6 +6,7 @@ import {
   TYPE_INFERENCE_THRESHOLD,
   ParseError,
   collectSamples,
+  collectStats,
   inferType,
   parseCsv,
   parseJson,
@@ -87,6 +88,21 @@ describe("collectSamples", () => {
   });
 });
 
+describe("collectStats", () => {
+  it("counts non-empty, distinct, and blank values", () => {
+    expect(collectStats(["a", "b", "a", "", "c"])).toEqual({ nonEmpty: 4, distinct: 3, blank: 1 });
+  });
+
+  it("reports a unique, non-blank column (a PK candidate) as distinct === nonEmpty", () => {
+    const stats = collectStats(["1", "2", "3", "4"]);
+    expect(stats).toEqual({ nonEmpty: 4, distinct: 4, blank: 0 });
+  });
+
+  it("handles an all-empty column", () => {
+    expect(collectStats(["", "", ""])).toEqual({ nonEmpty: 0, distinct: 0, blank: 3 });
+  });
+});
+
 describe("parseCsv", () => {
   const opts = { makeId: makeTestIds("csv") };
 
@@ -97,6 +113,13 @@ describe("parseCsv", () => {
     expect(source.fields[0]?.samples).toEqual(["3"]);
     expect(source.fields[1]?.samples).toEqual(["1"]);
     expect(source.fields[2]?.samples).toEqual(["2"]);
+  });
+
+  it("attaches per-field stats distinguishing a unique key from a repeated column", () => {
+    const source = parseCsv("id,status\n1,active\n2,active\n3,closed\n", "stats.csv", opts);
+
+    expect(source.fields[0]?.stats).toEqual({ nonEmpty: 3, distinct: 3, blank: 0 });
+    expect(source.fields[1]?.stats).toEqual({ nonEmpty: 3, distinct: 2, blank: 0 });
   });
 
   it("dedupes duplicate headers deterministically", () => {
@@ -206,6 +229,7 @@ describe("parseJson", () => {
       name: "tags",
       type: "text",
       samples: ['["a","b"]'],
+      stats: { nonEmpty: 1, distinct: 1, blank: 0 },
     });
   });
 

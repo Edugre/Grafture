@@ -1,8 +1,13 @@
-import type { JoinKeyCandidate, Schema, Source } from "@schema-studio/core";
+import type { FieldStats, JoinKeyCandidate, Schema, Source } from "@schema-studio/core";
 import { detectJoinKeys, emptySchema } from "@schema-studio/core";
 import { describe, expect, it } from "vitest";
 
-import { buildApplyPlan, buildJoinSuggestions } from "../src/suggest/joinSuggestions.js";
+import {
+  buildApplyPlan,
+  buildJoinSuggestions,
+  buildKeySuggestions,
+  buildSetPkPlan,
+} from "../src/suggest/joinSuggestions.js";
 
 function source(id: string, name: string, field: string, samples: string[]): Source {
   return {
@@ -10,6 +15,33 @@ function source(id: string, name: string, field: string, samples: string[]): Sou
     name,
     kind: "csv",
     fields: [{ name: field, type: "text", samples }],
+  };
+}
+
+/** Single-field source carrying value stats — needed by grain/PK inference. */
+function statSource(
+  id: string,
+  name: string,
+  field: string,
+  samples: string[],
+  stats: FieldStats,
+): Source {
+  return { id, name, kind: "csv", fields: [{ name: field, type: "int", samples, stats }] };
+}
+
+/** A schema with one table built from `name` holding a single `field`. */
+function schemaWith(tableName: string, field: string, pk = false): Schema {
+  return {
+    tables: [
+      {
+        id: `t-${tableName}`,
+        name: tableName,
+        x: 0,
+        y: 0,
+        fields: [{ id: `f-${field}`, name: field, type: "int", pk, fk: false }],
+      },
+    ],
+    relationships: [],
   };
 }
 
@@ -165,5 +197,94 @@ describe("buildApplyPlan", () => {
     const candidate = onlyCandidate([hrsa, opais]);
     const plan = buildApplyPlan([hrsa], emptySchema(), candidate);
     expect(plan).toEqual({ ok: false, error: "Those sources are no longer loaded." });
+  });
+});
+
+// orders.customer_id repeats (many); customers.id is unique (one) → many-to-one.
+const orders = statSource("o", "orders.csv", "customer_id", ["1", "2", "3"], {
+  nonEmpty: 6,
+  distinct: 3,
+  blank: 0,
+});
+const customers = statSource("c", "customers.csv", "id", ["1", "2", "3"], {
+  nonEmpty: 4,
+  distinct: 4,
+  blank: 0,
+});
+
+describe("grain-aware join suggestions", () => {
+  it("surfaces the inferred grain label", () => {
+    const [suggestion] = buildJoinSuggestions([orders, customers], emptySchema());
+    expect(suggestion?.grainLabel).toBe("N:1");
+  });
+
+  it("orients the relationship from the many side to the unique side as 1:N", () => {
+    const candidate = onlyCandidate([orders, customers]);
+    const plan = buildApplyPlan([orders, customers], emptySchema(), candidate);
+
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+
+    // The add_relationship is flipped: FK points from orders (many) → customers (one).
+    expect(plan.actions.at(-1)).toEqual({
+      op: "add_relationship",
+      from_table: "customers",
+      from_field: "id",
+      to_table: "orders",
+      to_field: "customer_id",
+      cardinality: "1:N",
+    });
+  });
+
+  it("falls back to 1:N with no flip when sources carry no stats", () => {
+    const candidate = onlyCandidate([hrsa, opais]);
+    const plan = buildApplyPlan([hrsa, opais], emptySchema(), candidate);
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.actions.at(-1)).toMatchObject({
+      from_table: "covered_entities",
+      to_table: "organizations",
+      cardinality: "1:N",
+    });
+  });
+});
+
+describe("buildKeySuggestions", () => {
+  it("proposes a unique, non-null column whose table is on the canvas", () => {
+    const [suggestion, ...rest] = buildKeySuggestions([customers], schemaWith("customers", "id"));
+
+    expect(rest).toHaveLength(0);
+    expect(suggestion?.label).toBe("customers · id");
+    expect(suggestion?.tableName).toBe("customers");
+    expect(suggestion?.reason).toContain("unique and non-null");
+  });
+
+  it("hides a suggestion once the field is already the primary key", () => {
+    const suggestions = buildKeySuggestions([customers], schemaWith("customers", "id", true));
+    expect(suggestions).toEqual([]);
+  });
+
+  it("does not suggest keys for sources whose table is not built yet", () => {
+    expect(buildKeySuggestions([customers], emptySchema())).toEqual([]);
+  });
+
+  it("ignores columns the data shows are not unique", () => {
+    const dup = statSource("d", "events.csv", "kind", ["a", "b"], {
+      nonEmpty: 50,
+      distinct: 2,
+      blank: 0,
+    });
+    expect(buildKeySuggestions([dup], schemaWith("events", "kind"))).toEqual([]);
+  });
+});
+
+describe("buildSetPkPlan", () => {
+  it("emits a single validated set_pk action", () => {
+    const [suggestion] = buildKeySuggestions([customers], schemaWith("customers", "id"));
+    if (!suggestion) throw new Error("expected a key suggestion");
+
+    expect(buildSetPkPlan(suggestion)).toEqual({
+      actions: [{ op: "set_pk", table: "customers", field: "id", pk: true }],
+    });
   });
 });

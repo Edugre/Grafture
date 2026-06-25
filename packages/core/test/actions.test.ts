@@ -445,4 +445,93 @@ describe("applyActions", () => {
       expect(schema).toEqual(snapshot);
     });
   });
+
+  describe("set_pk", () => {
+    it("sets and clears the primary-key flag on an existing field", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const usersId = schema.tables[0]!.id;
+
+      const set = applyActions(
+        schema,
+        [{ op: "set_pk", table: "users", field: "email", pk: true }],
+        {
+          makeId,
+        },
+      );
+      expect(set.rejected).toEqual([]);
+      expect(set.applied).toEqual([{ op: "set_pk", tableIds: [usersId] }]);
+      const email = set.schema.tables[0]!.fields.find((field) => field.name === "email")!;
+      expect(email.pk).toBe(true);
+
+      const clear = applyActions(
+        set.schema,
+        [{ op: "set_pk", table: "users", field: "id", pk: false }],
+        {
+          makeId,
+        },
+      );
+      expect(clear.schema.tables[0]!.fields.find((field) => field.name === "id")!.pk).toBe(false);
+    });
+
+    it("matches table and field names case-insensitively", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+
+      const result = applyActions(
+        schema,
+        [{ op: "set_pk", table: "Users", field: "Email", pk: true }],
+        { makeId },
+      );
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.tables[0]!.fields.find((field) => field.name === "email")!.pk).toBe(
+        true,
+      );
+    });
+
+    it("rejects unknown table or field and leaves the schema untouched", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+
+      const badTable = applyActions(
+        schema,
+        [{ op: "set_pk", table: "ghost", field: "id", pk: true }],
+        {
+          makeId,
+        },
+      );
+      expect(badTable.applied).toEqual([]);
+      expect(badTable.rejected).toEqual([
+        {
+          action: { op: "set_pk", table: "ghost", field: "id", pk: true },
+          reason: "table 'ghost' not found",
+        },
+      ]);
+
+      const badField = applyActions(
+        schema,
+        [{ op: "set_pk", table: "users", field: "ghost", pk: true }],
+        {
+          makeId,
+        },
+      );
+      expect(badField.rejected).toEqual([
+        {
+          action: { op: "set_pk", table: "users", field: "ghost", pk: true },
+          reason: "field 'ghost' not found in table 'users'",
+        },
+      ]);
+      expect(badField.schema).toEqual(schema);
+    });
+
+    it("rejects a set_pk missing the pk boolean", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(schema, [{ op: "set_pk", table: "users", field: "id" }], {
+        makeId,
+      });
+      expect(result.applied).toEqual([]);
+      expect(result.rejected).toHaveLength(1);
+    });
+  });
 });

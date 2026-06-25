@@ -1,5 +1,5 @@
 import type { SourceField } from "./types.js";
-import { collectInferenceValues, collectSamples } from "./sample.js";
+import { collectInferenceValues, collectSamples, collectStats } from "./sample.js";
 import { inferType } from "./infer.js";
 
 export type ParseOptions = {
@@ -33,5 +33,6 @@ export function buildSourceField(values: string[], name: string): SourceField {
     name,
     type: inferType(collectInferenceValues(values)),
     samples: collectSamples(values),
+    stats: collectStats(values),
   };
 }

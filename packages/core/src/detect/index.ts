@@ -25,6 +25,14 @@ export type FormatMismatch = {
   note: string;
 };
 
+/**
+ * Inferred relationship grain between two join columns, derived from how unique each side's
+ * values are (its `stats`). `N:1` means many-left to one-right — consumers that can only
+ * express `1:N` should flip the relationship direction. `unknown` when either side lacks the
+ * statistics to decide (e.g. older sources, or too few rows to trust).
+ */
+export type Grain = "1:1" | "1:N" | "N:1" | "N:M" | "unknown";
+
 export type JoinKeyCandidate = {
   left: FieldRef;
   right: FieldRef;
@@ -37,7 +45,27 @@ export type JoinKeyCandidate = {
   /** True when normalization meaningfully increases the overlap. */
   requiresNormalization: boolean;
   formatMismatch: FormatMismatch | null;
+  /** Relationship grain inferred from per-side value uniqueness. */
+  grain: Grain;
 };
+
+export type PrimaryKeyCandidate = {
+  sourceId: string;
+  sourceName: string;
+  field: string;
+  /** Non-empty rows the verdict is based on. */
+  rows: number;
+  /** Human-readable justification, e.g. "unique and non-null across 412 rows". */
+  reason: string;
+};
+
+export type PrimaryKeyOptions = {
+  /** Minimum non-empty rows before uniqueness is trustworthy. Default 4. */
+  minRows?: number;
+};
+
+/** Below this many non-empty rows, uniqueness is too noisy to draw grain/PK conclusions from. */
+const MIN_STATS_ROWS = 4;
 
 export type DetectOptions = {
   /** Minimum normalized Jaccard overlap to propose a join. Default 0.3. */
@@ -147,6 +175,103 @@ export function detectFormatMismatch(left: SourceField, right: SourceField): For
   };
 }
 
+type KeyRole = "unique" | "duplicated" | "unknown";
+
+/**
+ * Is this column's join key unique within its own table? Decided from `stats`: a column whose
+ * distinct count equals its non-empty count holds no duplicates (key-like); fewer distinct than
+ * non-empty means repeats (a "many" side). Without stats, or with too few rows, we can't tell.
+ */
+function keyRole(field: SourceField): KeyRole {
+  const stats = field.stats;
+  if (!stats || stats.nonEmpty < MIN_STATS_ROWS) {
+    return "unknown";
+  }
+  return stats.distinct === stats.nonEmpty ? "unique" : "duplicated";
+}
+
+/**
+ * Infer the grain of a join between two columns from each side's uniqueness. A unique side is
+ * the "one"; a side with duplicates is the "many".
+ */
+export function inferGrain(left: SourceField, right: SourceField): Grain {
+  const leftRole = keyRole(left);
+  const rightRole = keyRole(right);
+
+  if (leftRole === "unknown" || rightRole === "unknown") {
+    return "unknown";
+  }
+  if (leftRole === "unique" && rightRole === "unique") {
+    return "1:1";
+  }
+  if (leftRole === "unique" && rightRole === "duplicated") {
+    return "1:N";
+  }
+  if (leftRole === "duplicated" && rightRole === "unique") {
+    return "N:1";
+  }
+  return "N:M";
+}
+
+const PK_NAME_RANK: Array<{ test: (name: string) => boolean; rank: number }> = [
+  { test: (name) => name === "id", rank: 0 },
+  { test: (name) => name.endsWith("_id") || name.endsWith("id"), rank: 1 },
+  { test: (name) => /(^|_)(code|key|number|uuid|guid)($|_)/.test(name), rank: 2 },
+];
+
+/** Lower rank = more likely to be the intended key; pure ordering hint, not a candidacy gate. */
+function pkNameRank(name: string): number {
+  const lower = name.toLowerCase();
+  for (const { test, rank } of PK_NAME_RANK) {
+    if (test(lower)) {
+      return rank;
+    }
+  }
+  return 3;
+}
+
+/**
+ * Propose primary keys from the *data*: a column that is unique and non-null across the scanned
+ * rows is a key candidate. Candidacy is purely content-driven (uniqueness + no blanks); column
+ * names only influence ordering so obvious ids surface first. Deterministically sorted.
+ */
+export function detectPrimaryKeys(
+  sources: Source[],
+  options?: PrimaryKeyOptions,
+): PrimaryKeyCandidate[] {
+  const minRows = options?.minRows ?? MIN_STATS_ROWS;
+  const candidates: PrimaryKeyCandidate[] = [];
+
+  for (const source of sources) {
+    for (const field of source.fields) {
+      const stats = field.stats;
+      if (!stats || stats.nonEmpty < minRows || stats.blank > 0) {
+        continue;
+      }
+      if (stats.distinct !== stats.nonEmpty) {
+        continue;
+      }
+
+      candidates.push({
+        sourceId: source.id,
+        sourceName: source.name,
+        field: field.name,
+        rows: stats.nonEmpty,
+        reason: `unique and non-null across ${stats.nonEmpty} rows`,
+      });
+    }
+  }
+
+  candidates.sort(
+    (a, b) =>
+      pkNameRank(a.field) - pkNameRank(b.field) ||
+      a.sourceName.localeCompare(b.sourceName) ||
+      a.field.localeCompare(b.field),
+  );
+
+  return candidates;
+}
+
 function compareRefs(a: FieldRef, b: FieldRef): number {
   return (
     a.sourceId.localeCompare(b.sourceId) ||
@@ -208,6 +333,7 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
             requiresNormalization:
               normalizedOverlap - rawOverlap > NORMALIZATION_EPSILON || formatMismatch !== null,
             formatMismatch,
+            grain: inferGrain(leftField, rightField),
           });
         }
       }

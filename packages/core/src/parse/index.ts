@@ -11,12 +11,15 @@ export {
   MAX_SCAN_ROWS,
   collectInferenceValues,
   collectSamples,
+  collectStats,
 } from "./sample.js";
 export {
+  FieldStatsSchema,
   InferredTypeSchema,
   SourceFieldSchema,
   SourceKindSchema,
   SourceSchema,
+  type FieldStats,
   type InferredType,
   type Source,
   type SourceField,
