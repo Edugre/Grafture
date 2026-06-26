@@ -149,7 +149,6 @@ export function CopilotPanel({ onConnect }: { onConnect: () => void }) {
           <SparkleIcon size={14} />
         </span>
         <h1 className="copilot-header__title">Copilot</h1>
-        <span className="copilot-header__tag">SS-9 detector</span>
       </header>
       <div className="panel-body">
         {!provider ? (

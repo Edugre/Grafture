@@ -17,14 +17,6 @@ export function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
           </span>
           <span className="topbar__wordmark">Schema Studio</span>
         </div>
-        <span className="topbar__divider" />
-        <span
-          className="topbar__privacy"
-          title="Files are parsed on your device. Nothing is uploaded."
-        >
-          <span className="topbar__privacy-dot" />
-          Parsed locally — nothing uploaded
-        </span>
       </div>
 
       <div className="topbar__right">

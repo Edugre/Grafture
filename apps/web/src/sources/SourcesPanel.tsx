@@ -1,5 +1,5 @@
 import { ParseError } from "@schema-studio/core";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { useSchemaStore } from "../store/index.js";
 import { JoinSuggestions } from "../suggest/index.js";
@@ -83,6 +83,9 @@ function SourceCard({
 
 export function SourcesPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Tracks drag enter/leave depth so the overlay doesn't flicker as the cursor
+  // moves between the pane and its nested children.
+  const dragDepth = useRef(0);
   const [dragActive, setDragActive] = useState(false);
   const [message, setMessage] = useState<PanelMessage>(null);
   const [busy, setBusy] = useState(false);
@@ -200,8 +203,47 @@ export function SourcesPanel() {
     });
   };
 
+  const isFileDrag = (event: DragEvent) => Array.from(event.dataTransfer.types).includes("Files");
+
+  const handleDragEnter = (event: DragEvent) => {
+    if (!isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  };
+
+  const handleDragOver = (event: DragEvent) => {
+    if (isFileDrag(event)) {
+      event.preventDefault();
+    }
+  };
+
+  const handleDragLeave = (event: DragEvent) => {
+    event.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) {
+      dragDepth.current = 0;
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (event: DragEvent) => {
+    event.preventDefault();
+    dragDepth.current = 0;
+    setDragActive(false);
+    void ingestFiles(event.dataTransfer.files);
+  };
+
   return (
-    <section className="panel sources-panel">
+    <section
+      className="panel sources-panel"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <header className="sources-panel__header">
         <div className="sources-panel__title-group">
           <h1 className="sources-panel__title">Sources</h1>
@@ -221,41 +263,24 @@ export function SourcesPanel() {
         </button>
       </header>
       <div className="panel-body">
-        <div
-          className={`sources-panel__dropzone${dragActive ? " sources-panel__dropzone--active" : ""}`}
-          onClick={openFilePicker}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault();
-            if (event.currentTarget === event.target) {
-              setDragActive(false);
-            }
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragActive(false);
-            void ingestFiles(event.dataTransfer.files);
-          }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              openFilePicker();
-            }
-          }}
-        >
-          <strong>Drop files here</strong>
-          <span>or click to choose CSV, Excel, or JSON</span>
-          <span>Parsed in your browser — never uploaded</span>
-        </div>
+        {sources.length === 0 ? (
+          <div
+            className="sources-panel__dropzone"
+            onClick={openFilePicker}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openFilePicker();
+              }
+            }}
+          >
+            <strong>Drop files here</strong>
+            <span>or click to choose CSV, Excel, or JSON</span>
+            <span>Parsed in your browser — never uploaded</span>
+          </div>
+        ) : null}
 
         <input
           ref={fileInputRef}
@@ -357,6 +382,15 @@ export function SourcesPanel() {
 
         <JoinSuggestions />
       </div>
+
+      {dragActive ? (
+        <div className="sources-panel__drag-overlay" aria-hidden>
+          <div className="sources-panel__drag-card">
+            <strong>Drop files to add</strong>
+            <span>CSV, Excel, or JSON — parsed in your browser</span>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

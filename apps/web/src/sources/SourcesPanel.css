@@ -1,3 +1,7 @@
+.sources-panel {
+  position: relative;
+}
+
 .sources-panel__header {
   display: flex;
   align-items: flex-start;
@@ -76,8 +80,7 @@
     background 0.15s ease;
 }
 
-.sources-panel__dropzone:hover,
-.sources-panel__dropzone--active {
+.sources-panel__dropzone:hover {
   border-color: var(--accent);
   background: var(--accent-bg);
   color: var(--text);
@@ -86,6 +89,44 @@
 .sources-panel__dropzone strong {
   color: var(--text);
   font-weight: 600;
+}
+
+/* Drag overlay — appears centered over the whole pane while files hover. */
+.sources-panel__drag-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
+  backdrop-filter: blur(1px);
+}
+
+.sources-panel__drag-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 28px 20px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--text);
+  text-align: center;
+}
+
+.sources-panel__drag-card strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sources-panel__drag-card span {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .sources-panel__file-input {

@@ -25,13 +25,6 @@
   color: var(--text);
 }
 
-.copilot-header__tag {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
 /* The body splits into a scrolling message area and a pinned composer. */
 .copilot-panel .panel-body {
   display: flex;

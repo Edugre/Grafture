@@ -53,27 +53,6 @@
   flex-shrink: 0;
 }
 
-.topbar__privacy {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 26px;
-  padding: 0 12px;
-  border-radius: 9999px;
-  background: var(--privacy-bg);
-  color: var(--privacy-text);
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.topbar__privacy-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 9999px;
-  background: var(--privacy-text);
-}
-
 .topbar__btn {
   display: inline-flex;
   align-items: center;
