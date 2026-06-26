@@ -21,10 +21,20 @@ export function App() {
   // Which Copilot pane tab is active. Lifted here so the suggestions toast's
   // "View suggestions" CTA can route the pane to the Suggestions tab.
   const [copilotTab, setCopilotTab] = useState<CopilotTab>("chat");
+  // The expanded suggestion card (single-open accordion), shared with the canvas so it can
+  // preview the active suggestion. Cleared when leaving the Suggestions tab.
+  const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(null);
 
   const openByok = (from: View) => {
     setByokReturn(from);
     setView("byok");
+  };
+
+  const changeCopilotTab = (next: CopilotTab) => {
+    setCopilotTab(next);
+    if (next !== "suggestions") {
+      setActiveSuggestionId(null);
+    }
   };
 
   return (
@@ -39,14 +49,18 @@ export function App() {
             <TopBar onOpenSettings={() => setView("settings")} />
             <div className="app-shell">
               <SourcesPanel />
-              <CanvasPanel />
+              <CanvasPanel
+                activeSuggestionId={copilotTab === "suggestions" ? activeSuggestionId : null}
+              />
               <CopilotPanel
                 onConnect={() => openByok("dashboard")}
                 tab={copilotTab}
-                onTabChange={setCopilotTab}
+                onTabChange={changeCopilotTab}
+                activeSuggestionId={activeSuggestionId}
+                onActivateSuggestion={setActiveSuggestionId}
               />
             </div>
-            <SuggestionsToast onView={() => setCopilotTab("suggestions")} />
+            <SuggestionsToast onView={() => changeCopilotTab("suggestions")} />
           </div>
         )}
       </ApiKeyProvider>

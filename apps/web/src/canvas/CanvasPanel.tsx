@@ -10,16 +10,19 @@ import {
 } from "@xyflow/react";
 import type { Connection, EdgeChange, NodeChange, ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useSchemaStore } from "../store/index.js";
+import { useSuggestions } from "../suggest/index.js";
 import { PlusIcon, RedoIcon, UndoIcon } from "../ui/icons.js";
+import { PreviewOverlay } from "./PreviewOverlay.js";
 import { registerArrangeHandler } from "./arrangeBridge.js";
 import { RelationshipEdge } from "./RelationshipEdge.js";
 import type { RelationshipFlowEdge } from "./RelationshipEdge.js";
 import { TableNode } from "./TableNode.js";
 import type { TableFlowNode } from "./TableNode.js";
 import { layoutSchema } from "./layout.js";
+import { buildSuggestionPreview } from "./suggestionPreview.js";
 
 const nodeTypes = { table: TableNode };
 const edgeTypes = { relationship: RelationshipEdge };
@@ -39,9 +42,21 @@ function uniqueTableName(existing: ReadonlySet<string>): string {
   return name;
 }
 
-export function CanvasPanel() {
-  const tables = useSchemaStore((state) => state.schema.tables);
-  const relationships = useSchemaStore((state) => state.schema.relationships);
+export function CanvasPanel({ activeSuggestionId }: { activeSuggestionId: string | null }) {
+  const schema = useSchemaStore((state) => state.schema);
+  const tables = schema.tables;
+  const relationships = schema.relationships;
+  const { open: openSuggestions } = useSuggestions();
+
+  // Resolve the active suggestion to canvas geometry. Null when nothing is active or the
+  // suggestion's tables/fields aren't on the canvas (e.g. a join whose tables aren't built yet).
+  const preview = useMemo(() => {
+    if (!activeSuggestionId) {
+      return null;
+    }
+    const item = openSuggestions.find((suggestion) => suggestion.id === activeSuggestionId);
+    return item ? buildSuggestionPreview(item, schema) : null;
+  }, [activeSuggestionId, openSuggestions, schema]);
 
   const moveTable = useSchemaStore((state) => state.moveTable);
   const moveTables = useSchemaStore((state) => state.moveTables);
@@ -164,12 +179,20 @@ export function CanvasPanel() {
   return (
     <section className="panel canvas-panel">
       <div className="panel-body">
-        <div className="canvas-chip">
-          <span className="canvas-chip__label">Inferred schema</span>
-          <span className="canvas-chip__count">
-            {tableCount} {tableCount === 1 ? "table" : "tables"} · {relationshipCount}{" "}
-            {relationshipCount === 1 ? "relationship" : "relationships"}
-          </span>
+        <div className="canvas-status">
+          <div className="canvas-chip">
+            <span className="canvas-chip__label">Inferred schema</span>
+            <span className="canvas-chip__count">
+              {tableCount} {tableCount === 1 ? "table" : "tables"} · {relationshipCount}{" "}
+              {relationshipCount === 1 ? "relationship" : "relationships"}
+            </span>
+          </div>
+          {preview ? (
+            <span className="canvas-preview-pill">
+              <span className="canvas-preview-pill__dot" aria-hidden />
+              Previewing — not yet applied
+            </span>
+          ) : null}
         </div>
         <div className="canvas-tools">
           <button
@@ -222,6 +245,7 @@ export function CanvasPanel() {
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
           <Controls />
           <MiniMap pannable zoomable />
+          {preview ? <PreviewOverlay preview={preview} /> : null}
         </ReactFlow>
       </div>
     </section>

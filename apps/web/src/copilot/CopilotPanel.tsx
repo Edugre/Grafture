@@ -38,10 +38,14 @@ export function CopilotPanel({
   onConnect,
   tab,
   onTabChange,
+  activeSuggestionId,
+  onActivateSuggestion,
 }: {
   onConnect: () => void;
   tab: CopilotTab;
   onTabChange: (tab: CopilotTab) => void;
+  activeSuggestionId: string | null;
+  onActivateSuggestion: (id: string | null) => void;
 }) {
   const { apiKey } = useApiKeyContext();
   const suggestions = useSuggestions();
@@ -194,7 +198,13 @@ export function CopilotPanel({
           </div>
         ) : null}
 
-        {activeTab === "suggestions" ? <SuggestionsTab api={suggestions} /> : null}
+        {activeTab === "suggestions" ? (
+          <SuggestionsTab
+            api={suggestions}
+            activeId={activeSuggestionId}
+            onActivate={onActivateSuggestion}
+          />
+        ) : null}
 
         {activeTab === "chat" ? (
           <>

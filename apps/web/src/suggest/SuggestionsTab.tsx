@@ -1,25 +1,48 @@
 import { useState } from "react";
 
-import { InfoIcon } from "../ui/icons.js";
+import { ChevronDownIcon, LinkIcon } from "../ui/icons.js";
 import type { SuggestionItem, SuggestionsApi } from "./useSuggestions.js";
 import "./SuggestionsTab.css";
 
 /**
- * SS-9 suggestions surfaced as the Copilot pane's "Suggestions" tab (handoff:
- * `design_handoff_suggestions`). Content-aware detector output — primary keys, foreign
- * keys/relationships, and column types — grouped into reviewable cards. "Apply" flows through
- * the validated store path; "Dismiss" hides a card without touching the schema. Body + footer
- * are returned as siblings so they slot into the pane's flex column (scroll body, pinned footer).
+ * SS-9 suggestions as the Copilot pane's "Suggestions" tab. Cards are a single-open accordion
+ * (handoff: design_handoff_active_suggestion_preview): collapsed to one line by default, expanding
+ * to reveal stats + Apply/Dismiss. The open card is the `active` suggestion — lifted to App and
+ * shared with the canvas, which dims the schema and previews the proposed key/relationship.
+ *
+ * "Apply" flows through the validated store path; "Dismiss" hides a card without touching the
+ * schema. Body + footer are siblings so they slot into the pane's flex column.
  */
-export function SuggestionsTab({ api }: { api: SuggestionsApi }) {
+export function SuggestionsTab({
+  api,
+  activeId,
+  onActivate,
+}: {
+  api: SuggestionsApi;
+  activeId: string | null;
+  onActivate: (id: string | null) => void;
+}) {
   const { groups, openCount, needsReviewCount } = api;
   const [message, setMessage] = useState<{ kind: "info" | "error"; text: string } | null>(null);
 
+  const resolveActive = (id: string) => {
+    // The applied/dismissed card is gone; collapse the preview if it was the active one.
+    if (activeId === id) {
+      onActivate(null);
+    }
+  };
+
   const apply = (item: SuggestionItem) => {
     const outcome = api.apply(item);
+    resolveActive(item.id);
     setMessage(
       outcome.ok ? { kind: "info", text: outcome.label } : { kind: "error", text: outcome.error },
     );
+  };
+
+  const dismiss = (item: SuggestionItem) => {
+    api.dismiss(item.id);
+    resolveActive(item.id);
   };
 
   const applyAll = () => {
@@ -35,6 +58,7 @@ export function SuggestionsTab({ api }: { api: SuggestionsApi }) {
         lastError = outcome.error;
       }
     }
+    onActivate(null);
     if (lastError && applied === 0) {
       setMessage({ kind: "error", text: lastError });
     } else {
@@ -45,9 +69,18 @@ export function SuggestionsTab({ api }: { api: SuggestionsApi }) {
     }
   };
 
+  const dismissAll = () => {
+    api.dismissAll();
+    onActivate(null);
+  };
+
   return (
     <>
       <div className="copilot-suggest-body">
+        <p className="copilot-suggest-help">
+          Select a suggestion to preview it on the canvas before applying.
+        </p>
+
         {message ? (
           <p className={`copilot-suggest-message copilot-suggest-message--${message.kind}`}>
             {message.text}
@@ -66,8 +99,10 @@ export function SuggestionsTab({ api }: { api: SuggestionsApi }) {
               <SuggestionCard
                 key={item.id}
                 item={item}
+                open={activeId === item.id}
+                onToggle={() => onActivate(activeId === item.id ? null : item.id)}
                 onApply={() => apply(item)}
-                onDismiss={() => api.dismiss(item.id)}
+                onDismiss={() => dismiss(item)}
               />
             ))}
           </section>
@@ -86,7 +121,7 @@ export function SuggestionsTab({ api }: { api: SuggestionsApi }) {
           <button
             type="button"
             className="copilot-suggest-btn copilot-suggest-btn--ghost"
-            onClick={api.dismissAll}
+            onClick={dismissAll}
           >
             Dismiss all
           </button>
@@ -103,71 +138,94 @@ export function SuggestionsTab({ api }: { api: SuggestionsApi }) {
   );
 }
 
-/** A single suggestion card. Title shape varies by group; details + actions are shared. */
+/** A collapsible suggestion card: header is the toggle; body (stats + actions) shows when open. */
 function SuggestionCard({
   item,
+  open,
+  onToggle,
   onApply,
   onDismiss,
 }: {
   item: SuggestionItem;
+  open: boolean;
+  onToggle: () => void;
   onApply: () => void;
   onDismiss: () => void;
 }) {
-  if (item.group === "fk" && item.needsReview) {
-    // Format-mismatch join: amber caution card with the normalize-before-join warning. Still
-    // actionable (Apply adds the relationship), but flagged so the user reviews the mismatch.
-    return (
-      <div className="copilot-suggest-card copilot-suggest-card--caution">
-        <span className="copilot-suggest-card__cautionicon" aria-hidden>
-          <InfoIcon size={16} />
-        </span>
-        <div className="copilot-suggest-card__cautionbody">
-          <div className="copilot-suggest-card__title">
-            Possible join: <code>{item.join.candidate.left.field}</code> ↔{" "}
-            <code>{item.join.candidate.right.field}</code>
-          </div>
-          <div className="copilot-suggest-card__detail">
-            {item.join.overlapPercent}% overlap · {item.join.warning}
-          </div>
-          <CardActions onApply={onApply} onDismiss={onDismiss} />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="copilot-suggest-card">
-      <SuggestionTitle item={item} />
-      <div className="copilot-suggest-card__detail">{detailFor(item)}</div>
-      <CardActions onApply={onApply} onDismiss={onDismiss} />
+    <div className={`copilot-suggest-card${open ? " is-open" : ""}`}>
+      <button type="button" className="copilot-suggest-card__header" onClick={onToggle}>
+        <CardIndicator item={item} />
+        <span className="copilot-suggest-card__title">
+          <CardTitle item={item} />
+        </span>
+        <ChevronDownIcon size={16} className="copilot-suggest-card__chevron" />
+      </button>
+
+      {open ? (
+        <div className="copilot-suggest-card__body">
+          <div className="copilot-suggest-card__detail">{detailFor(item)}</div>
+          <div className="copilot-suggest-card__actions">
+            <button
+              type="button"
+              className="copilot-suggest-btn copilot-suggest-btn--ghost"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDismiss();
+              }}
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              className="copilot-suggest-btn copilot-suggest-btn--primary"
+              onClick={(event) => {
+                event.stopPropagation();
+                onApply();
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function SuggestionTitle({ item }: { item: SuggestionItem }) {
+function CardIndicator({ item }: { item: SuggestionItem }) {
+  if (item.group === "fk") {
+    return (
+      <span className="copilot-suggest-card__icon" aria-hidden>
+        <LinkIcon size={15} />
+      </span>
+    );
+  }
+  return <span className="copilot-suggest-card__dot" aria-hidden />;
+}
+
+function CardTitle({ item }: { item: SuggestionItem }) {
   if (item.group === "pk") {
     return (
-      <div className="copilot-suggest-card__title">
-        <span className="copilot-suggest-card__dot" aria-hidden />
+      <>
         Primary key: <code>{item.key.label.replace(" · ", ".")}</code>
-      </div>
+      </>
     );
   }
   if (item.group === "fk") {
-    const grain = item.join.grainLabel;
     return (
-      <div className="copilot-suggest-card__title">
-        {grain === "N:M" ? "Relationship" : "Foreign key"}:{" "}
+      <>
+        {item.join.grainLabel === "N:M" ? "Relationship" : "FK"}:{" "}
         <code>{item.join.leftLabel.replace(" · ", ".")}</code> →{" "}
         <code>{item.join.rightLabel.replace(" · ", ".")}</code>
-      </div>
+      </>
     );
   }
   return (
-    <div className="copilot-suggest-card__title">
+    <>
       Type: <code>{item.type.label.replace(" · ", ".")}</code> →{" "}
       <code>{item.type.suggestedType}</code>
-    </div>
+    </>
   );
 }
 
@@ -177,28 +235,8 @@ function detailFor(item: SuggestionItem): string {
   }
   if (item.group === "fk") {
     const grain = item.join.grainLabel ? ` · grain ${item.join.grainLabel}` : "";
-    return `${item.join.overlapPercent}% value overlap · ${item.join.sharedValues} shared${grain}`;
+    const warn = item.join.warning ? ` · ⚠ ${item.join.warning}` : "";
+    return `${item.join.overlapPercent}% value overlap · ${item.join.sharedValues} shared${grain}${warn}`;
   }
   return item.type.reason;
-}
-
-function CardActions({ onApply, onDismiss }: { onApply: () => void; onDismiss: () => void }) {
-  return (
-    <div className="copilot-suggest-card__actions">
-      <button
-        type="button"
-        className="copilot-suggest-btn copilot-suggest-btn--ghost"
-        onClick={onDismiss}
-      >
-        Dismiss
-      </button>
-      <button
-        type="button"
-        className="copilot-suggest-btn copilot-suggest-btn--primary"
-        onClick={onApply}
-      >
-        Apply
-      </button>
-    </div>
-  );
 }

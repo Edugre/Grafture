@@ -1,4 +1,5 @@
-/* Copilot pane → "Suggestions" tab (handoff: design_handoff_suggestions, Part 2). */
+/* Copilot pane → "Suggestions" tab (handoff: design_handoff_suggestions +
+   design_handoff_active_suggestion_preview). Collapsible accordion cards. */
 
 .copilot-suggest-body {
   flex: 1 1 auto;
@@ -8,6 +9,13 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.copilot-suggest-help {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-muted);
 }
 
 .copilot-suggest-message {
@@ -28,7 +36,7 @@
 .copilot-suggest-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .copilot-suggest-grouphead {
@@ -56,29 +64,34 @@
   background: var(--border-subtle);
 }
 
-/* ---- Card ---- */
+/* ---- Collapsible card ---- */
 .copilot-suggest-card {
   border-radius: 8px;
-  padding: 12px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease;
 }
 
-.copilot-suggest-card__title {
+.copilot-suggest-card.is-open {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.copilot-suggest-card__header {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  font-size: 13px;
-  line-height: 20px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.copilot-suggest-card__title code {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: -0.01em;
+  gap: 9px;
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 
 .copilot-suggest-card__dot {
@@ -89,11 +102,48 @@
   background: var(--pk);
 }
 
+.copilot-suggest-card__icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--accent-text);
+}
+
+.copilot-suggest-card__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-suggest-card__title code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+.copilot-suggest-card__chevron {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  transition: transform 0.16s ease;
+}
+
+.copilot-suggest-card.is-open .copilot-suggest-card__chevron {
+  transform: rotate(180deg);
+}
+
+.copilot-suggest-card__body {
+  padding: 0 12px 12px 27px;
+}
+
 .copilot-suggest-card__detail {
-  margin-top: 6px;
   font-size: 12px;
   line-height: 17px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .copilot-suggest-card__detail code {
@@ -105,30 +155,6 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 11px;
-}
-
-/* Caution variant — format-mismatch join needing normalization. */
-.copilot-suggest-card--caution {
-  display: flex;
-  gap: 9px;
-  background: var(--caution-bg);
-  border-color: var(--caution-border);
-}
-
-.copilot-suggest-card__cautionicon {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: var(--caution-text);
-}
-
-.copilot-suggest-card__cautionbody {
-  flex: 1;
-  min-width: 0;
-}
-
-.copilot-suggest-card--caution .copilot-suggest-card__title,
-.copilot-suggest-card--caution .copilot-suggest-card__detail {
-  color: var(--caution-text);
 }
 
 /* ---- Buttons (shared by cards + footer) ---- */

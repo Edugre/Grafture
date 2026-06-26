@@ -61,6 +61,47 @@
   --xy-background-pattern-color: var(--border);
 }
 
+/* Status row: the "Inferred schema" chip plus the optional preview pill, side by side. */
+.canvas-status {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.canvas-status .canvas-chip {
+  position: static;
+  top: auto;
+  left: auto;
+  z-index: auto;
+}
+
+.canvas-preview-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 13px;
+  border-radius: 9999px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--shadow-node);
+}
+
+.canvas-preview-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--accent);
+}
+
 .canvas-chip {
   position: absolute;
   top: 14px;
