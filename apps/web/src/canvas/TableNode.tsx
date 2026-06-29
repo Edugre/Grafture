@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useSchemaStore } from "../store/index.js";
 import { NODE_WIDTH } from "./constants.js";
 
-export type TableNodeData = { table: Table };
+export type TableNodeData = { table: Table; proposed?: boolean };
 export type TableFlowNode = Node<TableNodeData, "table">;
 
 function FieldRow({ table, field }: { table: Table; field: Field }) {
@@ -155,8 +155,51 @@ function AddFieldRow({ table }: { table: Table }) {
   );
 }
 
+/**
+ * Read-only ghost rendering of a proposed (AI-drafted) table. No store-mutating controls — its
+ * fields/ids aren't in the store — and no connection handles, since the proposal isn't editable
+ * until accepted. Styled dashed/dimmed via `.table-node--proposed`.
+ */
+function ProposedTableNode({ table }: { table: Table }) {
+  return (
+    <div className="table-node table-node--proposed" style={{ width: NODE_WIDTH }}>
+      <div className="table-node__title">
+        <span>{table.name}</span>
+        <span className="table-node__count">{table.fields.length}</span>
+      </div>
+      {table.fields.map((field) => (
+        <div key={field.id} className="table-node__field table-node__field--proposed">
+          {/* Non-connectable handles so the ghost relationship edges can still anchor to rows. */}
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={field.id}
+            isConnectable={false}
+            className="field-handle field-handle--target"
+          />
+          <span className={`table-node__pk${field.pk ? " is-pk" : ""}`} aria-hidden />
+          <span className="table-node__field-name">{field.name}</span>
+          {field.fk ? <span className="table-node__fk">FK</span> : null}
+          <span className="table-node__type">{field.type}</span>
+          <Handle
+            type="source"
+            position={Position.Right}
+            id={field.id}
+            isConnectable={false}
+            className="field-handle field-handle--source"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function TableNode({ data, selected }: NodeProps<TableFlowNode>) {
-  const { table } = data;
+  const { table, proposed } = data;
+
+  if (proposed) {
+    return <ProposedTableNode table={table} />;
+  }
 
   return (
     <div className={`table-node${selected ? " is-selected" : ""}`} style={{ width: NODE_WIDTH }}>

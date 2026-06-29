@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { buildSuggestionPreview } from "../canvas/suggestionPreview.js";
 import { useSchemaStore } from "../store/index.js";
-import { ChevronDownIcon, LinkIcon } from "../ui/icons.js";
+import { ChevronDownIcon, LinkIcon, SparkleIcon } from "../ui/icons.js";
+import { useRankedSuggestions } from "./useRankedSuggestions.js";
 import type { SuggestionItem, SuggestionsApi } from "./useSuggestions.js";
 import "./SuggestionsTab.css";
+
+type RankInfo = { order: number; rationale?: string; priority?: "high" | "normal" | "low" };
 
 /**
  * SS-9 suggestions as the Copilot pane's "Suggestions" tab. Cards are a single-open accordion
@@ -26,7 +29,53 @@ export function SuggestionsTab({
 }) {
   const { groups, openCount, needsReviewCount } = api;
   const schema = useSchemaStore((state) => state.schema);
+  const schemaDraft = useSchemaStore((state) => state.draft);
+  const acceptDraft = useSchemaStore((state) => state.acceptDraft);
+  const discardDraft = useSchemaStore((state) => state.discardDraft);
   const [message, setMessage] = useState<{ kind: "info" | "error"; text: string } | null>(null);
+
+  // The AI-drafted initial schema (ghost proposal) surfaced here as a reviewable card. Only the
+  // tables/relationships not already in the live schema are "proposed".
+  const draftTables = useMemo(() => {
+    if (!schemaDraft) {
+      return [];
+    }
+    const liveIds = new Set(schema.tables.map((table) => table.id));
+    return schemaDraft.tables.filter((table) => !liveIds.has(table.id));
+  }, [schemaDraft, schema]);
+  const draftRelCount = useMemo(() => {
+    if (!schemaDraft) {
+      return 0;
+    }
+    const liveIds = new Set(schema.relationships.map((relationship) => relationship.id));
+    return schemaDraft.relationships.filter((relationship) => !liveIds.has(relationship.id)).length;
+  }, [schemaDraft, schema]);
+  const hasDraft = draftTables.length > 0;
+
+  // Optional AI rerank layer. `reverted` lets the user drop back to the deterministic order without
+  // turning the feature off; ranking is "active" only when a result is in and not reverted.
+  const { ranked, status } = useRankedSuggestions(api);
+  const [reverted, setReverted] = useState(false);
+  const rankingActive = status === "ranked" && !reverted;
+
+  const rankInfo = useMemo(() => {
+    const map = new Map<string, RankInfo>();
+    ranked.forEach((entry, order) =>
+      map.set(entry.item.id, {
+        order,
+        ...(entry.rationale ? { rationale: entry.rationale } : {}),
+        ...(entry.priority ? { priority: entry.priority } : {}),
+      }),
+    );
+    return map;
+  }, [ranked]);
+
+  const orderItems = (items: SuggestionItem[]): SuggestionItem[] =>
+    rankingActive
+      ? [...items].sort(
+          (a, b) => (rankInfo.get(a.id)?.order ?? 0) - (rankInfo.get(b.id)?.order ?? 0),
+        )
+      : items;
 
   const resolveActive = (id: string) => {
     // The applied/dismissed card is gone; collapse the preview if it was the active one.
@@ -80,9 +129,81 @@ export function SuggestionsTab({
   return (
     <>
       <div className="copilot-suggest-body">
-        <p className="copilot-suggest-help">
-          Select a suggestion to preview it on the canvas before applying.
-        </p>
+        {hasDraft ? (
+          <section className="copilot-suggest-draft">
+            <header className="copilot-suggest-draft__head">
+              <span className="copilot-suggest-draft__icon" aria-hidden>
+                <SparkleIcon size={14} />
+              </span>
+              <span className="copilot-suggest-draft__title">Initial schema draft</span>
+            </header>
+            <p className="copilot-suggest-draft__summary">
+              {draftTables.length} {draftTables.length === 1 ? "table" : "tables"}
+              {draftRelCount > 0
+                ? ` · ${draftRelCount} ${draftRelCount === 1 ? "relationship" : "relationships"}`
+                : ""}{" "}
+              proposed
+            </p>
+            <div className="copilot-suggest-draft__chips">
+              {draftTables.map((table) => (
+                <span key={table.id} className="copilot-suggest-draft__chip">
+                  {table.name}
+                </span>
+              ))}
+            </div>
+            <p className="copilot-suggest-draft__hint">
+              Shown as a ghost on the canvas. Accept to add it, or discard it.
+            </p>
+            <div className="copilot-suggest-draft__actions">
+              <button
+                type="button"
+                className="copilot-suggest-btn copilot-suggest-btn--ghost"
+                onClick={() => {
+                  discardDraft();
+                  onActivate(null);
+                }}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                className="copilot-suggest-btn copilot-suggest-btn--primary"
+                onClick={() => {
+                  acceptDraft();
+                  onActivate(null);
+                }}
+              >
+                Accept draft
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {openCount > 0 ? (
+          <p className="copilot-suggest-help">
+            Select a suggestion to preview it on the canvas before applying.
+          </p>
+        ) : null}
+
+        {status === "ranking" ? (
+          <p className="copilot-suggest-rank">
+            <SparkleIcon size={13} />
+            <span className="copilot-suggest-rank__spin" aria-hidden />
+            Ranking suggestions…
+          </p>
+        ) : status === "ranked" ? (
+          <p className="copilot-suggest-rank">
+            <SparkleIcon size={13} />
+            {reverted ? "Showing default order" : "Ranked by AI"}
+            <button
+              type="button"
+              className="copilot-suggest-rank__toggle"
+              onClick={() => setReverted((value) => !value)}
+            >
+              {reverted ? "Show ranked" : "Show default"}
+            </button>
+          </p>
+        ) : null}
 
         {message ? (
           <p className={`copilot-suggest-message copilot-suggest-message--${message.kind}`}>
@@ -98,18 +219,21 @@ export function SuggestionsTab({
               <span className="copilot-suggest-grouphead__rule" aria-hidden />
             </header>
 
-            {group.items.map((item) => {
+            {orderItems(group.items).map((item) => {
               const open = activeId === item.id;
               // When the open card can't be located on the canvas (e.g. a join described in raw
               // source-column names against a remodeled schema), the overlay shows nothing — say so
               // on the card rather than leaving the canvas silently blank.
               const unpreviewable = open && buildSuggestionPreview(item, schema) === null;
+              const info = rankingActive ? rankInfo.get(item.id) : undefined;
               return (
                 <SuggestionCard
                   key={item.id}
                   item={item}
                   open={open}
                   unpreviewable={unpreviewable}
+                  {...(info?.rationale ? { rationale: info.rationale } : {})}
+                  {...(info?.priority ? { priority: info.priority } : {})}
                   onToggle={() => onActivate(open ? null : item.id)}
                   onApply={() => apply(item)}
                   onDismiss={() => dismiss(item)}
@@ -120,31 +244,33 @@ export function SuggestionsTab({
         ))}
       </div>
 
-      <div className="copilot-suggest-footer">
-        <span className="copilot-suggest-footer__status">
-          {needsReviewCount > 0 ? (
-            <span className="copilot-suggest-amber">{needsReviewCount} needs review</span>
-          ) : (
-            `${openCount} open`
-          )}
-        </span>
-        <div className="copilot-suggest-footer__actions">
-          <button
-            type="button"
-            className="copilot-suggest-btn copilot-suggest-btn--ghost"
-            onClick={dismissAll}
-          >
-            Dismiss all
-          </button>
-          <button
-            type="button"
-            className="copilot-suggest-btn copilot-suggest-btn--primary"
-            onClick={applyAll}
-          >
-            Apply all {openCount}
-          </button>
+      {openCount > 0 ? (
+        <div className="copilot-suggest-footer">
+          <span className="copilot-suggest-footer__status">
+            {needsReviewCount > 0 ? (
+              <span className="copilot-suggest-amber">{needsReviewCount} needs review</span>
+            ) : (
+              `${openCount} open`
+            )}
+          </span>
+          <div className="copilot-suggest-footer__actions">
+            <button
+              type="button"
+              className="copilot-suggest-btn copilot-suggest-btn--ghost"
+              onClick={dismissAll}
+            >
+              Dismiss all
+            </button>
+            <button
+              type="button"
+              className="copilot-suggest-btn copilot-suggest-btn--primary"
+              onClick={applyAll}
+            >
+              Apply all {openCount}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </>
   );
 }
@@ -154,6 +280,8 @@ function SuggestionCard({
   item,
   open,
   unpreviewable,
+  rationale,
+  priority,
   onToggle,
   onApply,
   onDismiss,
@@ -161,6 +289,8 @@ function SuggestionCard({
   item: SuggestionItem;
   open: boolean;
   unpreviewable: boolean;
+  rationale?: string;
+  priority?: "high" | "normal" | "low";
   onToggle: () => void;
   onApply: () => void;
   onDismiss: () => void;
@@ -172,12 +302,18 @@ function SuggestionCard({
         <span className="copilot-suggest-card__title">
           <CardTitle item={item} />
         </span>
+        {priority && priority !== "normal" ? (
+          <span className={`copilot-suggest-prio copilot-suggest-prio--${priority}`}>
+            {priority}
+          </span>
+        ) : null}
         <ChevronDownIcon size={16} className="copilot-suggest-card__chevron" />
       </button>
 
       {open ? (
         <div className="copilot-suggest-card__body">
           <div className="copilot-suggest-card__detail">{detailFor(item)}</div>
+          {rationale ? <p className="copilot-suggest-card__rationale">{rationale}</p> : null}
           {unpreviewable ? (
             <p className="copilot-suggest-card__note">
               These columns aren’t on the canvas under these names, so it can’t be previewed. Apply

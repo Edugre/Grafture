@@ -31,6 +31,13 @@ export type SchemaStore = {
    * counts stay in sync; deliberately kept out of undo/redo and not persisted.
    */
   dismissedSuggestionIds: string[];
+  /**
+   * A not-yet-applied schema proposed by the AI (the New Project auto-draft). Rendered on the
+   * canvas as a ghost overlay the user can Accept or Discard. Ephemeral UI state: kept out of
+   * undo/redo and out of the autosaved project (the autosave subscription watches only
+   * schema/sources/chat). Null when there's no pending proposal.
+   */
+  draft: Schema | null;
 
   runActions: (rawActions: unknown[]) => RunActionsResult;
 
@@ -64,6 +71,13 @@ export type SchemaStore = {
   clearChat: () => void;
 
   dismissSuggestions: (ids: string[]) => void;
+
+  /** Stash (or clear) the AI-proposed draft schema shown as a ghost overlay. No history entry. */
+  setDraft: (schema: Schema | null) => void;
+  /** Apply the pending draft as the live schema in one undoable step, then clear it. */
+  acceptDraft: () => void;
+  /** Drop the pending draft without touching the schema. */
+  discardDraft: () => void;
 
   loadProject: (schema: Schema, sources: Source[], chat?: ChatMessage[]) => void;
 
@@ -167,6 +181,7 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         selection: {},
         chat: options?.initialChat ?? [],
         dismissedSuggestionIds: [],
+        draft: null,
         _history: createHistoryController(),
         _makeId: makeId,
 
@@ -440,14 +455,38 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
 
         // Replace the entire working set when switching local projects. History is
         // reset so undo never crosses a project boundary.
+        setDraft: (schema) => {
+          set((state) => {
+            state.draft = schema ? structuredClone(schema) : null;
+          });
+        },
+
+        acceptDraft: () => {
+          const proposed = get().draft;
+          if (!proposed) {
+            return;
+          }
+          commitSnapshot((state) => {
+            state.schema = structuredClone(proposed);
+            state.draft = null;
+          });
+        },
+
+        discardDraft: () => {
+          set((state) => {
+            state.draft = null;
+          });
+        },
+
         loadProject: (schema, sources, chat = []) => {
-          set((draft) => {
-            draft.schema = structuredClone(schema);
-            draft.sources = structuredClone(sources);
-            draft.chat = structuredClone(chat);
-            draft.selection = {};
-            draft.dismissedSuggestionIds = [];
-            draft._history = createHistoryController();
+          set((state) => {
+            state.schema = structuredClone(schema);
+            state.sources = structuredClone(sources);
+            state.chat = structuredClone(chat);
+            state.selection = {};
+            state.dismissedSuggestionIds = [];
+            state.draft = null;
+            state._history = createHistoryController();
           });
         },
 

@@ -321,6 +321,35 @@ export function TrashIcon(props: IconProps) {
   );
 }
 
+export function UploadIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      <path d="M12 15V3" />
+      <path d="m7 8 5-5 5 5" />
+    </svg>
+  );
+}
+
+export function FilePlusIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M14 3v5h5" />
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M12 12v6M9 15h6" />
+    </svg>
+  );
+}
+
+export function PencilIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 20h4l10.5-10.5a2.121 2.121 0 0 0-3-3L5 17v3z" />
+      <path d="m13.5 6.5 3 3" />
+    </svg>
+  );
+}
+
 export function UndoIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

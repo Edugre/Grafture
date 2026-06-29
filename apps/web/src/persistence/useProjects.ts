@@ -41,6 +41,16 @@ export type UseProjects = {
   error: string | undefined;
   dismissError: () => void;
   newProject: () => void;
+  /**
+   * Create a project from explicit contents (e.g. the New Project modal: a name + parsed
+   * source files) and make it active. Falls back to the default name when none is given. Resolves
+   * once the new project is active in the store, so callers can rely on the canvas being populated.
+   */
+  createProject: (opts?: {
+    name?: string;
+    sources?: Source[];
+    chat?: ChatMessage[];
+  }) => Promise<void>;
   openProject: (id: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, name: string) => void;
@@ -186,16 +196,24 @@ export function useProjects(
     };
   }, [ready, writeActive, fail]);
 
-  const newProject = useCallback(() => {
-    void (async () => {
-      await flushRef.current();
-      const record = newRecord(DEFAULT_NAME, emptySchema(), [], []);
-      await saveProjectRecord(kv, record);
-      await setActiveProjectId(kv, record.id);
-      activate(record);
-      await refreshList();
-    })().catch(fail);
-  }, [kv, activate, refreshList, fail]);
+  const createProject = useCallback(
+    async (opts?: { name?: string; sources?: Source[]; chat?: ChatMessage[] }) => {
+      try {
+        await flushRef.current();
+        const name = opts?.name?.trim() || DEFAULT_NAME;
+        const record = newRecord(name, emptySchema(), opts?.sources ?? [], opts?.chat ?? []);
+        await saveProjectRecord(kv, record);
+        await setActiveProjectId(kv, record.id);
+        activate(record);
+        await refreshList();
+      } catch (reason) {
+        fail(reason);
+      }
+    },
+    [kv, activate, refreshList, fail],
+  );
+
+  const newProject = useCallback(() => void createProject(), [createProject]);
 
   const openProject = useCallback(
     (id: string) => {
@@ -315,6 +333,7 @@ export function useProjects(
     error,
     dismissError,
     newProject,
+    createProject,
     openProject,
     deleteProject,
     renameProject,

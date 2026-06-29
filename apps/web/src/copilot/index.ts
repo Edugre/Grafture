@@ -1,5 +1,7 @@
-export { CopilotPanel, type CopilotTab } from "./CopilotPanel.js";
+export { CopilotPanel, type CopilotTab, type CopilotKickoff } from "./CopilotPanel.js";
 export { buildConversationHistory } from "./conversation.js";
+export { buildInitialSchemaPrompt } from "./kickoff.js";
+export { useAutoDraftPreference, readAutoDraftPreference } from "./autoDraftPreference.js";
 export { buildCopilotSystemPrompt } from "./systemPrompt.js";
 export { parseCopilotResponse } from "./parseResponse.js";
 export {

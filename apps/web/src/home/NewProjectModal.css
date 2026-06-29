@@ -1,0 +1,421 @@
+/* New Project modal (handoff: design_handoff_new_project_modal).
+   Handoff hex maps onto the app's design tokens for light/dark parity:
+   accent #7C5CE0 → --accent, tint #F1EEFC → --accent-bg, etc. */
+
+.npm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(23, 26, 31, 0.34);
+  backdrop-filter: blur(1.5px);
+  animation: npm-fade 0.14s ease;
+}
+
+.npm-card {
+  display: flex;
+  flex-direction: column;
+  width: 600px;
+  max-width: 100%;
+  max-height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow:
+    0 24px 60px -12px rgba(23, 26, 31, 0.32),
+    0 0 0 1px rgba(23, 26, 31, 0.02);
+  overflow: hidden;
+  animation: npm-pop 0.16s ease;
+}
+
+.npm-card:focus {
+  outline: none;
+}
+
+@keyframes npm-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes npm-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+/* ---- Header ---- */
+.npm-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.npm-header__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+}
+
+.npm-header__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.npm-header__title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.npm-header__subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-muted);
+}
+
+.npm-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.npm-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+/* ---- Body ---- */
+.npm-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.npm-label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.npm-labelrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.npm-labelrow .npm-label {
+  margin: 0;
+}
+
+.npm-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---- Dropzone ---- */
+.npm-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 30px 24px;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  transition: all 0.12s ease;
+}
+
+.npm-dropzone.is-dragging {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.npm-dropzone__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 11px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+}
+
+.npm-dropzone__primary {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text);
+}
+
+.npm-dropzone__browse {
+  color: var(--accent-text);
+  font-weight: 500;
+}
+
+.npm-dropzone__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-faint);
+}
+
+.npm-fileinput {
+  display: none;
+}
+
+/* ---- File list ---- */
+.npm-filelist {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.npm-filerow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+
+.npm-filerow__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.npm-filerow__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.npm-filerow__name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.npm-filerow__meta {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.npm-filerow__remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.npm-filerow__remove:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.npm-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--text-muted);
+}
+
+.npm-note--error {
+  color: var(--danger-text);
+}
+
+/* ---- Inputs ---- */
+.npm-input,
+.npm-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.npm-input {
+  height: 40px;
+  padding: 0 13px;
+}
+
+.npm-textarea {
+  height: 96px;
+  padding: 11px 13px;
+  line-height: 20px;
+  resize: none;
+}
+
+.npm-input::placeholder,
+.npm-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.npm-input:focus,
+.npm-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(124, 92, 224, 0.14);
+}
+
+/* ---- Suggestion chips ---- */
+.npm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.npm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 9999px;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: filter 0.12s ease;
+}
+
+.npm-chip:hover {
+  filter: brightness(0.97);
+}
+
+/* ---- Footer ---- */
+.npm-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+}
+
+.npm-footer__summary {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.npm-footer__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.npm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    filter 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.npm-btn--ghost {
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.npm-btn--ghost:hover {
+  background: var(--surface-hover);
+}
+
+.npm-btn--primary {
+  padding: 0 18px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.npm-btn--primary:hover {
+  filter: brightness(0.94);
+}
+
+.npm-btn--primary:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

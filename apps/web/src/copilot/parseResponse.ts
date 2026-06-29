@@ -18,7 +18,8 @@ export type ParseCopilotResponseError = {
   error: string;
 };
 
-function extractJsonObject(text: string): string {
+/** Pull a JSON object out of model text, tolerating ```json fences or surrounding prose. */
+export function extractJsonObject(text: string): string {
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch?.[1]) {
     return fenceMatch[1].trim();

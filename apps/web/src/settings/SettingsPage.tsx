@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
+import { useAutoDraftPreference } from "../copilot/autoDraftPreference.js";
+import { useRerankPreference } from "../suggest/rerankPreference.js";
 import { useThemeContext, type Theme } from "../theme/ThemeContext.js";
 import {
   ChevronLeftIcon,
@@ -98,6 +100,8 @@ export function SettingsPage({ onBack, onAddKey }: { onBack: () => void; onAddKe
 
 function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
   const { apiKey, remember, setApiKey, setRemember } = useApiKeyContext();
+  const { enabled: rerank, setEnabled: setRerank } = useRerankPreference();
+  const { enabled: autoDraft, setEnabled: setAutoDraft } = useAutoDraftPreference();
 
   const hasKey = apiKey.trim().length > 0;
 
@@ -186,6 +190,32 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
           onChange={(event) => setRemember(event.target.checked)}
         />
         Remember this key on this device (otherwise it is kept in memory for this session only)
+      </label>
+
+      <h2 className="settings__section-heading">AI-ranked suggestions</h2>
+      <label className="settings__remember">
+        <input
+          type="checkbox"
+          checked={rerank}
+          disabled={!hasKey}
+          onChange={(event) => setRerank(event.target.checked)}
+        />
+        Use AI to reorder and explain content-aware suggestions (makes a billable call to your
+        provider when the suggestion set changes). Detectors still produce the suggestions — this
+        only ranks them.
+      </label>
+
+      <h2 className="settings__section-heading">Initial schema draft</h2>
+      <label className="settings__remember">
+        <input
+          type="checkbox"
+          checked={autoDraft}
+          disabled={!hasKey}
+          onChange={(event) => setAutoDraft(event.target.checked)}
+        />
+        When you create a project, have AI draft an initial schema from your files and description
+        (makes a billable call to your provider). The draft appears as a ghost proposal on the
+        canvas — review and Accept or Discard it before anything is applied.
       </label>
     </div>
   );

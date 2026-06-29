@@ -283,4 +283,56 @@ describe("schemaStore", () => {
       expect(store.getState().schema.tables[0]?.name).toBe("orders");
     });
   });
+
+  describe("draft (AI ghost proposal)", () => {
+    const draftSchema = () => {
+      const schema = emptySchema();
+      schema.tables.push({ id: "d-1", name: "orders", x: 0, y: 0, fields: [] });
+      return schema;
+    };
+
+    it("setDraft / discardDraft never touch the live schema or history", () => {
+      const store = createSchemaStore({ makeId: makeTestIds() });
+
+      store.getState().setDraft(draftSchema());
+      expect(store.getState().draft?.tables[0]?.name).toBe("orders");
+      expect(store.getState().schema.tables).toHaveLength(0);
+      expect(store.getState().canUndo()).toBe(false);
+
+      store.getState().discardDraft();
+      expect(store.getState().draft).toBeNull();
+      expect(store.getState().schema.tables).toHaveLength(0);
+      expect(store.getState().canUndo()).toBe(false);
+    });
+
+    it("acceptDraft swaps the draft into the schema as one undoable step, then clears it", () => {
+      const store = createSchemaStore({ makeId: makeTestIds() });
+
+      store.getState().setDraft(draftSchema());
+      store.getState().acceptDraft();
+
+      expect(store.getState().draft).toBeNull();
+      expect(store.getState().schema.tables.map((t) => t.name)).toEqual(["orders"]);
+      expect(store.getState().canUndo()).toBe(true);
+
+      store.getState().undo();
+      expect(store.getState().schema.tables).toHaveLength(0);
+    });
+
+    it("acceptDraft is a no-op when there is no pending draft", () => {
+      const store = createSchemaStore({ makeId: makeTestIds() });
+      store.getState().acceptDraft();
+      expect(store.getState().schema.tables).toHaveLength(0);
+      expect(store.getState().canUndo()).toBe(false);
+    });
+
+    it("loadProject clears a pending draft", () => {
+      const store = createSchemaStore({ makeId: makeTestIds() });
+      store.getState().setDraft(draftSchema());
+
+      store.getState().loadProject(emptySchema(), []);
+
+      expect(store.getState().draft).toBeNull();
+    });
+  });
 });

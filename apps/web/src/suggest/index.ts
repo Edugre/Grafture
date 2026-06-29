@@ -8,6 +8,13 @@ export {
   type SuggestionsApi,
 } from "./useSuggestions.js";
 export {
+  useRankedSuggestions,
+  type RankStatus,
+  type RankedSuggestions,
+} from "./useRankedSuggestions.js";
+export { toDigest, mergeRankings, parseRankingResponse, type RankedItem } from "./rerank.js";
+export { useRerankPreference, readRerankPreference } from "./rerankPreference.js";
+export {
   buildApplyPlan,
   buildJoinSuggestions,
   buildKeySuggestions,

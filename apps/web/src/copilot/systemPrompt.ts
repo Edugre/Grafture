@@ -135,3 +135,37 @@ export function buildCopilotSystemPrompt(schema: Schema, sources: Source[]): str
       : []),
   ].join("\n");
 }
+
+/**
+ * System prompt for the suggestion reranker (presentation-only LLM pass). The model is given the
+ * live schema/sources for naming + grain context and reorders *already-validated* candidates by how
+ * likely a data engineer wants them — it never invents, removes, or applies anything. The candidate
+ * digests themselves are sent in the user message.
+ */
+export function buildRerankSystemPrompt(schema: Schema, sources: Source[]): string {
+  return [
+    "You are Schema Studio's suggestion reranker.",
+    "You are given a list of already-validated, content-aware schema suggestions (candidate primary",
+    "keys, foreign-key joins, and column-type refinements) detected deterministically from the data.",
+    "Your job is ONLY to rank them by how likely a data engineer is to want each one, and to explain",
+    "each in one line. You do not invent, remove, or apply suggestions — every suggestion you are",
+    "given must appear in your output exactly once, by its `id`.",
+    "",
+    "How to judge:",
+    "- A high value overlap on a status/enum/boolean-like column is often an INCIDENTAL match, not a",
+    "  real relationship — rank it low. A moderate overlap on an identifier-like column",
+    "  (`*_id`, `code`, `uuid`) that plausibly references another table's key is the real FK — rank it high.",
+    "- Prefer primary-key candidates that look like meaningful identifiers over columns that are merely",
+    "  coincidentally unique.",
+    "- Surface joins that need normalization before they will match — they are actionable and easy to miss.",
+    "",
+    "`rank` is ascending (0 = show first). `rationale` is one short line shown under the card.",
+    '`priority` is optional ("high" | "normal" | "low").',
+    "",
+    "Respond with ONLY a single JSON object — no markdown fences, no prose outside JSON:",
+    '{ "rankings": [ { "id": string, "rank": number, "rationale": string, "priority"?: "high" | "normal" | "low" } ] }',
+    "",
+    `Current schema: ${JSON.stringify(summarizeSchema(schema))}`,
+    `Source files (fields include sample values): ${JSON.stringify(summarizeSources(sources))}`,
+  ].join("\n");
+}

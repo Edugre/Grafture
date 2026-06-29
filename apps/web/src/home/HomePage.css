@@ -341,6 +341,118 @@
   color: var(--border);
 }
 
+.home-card:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-border);
+}
+
+/* ---- Card head: badge + kebab menu ---- */
+.home-card__head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-card__menu {
+  position: relative;
+}
+
+.home-card__kebab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+/* Reveal the kebab on hover/focus-within, but keep it visible while its menu is open. */
+.home-card:hover .home-card__kebab,
+.home-card:focus-within .home-card__kebab,
+.home-card__kebab[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.home-card__kebab:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.home-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.home-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.home-menu__item:hover {
+  background: var(--surface-hover);
+}
+
+.home-menu__item--danger {
+  color: var(--danger-text);
+}
+
+.home-menu__item--danger:hover {
+  background: var(--danger-bg);
+}
+
+.home-card__name-edit {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 1px 7px;
+  box-shadow: 0 0 0 3px var(--accent-border);
+}
+
+.home-card__name-edit:focus {
+  outline: none;
+}
+
 /* ---- Derive-from-files tile ---- */
 .home-derive {
   display: flex;

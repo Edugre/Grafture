@@ -32,6 +32,147 @@
   color: var(--danger-text);
 }
 
+/* ---- AI initial-schema draft (ghost proposal) ---- */
+.copilot-suggest-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.copilot-suggest-draft__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.copilot-suggest-draft__icon {
+  display: inline-flex;
+  color: var(--accent-text);
+}
+
+.copilot-suggest-draft__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.copilot-suggest-draft__summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent-text);
+}
+
+.copilot-suggest-draft__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.copilot-suggest-draft__chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.copilot-suggest-draft__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--text-muted);
+}
+
+.copilot-suggest-draft__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.copilot-suggest-draft__actions .copilot-suggest-btn--ghost {
+  border: 1px solid var(--accent-border);
+  color: var(--text);
+}
+
+/* ---- AI rerank affordance ---- */
+.copilot-suggest-rank {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--accent-text);
+}
+
+.copilot-suggest-rank__toggle {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.copilot-suggest-rank__toggle:hover {
+  color: var(--text);
+}
+
+.copilot-suggest-rank__spin {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--accent-border);
+  border-top-color: var(--accent);
+  animation: copilot-suggest-spin 0.7s linear infinite;
+}
+
+@keyframes copilot-suggest-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- Priority chip ---- */
+.copilot-suggest-prio {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.copilot-suggest-prio--high {
+  background: var(--accent-bg);
+  color: var(--accent-text);
+}
+
+.copilot-suggest-prio--low {
+  background: var(--border-subtle);
+  color: var(--text-faint);
+}
+
+/* AI rationale line under the stats. */
+.copilot-suggest-card__rationale {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--text);
+}
+
 /* ---- Group ---- */
 .copilot-suggest-group {
   display: flex;

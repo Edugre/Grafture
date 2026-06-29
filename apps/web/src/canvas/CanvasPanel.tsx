@@ -53,6 +53,9 @@ export function CanvasPanel({
   const tables = schema.tables;
   const relationships = schema.relationships;
   const selectedTableId = useSchemaStore((state) => state.selection.tableId);
+  const schemaDraft = useSchemaStore((state) => state.draft);
+  const acceptDraft = useSchemaStore((state) => state.acceptDraft);
+  const discardDraft = useSchemaStore((state) => state.discardDraft);
   const { open: openSuggestions } = useSuggestions();
 
   // Resolve the active suggestion to canvas geometry. Null when nothing is active or the
@@ -64,6 +67,15 @@ export function CanvasPanel({
     const item = openSuggestions.find((suggestion) => suggestion.id === activeSuggestionId);
     return item ? buildSuggestionPreview(item, schema) : null;
   }, [activeSuggestionId, openSuggestions, schema]);
+
+  // Count of proposed (ghost) tables not yet in the live schema — drives the Accept/Discard bar.
+  const draftTableCount = useMemo(() => {
+    if (!schemaDraft) {
+      return 0;
+    }
+    const liveIds = new Set(tables.map((table) => table.id));
+    return schemaDraft.tables.filter((table) => !liveIds.has(table.id)).length;
+  }, [schemaDraft, tables]);
 
   const selectTable = useSchemaStore((state) => state.selectTable);
   const moveTable = useSchemaStore((state) => state.moveTable);
@@ -85,22 +97,37 @@ export function CanvasPanel({
   // The store owns structure + positions; ReactFlow's local arrays carry only the
   // ephemeral selection/measured-size state, which we preserve on each re-derive.
   useEffect(() => {
-    setNodes(
-      tables.map((table) => ({
+    const liveIds = new Set(tables.map((table) => table.id));
+    const live = tables.map((table) => ({
+      id: table.id,
+      type: "table" as const,
+      position: { x: table.x, y: table.y },
+      data: { table },
+      // The active table (store selection) is the canvas's selected node, so picking it here
+      // or from the Sources panel highlights the same card.
+      selected: table.id === selectedTableId,
+    }));
+    // Ghost nodes for an AI-drafted proposal: new tables not yet in the live schema. Locked down
+    // (non-draggable/deletable/selectable) so they can't write back to the store before Accept.
+    const ghosts = (schemaDraft?.tables ?? [])
+      .filter((table) => !liveIds.has(table.id))
+      .map((table) => ({
         id: table.id,
         type: "table" as const,
         position: { x: table.x, y: table.y },
-        data: { table },
-        // The active table (store selection) is the canvas's selected node, so picking it here
-        // or from the Sources panel highlights the same card.
-        selected: table.id === selectedTableId,
-      })),
-    );
-  }, [tables, selectedTableId, setNodes]);
+        data: { table, proposed: true },
+        selected: false,
+        draggable: false,
+        deletable: false,
+        selectable: false,
+      }));
+    setNodes([...live, ...ghosts]);
+  }, [tables, selectedTableId, schemaDraft, setNodes]);
 
   useEffect(() => {
-    setEdges((prev) =>
-      relationships.map((relationship) => {
+    const liveRelIds = new Set(relationships.map((relationship) => relationship.id));
+    setEdges((prev) => {
+      const live = relationships.map((relationship) => {
         const existing = prev.find((edge) => edge.id === relationship.id);
         return {
           id: relationship.id,
@@ -115,9 +142,29 @@ export function CanvasPanel({
           },
           selected: existing?.selected ?? false,
         };
-      }),
-    );
-  }, [relationships, setEdges]);
+      });
+      // Ghost edges for the AI-drafted proposal (dashed, non-interactive until Accept).
+      const ghosts = (schemaDraft?.relationships ?? [])
+        .filter((relationship) => !liveRelIds.has(relationship.id))
+        .map((relationship) => ({
+          id: relationship.id,
+          type: "relationship" as const,
+          source: relationship.fromTable,
+          target: relationship.toTable,
+          sourceHandle: relationship.fromField,
+          targetHandle: relationship.toField,
+          data: {
+            relationshipId: relationship.id,
+            cardinality: relationship.cardinality,
+            proposed: true,
+          },
+          selected: false,
+          deletable: false,
+          selectable: false,
+        }));
+      return [...live, ...ghosts];
+    });
+  }, [relationships, schemaDraft, setEdges]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<TableFlowNode>[]) => {
@@ -203,6 +250,28 @@ export function CanvasPanel({
               <span className="canvas-preview-pill__dot" aria-hidden />
               Previewing — not yet applied
             </span>
+          ) : null}
+          {draftTableCount > 0 ? (
+            <div className="canvas-draft-bar">
+              <span className="canvas-draft-bar__label">
+                <span className="canvas-draft-bar__dot" aria-hidden />
+                AI drafted {draftTableCount} {draftTableCount === 1 ? "table" : "tables"}
+              </span>
+              <button
+                type="button"
+                className="canvas-draft-bar__btn canvas-draft-bar__btn--ghost"
+                onClick={discardDraft}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                className="canvas-draft-bar__btn canvas-draft-bar__btn--primary"
+                onClick={acceptDraft}
+              >
+                Accept
+              </button>
+            </div>
           ) : null}
         </div>
         <div className="canvas-tools">

@@ -1,8 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useProjectsContext } from "../persistence/index.js";
 import type { ProjectSummary } from "../persistence/index.js";
-import { DatabaseIcon, GearIcon, PlusIcon, SearchIcon, UserIcon } from "../ui/icons.js";
+import {
+  DatabaseIcon,
+  GearIcon,
+  KebabIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+  UserIcon,
+} from "../ui/icons.js";
+import {
+  buildInitialSchemaPrompt,
+  useAutoDraftPreference,
+  type CopilotKickoff,
+} from "../copilot/index.js";
+import { ConfirmDialog } from "../ui/ConfirmDialog.js";
+import { NewProjectModal, type DeriveInput } from "./NewProjectModal.js";
 import { formatRelativeTime } from "./relativeTime.js";
 import "./HomePage.css";
 
@@ -17,20 +33,29 @@ const MAX_CHIPS = 2;
  * raw files. Project data comes from the shared projects context; selecting or creating a project
  * routes into the editor via `onEnterEditor`.
  *
+ * "New project" / the derive tile open the New Project modal (handoff:
+ * design_handoff_new_project_modal); each card has a kebab menu to rename (inline) or delete.
+ *
  * Cards render only truthful, already-persisted metadata: file-name chips, table count, file
- * count, relative edited time, and a badge from the applied relationship count. (The mock's
- * row counts and per-project type icons aren't tracked in the open core, so they're omitted.)
+ * count, relative edited time, and a badge from the applied relationship count.
  */
 export function HomePage({
   onOpenSettings,
   onEnterEditor,
 }: {
   onOpenSettings: () => void;
-  onEnterEditor: () => void;
+  /** Enter the editor; `kickoff` seeds the Copilot (used by the New Project modal). */
+  onEnterEditor: (kickoff?: CopilotKickoff) => void;
 }) {
-  const { summaries, ready, newProject, openProject } = useProjectsContext();
+  const { summaries, ready, createProject, openProject, renameProject, deleteProject } =
+    useProjectsContext();
+  const { enabled: autoDraft } = useAutoDraftPreference();
   const [query, setQuery] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("recent");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -47,15 +72,38 @@ export function HomePage({
       : matched;
   }, [summaries, query, filterMode]);
 
-  const startNew = () => {
-    newProject();
-    onEnterEditor();
-  };
-
   const open = (id: string) => {
     openProject(id);
     onEnterEditor();
   };
+
+  const derive = (input: DeriveInput) => {
+    setModalOpen(false);
+    // When auto-draft is on, send a framed prompt and let the Copilot draft a ghost schema.
+    // Otherwise preserve today's behavior: seed the raw description into the input to send manually.
+    const kickoff: CopilotKickoff | undefined = autoDraft
+      ? { message: buildInitialSchemaPrompt(input), autoDraft: true }
+      : input.description
+        ? { message: input.description, autoDraft: false }
+        : undefined;
+    // Await the new project so its sources are in the store before the editor (and any auto-draft)
+    // reads them, then enter.
+    void createProject({ name: input.name, sources: input.sources }).then(() =>
+      onEnterEditor(kickoff),
+    );
+  };
+
+  const startRename = (id: string) => {
+    setMenuId(null);
+    setEditingId(id);
+  };
+
+  const commitRename = (id: string, name: string) => {
+    setEditingId(null);
+    renameProject(id, name);
+  };
+
+  const confirmDeleteProject = summaries.find((project) => project.id === confirmDeleteId);
 
   return (
     <div className="home">
@@ -90,7 +138,12 @@ export function HomePage({
               Pick a schema to keep working, or derive a new one from raw files.
             </p>
           </div>
-          <button type="button" className="home-newbtn" onClick={startNew} disabled={!ready}>
+          <button
+            type="button"
+            className="home-newbtn"
+            onClick={() => setModalOpen(true)}
+            disabled={!ready}
+          >
             <PlusIcon size={16} />
             New project
           </button>
@@ -126,14 +179,36 @@ export function HomePage({
 
         <div className="home-grid">
           {visible.map((project) => (
-            <ProjectCard key={project.id} project={project} onOpen={() => open(project.id)} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              editing={editingId === project.id}
+              menuOpen={menuId === project.id}
+              onOpen={() => open(project.id)}
+              onToggleMenu={() =>
+                setMenuId((current) => (current === project.id ? null : project.id))
+              }
+              onCloseMenu={() => setMenuId(null)}
+              onStartRename={() => startRename(project.id)}
+              onCommitRename={(name) => commitRename(project.id, name)}
+              onCancelRename={() => setEditingId(null)}
+              onDelete={() => {
+                setMenuId(null);
+                setConfirmDeleteId(project.id);
+              }}
+            />
           ))}
 
           {ready && visible.length === 0 ? (
             <p className="home-empty">No projects match “{query}”.</p>
           ) : null}
 
-          <button type="button" className="home-derive" onClick={startNew} disabled={!ready}>
+          <button
+            type="button"
+            className="home-derive"
+            onClick={() => setModalOpen(true)}
+            disabled={!ready}
+          >
             <span className="home-derive__icon" aria-hidden>
               <PlusIcon size={18} />
             </span>
@@ -142,30 +217,173 @@ export function HomePage({
           </button>
         </div>
       </div>
+
+      {modalOpen ? <NewProjectModal onClose={() => setModalOpen(false)} onDerive={derive} /> : null}
+
+      {confirmDeleteProject ? (
+        <ConfirmDialog
+          title="Delete project?"
+          message={
+            <>
+              <strong>{confirmDeleteProject.name}</strong> and its sources will be permanently
+              removed from this browser. This can’t be undone.
+            </>
+          }
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => {
+            deleteProject(confirmDeleteProject.id);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () => void }) {
+function ProjectCard({
+  project,
+  editing,
+  menuOpen,
+  onOpen,
+  onToggleMenu,
+  onCloseMenu,
+  onStartRename,
+  onCommitRename,
+  onCancelRename,
+  onDelete,
+}: {
+  project: ProjectSummary;
+  editing: boolean;
+  menuOpen: boolean;
+  onOpen: () => void;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
+  onStartRename: () => void;
+  onCommitRename: (name: string) => void;
+  onCancelRename: () => void;
+  onDelete: () => void;
+}) {
   const chips = project.fileNames.slice(0, MAX_CHIPS);
   const overflow = project.fileNames.length - chips.length;
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss the menu on an outside click or Esc while it's open.
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    const onDocClick = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onCloseMenu();
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCloseMenu();
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen, onCloseMenu]);
+
+  const interactive = !editing && !menuOpen;
 
   return (
-    <button type="button" className="home-card" onClick={onOpen}>
+    <div
+      className="home-card"
+      role="button"
+      tabIndex={0}
+      onClick={() => interactive && onOpen()}
+      onKeyDown={(event) => {
+        if (interactive && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <div className="home-card__head">
         <span className="home-card__type" aria-hidden>
           <DatabaseIcon size={17} />
         </span>
-        {project.relationshipCount > 0 ? (
-          <span className="home-card__badge">
-            <span className="home-card__badge-dot" aria-hidden />
-            {project.relationshipCount} {project.relationshipCount === 1 ? "join" : "joins"}
-          </span>
-        ) : null}
+        <div className="home-card__head-right">
+          {project.relationshipCount > 0 ? (
+            <span className="home-card__badge">
+              <span className="home-card__badge-dot" aria-hidden />
+              {project.relationshipCount} {project.relationshipCount === 1 ? "join" : "joins"}
+            </span>
+          ) : null}
+          <div className="home-card__menu" ref={menuRef}>
+            <button
+              type="button"
+              className="home-card__kebab"
+              aria-label="Project options"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleMenu();
+              }}
+            >
+              <KebabIcon size={16} />
+            </button>
+            {menuOpen ? (
+              <div className="home-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="home-menu__item"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onStartRename();
+                  }}
+                >
+                  <PencilIcon size={14} />
+                  Edit name
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="home-menu__item home-menu__item--danger"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  <TrashIcon size={14} />
+                  Delete
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div>
-        <div className="home-card__name">{project.name}</div>
+        {editing ? (
+          <input
+            className="home-card__name-edit"
+            defaultValue={project.name}
+            autoFocus
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Enter") {
+                onCommitRename((event.target as HTMLInputElement).value);
+              } else if (event.key === "Escape") {
+                onCancelRename();
+              }
+            }}
+            onBlur={(event) => onCommitRename(event.target.value)}
+          />
+        ) : (
+          <div className="home-card__name">{project.name}</div>
+        )}
         <div className="home-card__chips">
           {chips.map((file) => (
             <span key={file} className="home-card__chip">
@@ -194,6 +412,6 @@ function ProjectCard({ project, onOpen }: { project: ProjectSummary; onOpen: () 
         </span>
         <span>edited {formatRelativeTime(project.updatedAt)}</span>
       </div>
-    </button>
+    </div>
   );
 }

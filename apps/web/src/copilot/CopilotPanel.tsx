@@ -1,7 +1,9 @@
-import type { AiProvider } from "@schema-studio/core";
-import { useMemo, useRef, useState } from "react";
+import { applyActions } from "@schema-studio/core";
+import type { Schema } from "@schema-studio/core";
+import { useEffect, useRef, useState } from "react";
 
-import { AnthropicBrowserProvider } from "../ai/AnthropicBrowserProvider.js";
+import { useAiProvider } from "../ai/useAiProvider.js";
+import { layoutSchema } from "../canvas/layout.js";
 import { useSchemaStore } from "../store/index.js";
 import { SuggestionsTab, useSuggestions } from "../suggest/index.js";
 import {
@@ -13,7 +15,6 @@ import {
   SendIcon,
   SparkleIcon,
 } from "../ui/icons.js";
-import { useApiKeyContext } from "./ApiKeyContext.js";
 import "./CopilotPanel.css";
 import { Markdown } from "./Markdown.js";
 import {
@@ -42,8 +43,16 @@ function outcomeFooter(outcome: LoopOutcome, attempts: number): string | null {
 
 export type CopilotTab = "chat" | "suggestions";
 
+/**
+ * Seeds the Copilot when the editor is entered from the New Project modal. `message` pre-fills the
+ * chat input; when `autoDraft` is set (and a provider is connected), the Copilot runs it on mount
+ * to draft a schema, surfaced as a reviewable ghost proposal rather than applied directly.
+ */
+export type CopilotKickoff = { message: string; autoDraft: boolean };
+
 export function CopilotPanel({
   onConnect,
+  kickoff,
   tab,
   onTabChange,
   activeSuggestionId,
@@ -52,6 +61,7 @@ export function CopilotPanel({
   onToggleCollapse,
 }: {
   onConnect: () => void;
+  kickoff?: CopilotKickoff | undefined;
   tab: CopilotTab;
   onTabChange: (tab: CopilotTab) => void;
   activeSuggestionId: string | null;
@@ -59,26 +69,27 @@ export function CopilotPanel({
   collapsed: boolean;
   onToggleCollapse: () => void;
 }) {
-  const { apiKey } = useApiKeyContext();
+  const provider = useAiProvider();
   const suggestions = useSuggestions();
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(kickoff?.message ?? "");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ attempt: number; max: number } | null>(null);
   const cancelledRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const kickedOffRef = useRef(false);
 
   const runActions = useSchemaStore((state) => state.runActions);
   const selectTable = useSchemaStore((state) => state.selectTable);
+  const setSchemaDraft = useSchemaStore((state) => state.setDraft);
+  const schemaDraft = useSchemaStore((state) => state.draft);
+  const liveTables = useSchemaStore((state) => state.schema.tables);
   const messages = useSchemaStore((state) => state.chat);
   const appendChatMessages = useSchemaStore((state) => state.appendChatMessages);
 
-  const provider = useMemo((): AiProvider | null => {
-    const trimmed = apiKey.trim();
-    if (!trimmed) {
-      return null;
-    }
-    return new AnthropicBrowserProvider(trimmed);
-  }, [apiKey]);
+  // Proposed (ghost) tables not yet in the live schema — surfaced in the Suggestions tab.
+  const draftTableCount = schemaDraft
+    ? schemaDraft.tables.filter((table) => !liveTables.some((live) => live.id === table.id)).length
+    : 0;
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -170,10 +181,113 @@ export function CopilotPanel({
     }
   };
 
+  /**
+   * Draft an initial schema from the New Project context without applying it. Runs the same agent
+   * loop as `handleSend`, but `apply` accumulates into a throwaway working copy (pure `applyActions`)
+   * instead of the store — so nothing is committed. The result is laid out and stashed as the store
+   * `draft`, which the canvas renders as a ghost proposal the user can Accept or Discard.
+   */
+  const runDraft = async (message: string) => {
+    if (!provider || busy) {
+      return;
+    }
+
+    onTabChange("chat");
+    setDraft(""); // the kickoff seeded the input; clear it now that we're sending it ourselves
+    appendChatMessages([{ id: nextMessageId(), role: "user", text: message }]);
+    setBusy(true);
+    cancelledRef.current = false;
+    scrollToBottom();
+
+    // Seed the working copy from the live schema (usually empty for a new project). The model
+    // proposes against this evolving copy across rounds; the store is never touched here.
+    let working: Schema = useSchemaStore.getState().schema;
+    const makeId = () => crypto.randomUUID();
+    let attempt = 0;
+
+    try {
+      const result = await runCopilotLoop({
+        message,
+        history: [],
+        maxIterations: DEFAULT_MAX_ITERATIONS,
+        isCancelled: () => cancelledRef.current,
+        propose: async (msg, turns) => {
+          attempt += 1;
+          setProgress({ attempt, max: DEFAULT_MAX_ITERATIONS });
+          scrollToBottom();
+          const proposed = await provider.propose(
+            working,
+            useSchemaStore.getState().sources,
+            msg,
+            turns,
+          );
+          return {
+            reply: proposed.reply,
+            actions: proposed.actions,
+            status: proposed.status ?? "needs_revision",
+          };
+        },
+        apply: (actions) => {
+          const r = applyActions(working, actions, { makeId });
+          working = r.schema;
+          return {
+            applied: r.applied.length > 0 ? summarizeAppliedActions(working, r.applied) : [],
+            rejected: r.rejected,
+          };
+        },
+      });
+
+      if (working.tables.length > 0) {
+        // Lay the proposal out so ghost tables don't overlap, then stash it for the canvas.
+        const positions = await layoutSchema(working);
+        const byId = new Map(positions.map((p) => [p.tableId, p]));
+        working = {
+          ...working,
+          tables: working.tables.map((table) => {
+            const pos = byId.get(table.id);
+            return pos ? { ...table, x: pos.x, y: pos.y } : table;
+          }),
+        };
+        setSchemaDraft(working);
+        // Surface the proposal in the Suggestions tab (where Accept/Discard also live).
+        onTabChange("suggestions");
+      }
+
+      const last = result.steps[result.steps.length - 1];
+      const reply = last?.reply || "(No reply text returned.)";
+      const note =
+        working.tables.length > 0
+          ? `\n\n_Drafted ${working.tables.length} ${
+              working.tables.length === 1 ? "table" : "tables"
+            } — review and **Accept** or **Discard** on the canvas._`
+          : "";
+      appendChatMessages([{ id: nextMessageId(), role: "assistant", text: `${reply}${note}` }]);
+    } catch (error) {
+      const text =
+        error instanceof Error ? error.message : "Something went wrong drafting the schema.";
+      appendChatMessages([{ id: nextMessageId(), role: "error", text }]);
+    } finally {
+      setBusy(false);
+      setProgress(null);
+      scrollToBottom();
+    }
+  };
+
+  // On entering the editor from the New Project modal with auto-draft on, kick off the draft once a
+  // provider is available. The ref latches so it fires exactly once (provider can arrive a tick
+  // late while the stored key hydrates). With no provider, the prompt just stays in the input.
+  useEffect(() => {
+    if (kickedOffRef.current || !kickoff?.autoDraft || !provider) {
+      return;
+    }
+    kickedOffRef.current = true;
+    void runDraft(kickoff.message);
+  }, [kickoff, provider]);
+
   // The Suggestions tab is content-aware detector output and needs no API key, so the tab bar
   // appears whenever there are open suggestions — independent of `provider`. When there are
   // none, the pane behaves exactly as before (chat only).
-  const showTabs = suggestions.openCount > 0;
+  const showTabs = suggestions.openCount > 0 || draftTableCount > 0;
   const activeTab: CopilotTab = showTabs ? tab : "chat";
 
   if (collapsed) {
@@ -230,7 +344,7 @@ export function CopilotPanel({
               onClick={() => onTabChange("suggestions")}
             >
               Suggestions
-              <span className="copilot-tab__badge">{suggestions.openCount}</span>
+              <span className="copilot-tab__badge">{suggestions.openCount + draftTableCount}</span>
             </button>
           </div>
         ) : null}

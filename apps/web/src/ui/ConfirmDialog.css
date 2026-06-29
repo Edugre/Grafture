@@ -1,0 +1,111 @@
+/* Confirmation dialog — compact modal for consequential actions (e.g. delete). Mirrors the
+   New Project modal's scrim/card treatment, mapped to the app's design tokens. */
+
+.confirm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(23, 26, 31, 0.34);
+  backdrop-filter: blur(1.5px);
+  animation: confirm-fade 0.12s ease;
+}
+
+.confirm-card {
+  width: 400px;
+  max-width: 100%;
+  padding: 22px 24px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow:
+    0 24px 60px -12px rgba(23, 26, 31, 0.32),
+    0 0 0 1px rgba(23, 26, 31, 0.02);
+  animation: confirm-pop 0.14s ease;
+}
+
+@keyframes confirm-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes confirm-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+}
+
+.confirm-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-message {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--text-muted);
+}
+
+.confirm-message strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.confirm-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    filter 0.12s ease;
+}
+
+.confirm-btn--ghost {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.confirm-btn--ghost:hover {
+  background: var(--surface-hover);
+}
+
+.confirm-btn--primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.confirm-btn--primary:hover {
+  filter: brightness(0.94);
+}
+
+.confirm-btn--danger {
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.confirm-btn--danger:hover {
+  filter: brightness(0.94);
+}
