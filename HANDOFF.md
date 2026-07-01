@@ -14,7 +14,7 @@ AI-reasoned relational schema and exports real migrations. It is **not** another
 editor: every competitor (ChartDB, DrawDB, Azimutt) starts from a database you already
 have. We start from **raw data you need to integrate**.
 
-**The differentiator — protect it in every change:** *content-aware modeling*. The AI and
+**The differentiator — protect it in every change:** _content-aware modeling_. The AI and
 the deterministic detectors look at sample values to propose join keys, flag grain
 mismatches, and warn about format conflicts (e.g. two ID columns that won't match without
 normalization). "AI adds a box to the canvas" is table-stakes; **reasoning about the data
@@ -47,7 +47,7 @@ assume a server.
    commands so **undo/redo stays correct**.
 3. Every AI-emitted action is **validated against the zod action schema** before it touches
    state. Invalid/inapplicable actions are **rejected and surfaced to the user, never
-   silently dropped.** (This surfacing *is* the product's credibility.)
+   silently dropped.** (This surfacing _is_ the product's credibility.)
 4. `packages/core` stays **React-free and network-free.**
 5. Core logic (parsers, exporters, `applyActions`, detectors) ships with **vitest tests.**
 6. A task is not done until **`pnpm test`, `pnpm build`, and `pnpm lint` are green.**
@@ -57,6 +57,7 @@ assume a server.
 ### Domain model (the contract)
 
 `Schema = { tables: Table[], relationships: Relationship[] }`
+
 - `Table = { id, name, x, y, fields: Field[] }`
 - `Field = { id, name, type, pk: boolean, fk: boolean }`
 - `Relationship = { id, fromTable, fromField, toTable, toField, cardinality: "1:1"|"1:N"|"N:M" }`
@@ -68,6 +69,7 @@ remove_relationship | set_pk | set_type`.
 There is **no `set_cardinality` op** (see T7).
 
 ### Commands
+
 `pnpm install` · `pnpm dev` · `pnpm test` · `pnpm lint` · `pnpm build`
 
 ---
@@ -78,15 +80,15 @@ There is **no `set_cardinality` op** (see T7).
 build a schema with AI that reasons over sample values → export a migration → persists
 locally, with no account and no server. ~167 tests green (verify with `pnpm test`).
 
-| Epic | State |
-| ---- | ----- |
-| Core engine (SS-0/1/2) | ✅ model, action protocol, parsers |
-| Web foundation (SS-3/4/5) | ✅ store, canvas, sources panel |
-| Ingestion + AI (SS-6) | ✅ copilot + agentic loop + BYO key |
-| Round-trip (SS-7/8) | ✅ exporters (DBML/SQL/Prisma) + local persistence |
+| Epic                         | State                                               |
+| ---------------------------- | --------------------------------------------------- |
+| Core engine (SS-0/1/2)       | ✅ model, action protocol, parsers                  |
+| Web foundation (SS-3/4/5)    | ✅ store, canvas, sources panel                     |
+| Ingestion + AI (SS-6)        | ✅ copilot + agentic loop + BYO key                 |
+| Round-trip (SS-7/8)          | ✅ exporters (DBML/SQL/Prisma) + local persistence  |
 | Modeling intelligence (SS-9) | ✅ join/format/grain/PK/type detectors, copilot-fed |
-| **Launch packaging (SS-10)** | 🟨 **the remaining gap for public launch** |
-| Design follow-ups | 🟨 17 deferred items (mostly UI wiring, see §6) |
+| **Launch packaging (SS-10)** | 🟨 **the remaining gap for public launch**          |
+| Design follow-ups            | 🟨 17 deferred items (mostly UI wiring, see §6)     |
 
 Current branch: `feat/suggestions-tab-toast`.
 
@@ -102,14 +104,14 @@ after launch · **P3** polish / nice-to-have.
 The only thing standing between v1 and a public "Show HN" launch. Ships in `apps/web` root /
 repo root, isolated from the store/canvas spine — safe to own end-to-end.
 
-| # | Task | Notes |
-| - | ---- | ----- |
-| T1 | **README** leading with the positioning sentence (file-first, *not* "another ERD editor") | Keep it product-focused; don't paste internal strategy notes. |
-| T2 | **CONTRIBUTING.md** | Dev setup, `pnpm` commands, package-boundary rule. |
-| T3 | **CI** — `.github/workflows` running lint + test + build on PR | Gate the done-bar automatically. |
-| T4 | **Bundled demo dataset** (HRSA + OPAIS style) | The data that shows off content-aware joins. |
-| T5 | **Static demo deploy** | Static build of the OSS app; no server dependency. |
-| T6 | Short demo clip | The Show-HN moment. |
+| #   | Task                                                                                      | Notes                                                         |
+| --- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| T1  | **README** leading with the positioning sentence (file-first, _not_ "another ERD editor") | Keep it product-focused; don't paste internal strategy notes. |
+| T2  | **CONTRIBUTING.md**                                                                       | Dev setup, `pnpm` commands, package-boundary rule.            |
+| T3  | **CI** — `.github/workflows` running lint + test + build on PR                            | Gate the done-bar automatically.                              |
+| T4  | **Bundled demo dataset** (HRSA + OPAIS style)                                             | The data that shows off content-aware joins.                  |
+| T5  | **Static demo deploy**                                                                    | Static build of the OSS app; no server dependency.            |
+| T6  | Short demo clip                                                                           | The Show-HN moment.                                           |
 
 LICENSE (MIT) already exists.
 
@@ -118,57 +120,57 @@ LICENSE (MIT) already exists.
 These undermine rule #2 (everything through `applyActions`). Small, core-adjacent, worth
 doing before launch so the contract holds.
 
-| # | Task | Where |
-| - | ---- | ----- |
-| T7 | Route manual commands through `applyActions` instead of `commitSnapshot` direct mutation. **Verified in `schemaStore.ts`:** `togglePk` (l.255), `removeRelationship` (l.381), `setCardinality` (l.415) all mutate a snapshot directly. **`set_pk` and `remove_relationship` ops already exist** — `togglePk`/`removeRelationship` can route today with no core change (note `togglePk` currently emits a fake `op:"toggle_pk"` applied entry, l.274). **`setCardinality` needs a new `set_cardinality` op** added to `packages/core/src/actions.ts` + zod + `applyActions` + tests. | `apps/web/src/store/schemaStore.ts` (+ `packages/core/src/actions.ts` for cardinality only) |
-| T8 | **Manual QA pass** with a real Anthropic key: canonical grant-number prompt end-to-end; HRSA CSV + OPAIS upload; verify rejected-action surfacing in chat. | browser |
+| #   | Task                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Where                                                                                       |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| T7  | Route manual commands through `applyActions` instead of `commitSnapshot` direct mutation. **Verified in `schemaStore.ts`:** `togglePk` (l.255), `removeRelationship` (l.381), `setCardinality` (l.415) all mutate a snapshot directly. **`set_pk` and `remove_relationship` ops already exist** — `togglePk`/`removeRelationship` can route today with no core change (note `togglePk` currently emits a fake `op:"toggle_pk"` applied entry, l.274). **`setCardinality` needs a new `set_cardinality` op** added to `packages/core/src/actions.ts` + zod + `applyActions` + tests. | `apps/web/src/store/schemaStore.ts` (+ `packages/core/src/actions.ts` for cardinality only) |
+| T8  | **Manual QA pass** with a real Anthropic key: canonical grant-number prompt end-to-end; HRSA CSV + OPAIS upload; verify rejected-action surfacing in chat.                                                                                                                                                                                                                                                                                                                                                                                                                          | browser                                                                                     |
 
 ### P2 — High-value design follow-ups (unlock multiple features)
 
 Grouped by root cause: knocking out the model change unblocks several UI items at once.
 
-| # | Task | Unblocks | Where |
-| - | ---- | -------- | ----- |
-| T9 | **Add `rowCount` to `SourceSchema`**, capture during parse. | DESIGN #7 (source row counts), #15 (project footer rows). | `packages/core/src/parse/types.ts` + `parse/` + tests |
-| T10 | **Proposed/applied/rejected relationship state on canvas**: add `status` to `Relationship` (+ zod + `applyActions` + tests), then dashed-purple edge, purple ring + join-key row, purple cardinality pill, amber "Couldn't apply" chip. | DESIGN #6 — the visible payoff of content-aware joins. | `packages/core/src/model.ts` first, then `apps/web/src/canvas/{RelationshipEdge,TableNode}.tsx`, `App.css` (tokens exist) |
-| T11 | **Content-aware status badges on Home cards** (inferred/mismatch/validated). Needs per-project detector run at list time — mind perf on large files. | DESIGN #13. | `listProjectSummaries` in `apps/web/src/persistence/projectStore.ts`, reuse `suggest/joinSuggestions.ts`, `+status` on `ProjectSummary` |
-| T12 | **Real BYO-key validation**: add `validate()`/ping to `AnthropicBrowserProvider`; wire `keyStatus: empty\|validating\|valid\|invalid` + inline error; last-4 display after save. | DESIGN #1, #2, #5. | `apps/web/src/byokey/ByoKeyPage.tsx`, `apps/web/src/ai/`, `useApiKey`/`ApiKeyContext`/`secretStore` |
+| #   | Task                                                                                                                                                                                                                                    | Unblocks                                                  | Where                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| T9  | **Add `rowCount` to `SourceSchema`**, capture during parse.                                                                                                                                                                             | DESIGN #7 (source row counts), #15 (project footer rows). | `packages/core/src/parse/types.ts` + `parse/` + tests                                                                                   |
+| T10 | **Proposed/applied/rejected relationship state on canvas**: add `status` to `Relationship` (+ zod + `applyActions` + tests), then dashed-purple edge, purple ring + join-key row, purple cardinality pill, amber "Couldn't apply" chip. | DESIGN #6 — the visible payoff of content-aware joins.    | `packages/core/src/model.ts` first, then `apps/web/src/canvas/{RelationshipEdge,TableNode}.tsx`, `App.css` (tokens exist)               |
+| T11 | **Content-aware status badges on Home cards** (inferred/mismatch/validated). Needs per-project detector run at list time — mind perf on large files.                                                                                    | DESIGN #13.                                               | `listProjectSummaries` in `apps/web/src/persistence/projectStore.ts`, reuse `suggest/joinSuggestions.ts`, `+status` on `ProjectSummary` |
+| T12 | **Real BYO-key validation**: add `validate()`/ping to `AnthropicBrowserProvider`; wire `keyStatus: empty\|validating\|valid\|invalid` + inline error; last-4 display after save.                                                        | DESIGN #1, #2, #5.                                        | `apps/web/src/byokey/ByoKeyPage.tsx`, `apps/web/src/ai/`, `useApiKey`/`ApiKeyContext`/`secretStore`                                     |
 
 ### P3 — Polish / later
 
-| # | Task | Where (DESIGN #) |
-| - | ---- | ---------------- |
-| T13 | General settings page (workspace name, detector toggles, min-overlap threshold) — wire toggles to detectors. | #8 |
-| T14 | Multi-key / multi-provider management (set active, retry, kebab). Depends on OpenAI/Local providers. | #3, #10 |
-| T15 | "Usage this month" stats — needs local request logging around the provider. | #11 |
-| T16 | Per-project type icons + project `type` field. | #14 |
-| T17 | Home "Derive from files" as a direct drop target. | #17 |
-| T18 | OpenAI + Local `AiProvider` implementations. | #3 |
-| T19 | User avatar / account identity — blocked on there being no account model in the OSS app. | #16 |
+| #   | Task                                                                                                         | Where (DESIGN #) |
+| --- | ------------------------------------------------------------------------------------------------------------ | ---------------- |
+| T13 | General settings page (workspace name, detector toggles, min-overlap threshold) — wire toggles to detectors. | #8               |
+| T14 | Multi-key / multi-provider management (set active, retry, kebab). Depends on OpenAI/Local providers.         | #3, #10          |
+| T15 | "Usage this month" stats — needs local request logging around the provider.                                  | #11              |
+| T16 | Per-project type icons + project `type` field.                                                               | #14              |
+| T17 | Home "Derive from files" as a direct drop target.                                                            | #17              |
+| T18 | OpenAI + Local `AiProvider` implementations.                                                                 | #3               |
+| T19 | User avatar / account identity — blocked on there being no account model in the OSS app.                     | #16              |
 
 ---
 
 ## 6. Deferred design-follow-up index (DESIGN_FOLLOWUPS.md → tasks)
 
-| DESIGN # | Item | Task | Status |
-| -------- | ---- | ---- | ------ |
-| 1 | Real provider key validation | T12 | deferred |
-| 2 | `keyStatus: validating` state | T12 | deferred |
-| 3 | OpenAI + Local providers | T18/T14 | deferred |
-| 4 | Settings page + key revocation | — | ✅ done |
-| 5 | Last-4 display after save | T12 | deferred |
-| 6 | Proposed/applied relationship state on canvas | T10 | deferred |
-| 7 | Source-file row counts | T9 | deferred |
-| 8 | General settings page | T13 | deferred |
-| 9 | Data & privacy / Members / Billing nav | — | not built (no account/backend in the OSS app) |
-| 10 | Multi-key management | T14 | deferred |
-| 11 | "Usage this month" stats | T15 | deferred |
-| 12 | Theme Save/Cancel + colors | — | ✅ done (immediate-apply, purple accent — intentional deviation) |
-| 13 | Content-aware Home status badges | T11 | deferred |
-| 14 | Per-project type icons | T16 | deferred |
-| 15 | Project row counts in card footer | T9 (root cause) | deferred |
-| 16 | User avatar / account identity | T19 | blocked on account model |
-| 17 | "Derive from files" drop target | T17 | deferred |
+| DESIGN # | Item                                          | Task            | Status                                                           |
+| -------- | --------------------------------------------- | --------------- | ---------------------------------------------------------------- |
+| 1        | Real provider key validation                  | T12             | deferred                                                         |
+| 2        | `keyStatus: validating` state                 | T12             | deferred                                                         |
+| 3        | OpenAI + Local providers                      | T18/T14         | deferred                                                         |
+| 4        | Settings page + key revocation                | —               | ✅ done                                                          |
+| 5        | Last-4 display after save                     | T12             | deferred                                                         |
+| 6        | Proposed/applied relationship state on canvas | T10             | deferred                                                         |
+| 7        | Source-file row counts                        | T9              | deferred                                                         |
+| 8        | General settings page                         | T13             | deferred                                                         |
+| 9        | Data & privacy / Members / Billing nav        | —               | not built (no account/backend in the OSS app)                    |
+| 10       | Multi-key management                          | T14             | deferred                                                         |
+| 11       | "Usage this month" stats                      | T15             | deferred                                                         |
+| 12       | Theme Save/Cancel + colors                    | —               | ✅ done (immediate-apply, purple accent — intentional deviation) |
+| 13       | Content-aware Home status badges              | T11             | deferred                                                         |
+| 14       | Per-project type icons                        | T16             | deferred                                                         |
+| 15       | Project row counts in card footer             | T9 (root cause) | deferred                                                         |
+| 16       | User avatar / account identity                | T19             | blocked on account model                                         |
+| 17       | "Derive from files" drop target               | T17             | deferred                                                         |
 
 ---
 
