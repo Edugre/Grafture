@@ -17,6 +17,7 @@ export function parseCsv(input: string, name: string, opts?: ParseOptions): Sour
       name,
       kind: "csv",
       fields: [],
+      rowCount: 0,
     };
   }
 
@@ -38,5 +39,7 @@ export function parseCsv(input: string, name: string, opts?: ParseOptions): Sour
     name,
     kind: "csv",
     fields,
+    // Full data-row count (header excluded), uncapped — not limited to the scanned slice.
+    rowCount: rows.length - 1,
   };
 }

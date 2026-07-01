@@ -175,5 +175,7 @@ export function parseJson(input: string, name: string, opts?: ParseOptions): Sou
     name,
     kind: "json",
     fields,
+    // Every extracted record is a row, uncapped — not limited to the scanned slice.
+    rowCount: records.length,
   };
 }

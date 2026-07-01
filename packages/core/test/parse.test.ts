@@ -142,6 +142,19 @@ describe("parseCsv", () => {
     const source = parseCsv("x\n1\n", "id.csv", { makeId: makeTestIds("csv-id") });
     expect(source.id).toBe("csv-id-1");
   });
+
+  it("counts data rows excluding the header, uncapped past the scan limit", () => {
+    const rows = Array.from({ length: 1200 }, (_, i) => String(i + 1)).join("\n");
+    const source = parseCsv(`id\n${rows}\n`, "big.csv", opts);
+    expect(source.rowCount).toBe(1200);
+    // Samples/stats stay capped at the scan limit; rowCount reflects the true total.
+    expect(source.fields[0]?.stats?.nonEmpty).toBe(1000);
+  });
+
+  it("reports rowCount 0 for empty and header-only files", () => {
+    expect(parseCsv("", "empty.csv", opts).rowCount).toBe(0);
+    expect(parseCsv("id,name\n", "header-only.csv", opts).rowCount).toBe(0);
+  });
 });
 
 describe("parseXlsx", () => {
@@ -178,6 +191,8 @@ describe("parseXlsx", () => {
     expect(names).toEqual(["People.id", "People.name", "Places.id", "Places.city"]);
     expect(source.fields[0]?.samples).toEqual(["1"]);
     expect(source.fields[3]?.samples).toEqual(["Paris"]);
+    // Data rows summed across the two non-empty sheets; the empty sheet contributes nothing.
+    expect(source.rowCount).toBe(2);
   });
 
   it("does not prefix field names for a single non-empty sheet", () => {
@@ -192,6 +207,7 @@ describe("parseXlsx", () => {
     const source = parseXlsx(buffer, "single.xlsx", opts);
 
     expect(source.fields.map((field) => field.name)).toEqual(["id", "name"]);
+    expect(source.rowCount).toBe(1);
   });
 
   it("uses injected makeId for Source id", () => {
@@ -208,6 +224,7 @@ describe("parseJson", () => {
     const source = parseJson('[{"b":2,"a":1},{"c":3,"a":9}]', "array.json", opts);
 
     expect(source.fields.map((field) => field.name)).toEqual(["b", "a", "c"]);
+    expect(source.rowCount).toBe(2);
   });
 
   it("flattens nested objects to depth 2", () => {
@@ -237,6 +254,7 @@ describe("parseJson", () => {
     const source = parseJson('{"id":1,"name":"Ada"}', "object.json", opts);
     expect(source.fields).toHaveLength(2);
     expect(source.fields[0]?.samples).toEqual(["1"]);
+    expect(source.rowCount).toBe(1);
   });
 
   it("unwraps records from a top-level envelope object", () => {
@@ -248,6 +266,8 @@ describe("parseJson", () => {
 
     expect(source.fields.map((field) => field.name)).toEqual(["id", "name"]);
     expect(source.fields[0]?.samples).toEqual(["1", "2"]);
+    // rowCount reflects the unwrapped records, not the envelope object.
+    expect(source.rowCount).toBe(2);
   });
 
   it("unwraps the largest record array and ignores envelope metadata", () => {

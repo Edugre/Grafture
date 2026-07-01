@@ -69,8 +69,15 @@ export function parseXlsx(
       name,
       kind: "xlsx",
       fields: [],
+      rowCount: 0,
     };
   }
+
+  // Sheets are concatenated into one source; each contributes its data rows (header excluded).
+  const rowCount = nonEmptySheets.reduce(
+    (total, { rows }) => total + Math.max(rows.length - 1, 0),
+    0,
+  );
 
   const prefixSheets = nonEmptySheets.length > 1;
   const columnValues = new Map<string, string[]>();
@@ -115,5 +122,6 @@ export function parseXlsx(
     name,
     kind: "xlsx",
     fields,
+    rowCount,
   };
 }

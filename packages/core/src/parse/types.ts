@@ -37,5 +37,11 @@ export const SourceSchema = z.object({
   name: z.string(),
   kind: SourceKindSchema,
   fields: z.array(SourceFieldSchema),
+  /**
+   * Total data rows in the file (records for JSON), excluding the header. Unlike the per-field
+   * `stats`, this is the *full* count — it is not capped at `MAX_SCAN_ROWS` — so the UI can show
+   * true source size. Optional: older persisted sources predate row-count capture.
+   */
+  rowCount: z.number().int().nonnegative().optional(),
 });
 export type Source = z.infer<typeof SourceSchema>;
