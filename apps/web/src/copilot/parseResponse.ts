@@ -6,7 +6,7 @@ export type ParsedCopilotResponse = {
   status: CopilotStatus;
 };
 
-function parseStatus(value: unknown): CopilotStatus {
+export function parseStatus(value: unknown): CopilotStatus {
   // Default to needs_revision when absent/unknown: it never forces an early "blocked"
   // stop, and a clean apply (zero rejections) terminates the loop regardless.
   return value === "complete" || value === "blocked" || value === "needs_revision"

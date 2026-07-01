@@ -22,7 +22,8 @@ describe("buildCopilotSystemPrompt", () => {
     expect(prompt).toContain("grant_number");
     expect(prompt).toContain("01234");
     expect(prompt).toContain("add_relationship");
-    expect(prompt).toContain('"reply"');
+    // The prompt now instructs a tool call rather than raw JSON output.
+    expect(prompt).toContain("submit_schema_response");
     expect(prompt).toContain("sample values");
   });
 

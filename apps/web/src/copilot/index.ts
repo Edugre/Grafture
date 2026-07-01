@@ -4,6 +4,7 @@ export { buildInitialSchemaPrompt } from "./kickoff.js";
 export { useAutoDraftPreference, readAutoDraftPreference } from "./autoDraftPreference.js";
 export { buildCopilotSystemPrompt } from "./systemPrompt.js";
 export { parseCopilotResponse } from "./parseResponse.js";
+export { COPILOT_RESPONSE_TOOL, parseToolUseResponse } from "./responseTool.js";
 export {
   collectAffectedTableIds,
   formatRejectedAction,

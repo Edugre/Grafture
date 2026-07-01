@@ -7,6 +7,8 @@ import {
   getTargetProfile,
 } from "@schema-studio/core";
 
+import { COPILOT_RESPONSE_TOOL } from "./responseTool.js";
+
 function summarizeSchema(schema: Schema) {
   const tableById = new Map(schema.tables.map((table) => [table.id, table]));
 
@@ -139,8 +141,9 @@ export function buildCopilotSystemPrompt(
     'in past tense and then set "status" to "complete". Reserve "complete" with no actions for that',
     "final confirmation or for a plain question that needs no changes.",
     "",
-    "Respond with ONLY a single JSON object — no markdown fences, no prose outside JSON:",
-    '{ "reply": "<your explanation to the user>", "actions": [ /* zero or more actions */ ], "status": "complete" | "needs_revision" | "blocked" }',
+    `Return your response by calling the ${COPILOT_RESPONSE_TOOL.name} tool exactly once — put your`,
+    'explanation in "reply", the schema actions in "actions" (empty for a plain question), and set',
+    '"status". Do not answer in plain text.',
     "",
     `Current schema: ${JSON.stringify(summarizeSchema(schema))}`,
     `Source files (fields include sample values): ${JSON.stringify(summarizeSources(sources))}`,
