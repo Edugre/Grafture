@@ -169,6 +169,28 @@ function cascadeTablePosition(tableCount: number): { x: number; y: number } {
   return { x: tableCount * 280, y: 0 };
 }
 
+/**
+ * Make a list of field names unique within a table, case-insensitively (matching
+ * `findFieldByName`). The whole action protocol addresses fields by name, so a table must never
+ * hold two fields with the same name — otherwise every later name-based op (add_relationship,
+ * set_pk, set_type, remove_field, …) would silently resolve to the first match and touch the wrong
+ * field. `add_field` already rejects duplicates; `add_table` builds many fields at once, so it
+ * disambiguates them here (`name`, `name_2`, …) rather than dropping any.
+ */
+function ensureUniqueFieldNames(names: string[]): string[] {
+  const used = new Set<string>();
+  return names.map((original) => {
+    let candidate = original;
+    let suffix = 2;
+    while (used.has(candidate.toLowerCase())) {
+      candidate = `${original}_${suffix}`;
+      suffix += 1;
+    }
+    used.add(candidate.toLowerCase());
+    return candidate;
+  });
+}
+
 export function applyActions(
   schema: Schema,
   rawActions: unknown,
@@ -221,9 +243,11 @@ export function applyActions(
                 : cascadeTablePosition(working.tables.length);
 
         const tableId = makeId();
-        const fields: Field[] = (action.fields ?? []).map((field) => ({
+        const requestedFields = action.fields ?? [];
+        const uniqueNames = ensureUniqueFieldNames(requestedFields.map((field) => field.name));
+        const fields: Field[] = requestedFields.map((field, index) => ({
           id: makeId(),
-          name: field.name,
+          name: uniqueNames[index] ?? field.name,
           type: field.type,
           pk: field.pk,
           fk: field.fk,

@@ -82,6 +82,21 @@ describe("applyActions", () => {
         { action: { op: "add_table", name: "Users" }, reason: "table 'Users' already exists" },
       ]);
     });
+
+    it("disambiguates duplicate field names so name-based ops stay unambiguous", () => {
+      const makeId = makeTestIds();
+      const result = applyActions(
+        emptySchema(),
+        [{ op: "add_table", name: "t", fields: [{ name: "id" }, { name: "id" }, { name: "ID" }] }],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      const names = result.schema.tables[0]!.fields.map((field) => field.name);
+      expect(names).toEqual(["id", "id_2", "ID_3"]);
+      // Case-insensitive uniqueness, matching findFieldByName's lookup.
+      expect(new Set(names.map((name) => name.toLowerCase())).size).toBe(names.length);
+    });
   });
 
   describe("add_field", () => {
