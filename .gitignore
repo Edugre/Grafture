@@ -9,7 +9,10 @@ dist/
 coverage/
 *.tsbuildinfo
 .vite/
+# Internal planning docs — private strategy stays local; HANDOFF.md is the committed source of truth
 ROADMAP.md
+ROADMAP2.md
+DESIGN_FOLLOWUPS.md
 # Local Claude Code launch config (machine-specific paths)
 .claude/
 # Local scratch data (e.g. full raw HRSA/OPAIS dumps) — kept out of the repo

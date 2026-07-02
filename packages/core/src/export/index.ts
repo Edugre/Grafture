@@ -49,7 +49,21 @@ function resolveRelationships(schema: Schema): ResolvedRelationship[] {
   return resolved;
 }
 
+// Field names come verbatim from source headers ("Grant Number", "Amount ($)"), so every
+// exporter has to make them valid identifiers in its own syntax rather than emitting them raw.
+
+const PLAIN_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 // --- DBML -----------------------------------------------------------------
+
+/** DBML identifier: bare when plain, double-quoted otherwise (quotes have no escape in DBML). */
+function dbmlIdent(name: string): string {
+  return PLAIN_IDENT.test(name) ? name : `"${name.replace(/"/g, "'")}"`;
+}
+
+function dbmlRefTarget(table: Table, field: Field): string {
+  return `${dbmlIdent(table.name)}.${dbmlIdent(field.name)}`;
+}
 
 const DBML_REF_OP: Record<Cardinality, string> = {
   "1:1": "-",
@@ -80,24 +94,24 @@ export function toDbml(schema: Schema): string {
       const inlineRef = inlineByFieldId.get(field.id);
       if (inlineRef) {
         attributes.push(
-          `ref: ${DBML_REF_OP[inlineRef.cardinality]} ${inlineRef.toTable.name}.${inlineRef.toField.name}`,
+          `ref: ${DBML_REF_OP[inlineRef.cardinality]} ${dbmlRefTarget(inlineRef.toTable, inlineRef.toField)}`,
         );
       }
 
       const suffix = attributes.length > 0 ? ` [${attributes.join(", ")}]` : "";
-      return `  ${field.name} ${field.type}${suffix}`;
+      return `  ${dbmlIdent(field.name)} ${field.type}${suffix}`;
     });
 
-    return `Table ${table.name} {\n${fieldLines.join("\n")}\n}`;
+    return `Table ${dbmlIdent(table.name)} {\n${fieldLines.join("\n")}\n}`;
   });
 
   const extraRefLines = relationships
     .filter((relationship) => inlineByFieldId.get(relationship.fromField.id) !== relationship)
     .map(
       (relationship) =>
-        `Ref: ${relationship.fromTable.name}.${relationship.fromField.name} ` +
+        `Ref: ${dbmlRefTarget(relationship.fromTable, relationship.fromField)} ` +
         `${DBML_REF_OP[relationship.cardinality]} ` +
-        `${relationship.toTable.name}.${relationship.toField.name}`,
+        `${dbmlRefTarget(relationship.toTable, relationship.toField)}`,
     );
 
   return [...tableBlocks, ...extraRefLines].join("\n\n");
@@ -172,16 +186,65 @@ function prismaType(type: string): string {
   return PRISMA_TYPES[type] ?? "String";
 }
 
+/** A legal Prisma identifier derived from a raw name: [A-Za-z][A-Za-z0-9_]*. */
+function prismaIdent(raw: string): string {
+  const cleaned = raw.replace(/[^A-Za-z0-9_]/g, "_");
+  return /^[A-Za-z]/.test(cleaned) ? cleaned : `x${cleaned ? `_${cleaned}` : ""}`;
+}
+
+/**
+ * Sanitize a list of raw names into unique Prisma identifiers, in order. Distinct raw names
+ * can sanitize to the same identifier ("a b" and "a-b" → "a_b"), so collisions get `_2`, `_3`…
+ */
+function uniquePrismaNames(rawNames: string[]): string[] {
+  const used = new Set<string>();
+  return rawNames.map((raw) => {
+    const base = prismaIdent(raw);
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate)) {
+      candidate = `${base}_${suffix}`;
+      suffix += 1;
+    }
+    used.add(candidate);
+    return candidate;
+  });
+}
+
+function prismaMapLiteral(raw: string): string {
+  return `"${raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export function toPrisma(schema: Schema): string {
   const relationships = resolveRelationships(schema);
+
+  // Prisma has no quoted identifiers, so raw names (CSV headers like "Grant Number") are
+  // sanitized into legal model/field names and mapped back with @map/@@map.
+  const modelNames = uniquePrismaNames(schema.tables.map((table) => table.name));
+  const modelNameByTableId = new Map<string, string>(
+    schema.tables.map((table, index) => [table.id, modelNames[index] ?? table.name]),
+  );
+  const fieldNameById = new Map<string, string>();
+  for (const table of schema.tables) {
+    const names = uniquePrismaNames(table.fields.map((field) => field.name));
+    table.fields.forEach((field, index) => {
+      fieldNameById.set(field.id, names[index] ?? field.name);
+    });
+  }
+  const modelName = (table: Table): string => modelNameByTableId.get(table.id) ?? table.name;
+  const fieldName = (field: Field): string => fieldNameById.get(field.id) ?? field.name;
 
   const models = schema.tables.map((table) => {
     const pkFields = table.fields.filter((field) => field.pk);
     const singlePk = pkFields.length === 1;
 
     const lines = table.fields.map((field) => {
-      const attribute = singlePk && field.pk ? " @id" : "";
-      return `  ${field.name} ${prismaType(field.type)}${attribute}`;
+      const name = fieldName(field);
+      const attributes = [
+        singlePk && field.pk ? " @id" : "",
+        name !== field.name ? ` @map(${prismaMapLiteral(field.name)})` : "",
+      ].join("");
+      return `  ${name} ${prismaType(field.type)}${attributes}`;
     });
 
     // Owning side: the table holds the foreign-key scalar.
@@ -189,12 +252,13 @@ export function toPrisma(schema: Schema): string {
       if (relationship.fromTable.id !== table.id) {
         continue;
       }
+      const target = modelName(relationship.toTable);
       if (relationship.cardinality === "N:M") {
-        lines.push(`  ${relationship.toTable.name} ${relationship.toTable.name}[]`);
+        lines.push(`  ${target} ${target}[]`);
       } else {
         lines.push(
-          `  ${relationship.toTable.name} ${relationship.toTable.name} ` +
-            `@relation(fields: [${relationship.fromField.name}], references: [${relationship.toField.name}])`,
+          `  ${target} ${target} ` +
+            `@relation(fields: [${fieldName(relationship.fromField)}], references: [${fieldName(relationship.toField)}])`,
         );
       }
     }
@@ -204,15 +268,21 @@ export function toPrisma(schema: Schema): string {
       if (relationship.toTable.id !== table.id) {
         continue;
       }
+      const source = modelName(relationship.fromTable);
       const modifier = relationship.cardinality === "1:1" ? "?" : "[]";
-      lines.push(`  ${relationship.fromTable.name} ${relationship.fromTable.name}${modifier}`);
+      lines.push(`  ${source} ${source}${modifier}`);
     }
 
     if (pkFields.length > 1) {
-      lines.push(`  @@id([${pkFields.map((field) => field.name).join(", ")}])`);
+      lines.push(`  @@id([${pkFields.map(fieldName).join(", ")}])`);
     }
 
-    return `model ${table.name} {\n${lines.join("\n")}\n}`;
+    const name = modelName(table);
+    if (name !== table.name) {
+      lines.push(`  @@map(${prismaMapLiteral(table.name)})`);
+    }
+
+    return `model ${name} {\n${lines.join("\n")}\n}`;
   });
 
   return models.join("\n\n");

@@ -21,6 +21,12 @@ const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models";
 const ANTHROPIC_VERSION = "2023-06-01";
 
+// Without a deadline a stalled connection hangs propose() forever — the agent loop's cancel
+// check only runs between rounds, so the whole copilot wedges. Generation can legitimately take
+// a while at 4096 max_tokens; listing models cannot.
+const MESSAGE_TIMEOUT_MS = 120_000;
+const MODELS_TIMEOUT_MS = 15_000;
+
 /** Cap on preview_export round-trips within a single propose() before we force a finalization. */
 const MAX_PREVIEW_ITERATIONS = 3;
 
@@ -149,7 +155,10 @@ export class AnthropicBrowserProvider implements AiProvider {
         url.searchParams.set("after_id", after);
       }
 
-      const response = await fetch(url, { headers: this.headers() });
+      const response = await fetch(url, {
+        headers: this.headers(),
+        signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
+      });
       if (!response.ok) {
         const errorBody = await response.text();
         throw new Error(`Anthropic Models API error (${response.status}): ${errorBody}`);
@@ -190,6 +199,7 @@ export class AnthropicBrowserProvider implements AiProvider {
     const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: this.headers(),
+      signal: AbortSignal.timeout(MESSAGE_TIMEOUT_MS),
       body: JSON.stringify({
         model: this.model,
         max_tokens: 4096,

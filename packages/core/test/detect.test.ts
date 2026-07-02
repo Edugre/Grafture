@@ -95,6 +95,32 @@ describe("detectJoinKeys", () => {
     expect(candidate?.formatMismatch?.issues).toContain("leading_zeros");
   });
 
+  it("compares the full distinct value set, not the 5-value display samples", () => {
+    // Two files share an ID column but are sorted differently, so their first-5 display
+    // samples are disjoint. The detectors must match on distinctValues to see the join.
+    const ids = Array.from({ length: 100 }, (_, index) => String(index + 1));
+    const forward: SourceField = {
+      name: "customer_id",
+      type: "int",
+      samples: ids.slice(0, 5),
+      distinctValues: ids,
+    };
+    const reversed: SourceField = {
+      name: "id",
+      type: "int",
+      samples: ids.slice(-5),
+      distinctValues: [...ids].reverse(),
+    };
+
+    const [candidate] = detectJoinKeys([
+      source("o", "orders.csv", [forward]),
+      source("c", "customers.csv", [reversed]),
+    ]);
+
+    expect(candidate?.normalizedOverlap).toBe(1);
+    expect(candidate?.sharedValues).toBe(100);
+  });
+
   it("proposes a clean join with no normalization when formats already match", () => {
     const orders = source("o", "orders.csv", [field("customer_id", "int", ["1", "2", "3", "4"])]);
     const customers = source("c", "customers.csv", [field("id", "int", ["1", "2", "3", "4"])]);

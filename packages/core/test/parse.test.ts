@@ -51,6 +51,15 @@ describe("inferType", () => {
     expect(inferType(["0", "1", "0", "1"])).toBe("int");
   });
 
+  it("keeps zero-padded identifiers as text, never int or numeric", () => {
+    // The HRSA↔OPAIS case: casting "01234" to a number drops the zeros and breaks the join.
+    expect(inferType(["01234", "00567", "09876"])).toBe("text");
+    expect(inferType(["1234", "00567", "9876"])).toBe("text");
+    expect(inferType(["01.5", "02.25", "03.75"])).toBe("text");
+    // A lone "0" (or "-0") is a real number, not padding.
+    expect(inferType(["0", "10", "-0", "200"])).toBe("int");
+  });
+
   it("infers date for accepted formats", () => {
     expect(inferType(["2024-01-15", "2024-02-20"])).toBe("date");
     expect(inferType(["2024/01/15", "2024/02/20"])).toBe("date");
@@ -247,6 +256,7 @@ describe("parseJson", () => {
       type: "text",
       samples: ['["a","b"]'],
       stats: { nonEmpty: 1, distinct: 1, blank: 0 },
+      distinctValues: ['["a","b"]'],
     });
   });
 

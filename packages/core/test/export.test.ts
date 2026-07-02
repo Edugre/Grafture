@@ -46,6 +46,41 @@ function schema340B(): Schema {
   };
 }
 
+/** Names exactly as they arrive from real CSV headers — spaces, punctuation, no sanitizing. */
+function rawHeaderSchema(): Schema {
+  return {
+    tables: [
+      {
+        id: "t_ce",
+        name: "Covered Entities",
+        x: 0,
+        y: 0,
+        fields: [
+          { id: "f_grant", name: "Grant Number", type: "text", pk: true, fk: false },
+          { id: "f_org", name: "Org (ID)", type: "int", pk: false, fk: true },
+        ],
+      },
+      {
+        id: "t_org",
+        name: "orgs",
+        x: 0,
+        y: 0,
+        fields: [{ id: "f_id", name: "id", type: "int", pk: true, fk: false }],
+      },
+    ],
+    relationships: [
+      {
+        id: "r1",
+        fromTable: "t_ce",
+        fromField: "f_org",
+        toTable: "t_org",
+        toField: "f_id",
+        cardinality: "1:N",
+      },
+    ],
+  };
+}
+
 describe("export", () => {
   describe("toDbml", () => {
     it("emits tables, typed columns, pk, and an inline ref with cardinality", () => {
@@ -67,6 +102,21 @@ describe("export", () => {
 
     it("returns an empty string for an empty schema", () => {
       expect(toDbml(emptySchema())).toBe("");
+    });
+
+    it("quotes identifiers that came verbatim from source headers", () => {
+      expect(toDbml(rawHeaderSchema())).toBe(
+        [
+          'Table "Covered Entities" {',
+          '  "Grant Number" text [pk]',
+          '  "Org (ID)" int [ref: > orgs.id]',
+          "}",
+          "",
+          "Table orgs {",
+          "  id int [pk]",
+          "}",
+        ].join("\n"),
+      );
     });
   });
 
@@ -135,6 +185,24 @@ describe("export", () => {
           "  id Int @id",
           "  name String",
           "  covered_entities covered_entities[]",
+          "}",
+        ].join("\n"),
+      );
+    });
+
+    it("sanitizes raw-header names into legal identifiers mapped back with @map/@@map", () => {
+      expect(toPrisma(rawHeaderSchema())).toBe(
+        [
+          "model Covered_Entities {",
+          '  Grant_Number String @id @map("Grant Number")',
+          '  Org__ID_ Int @map("Org (ID)")',
+          "  orgs orgs @relation(fields: [Org__ID_], references: [id])",
+          '  @@map("Covered Entities")',
+          "}",
+          "",
+          "model orgs {",
+          "  id Int @id",
+          "  Covered_Entities Covered_Entities[]",
           "}",
         ].join("\n"),
       );

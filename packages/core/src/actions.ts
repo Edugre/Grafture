@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { CardinalitySchema, type Field, type Schema, type Table } from "./model.js";
+import {
+  CardinalitySchema,
+  type Field,
+  type Relationship,
+  type Schema,
+  type Table,
+} from "./model.js";
 
 const fieldInputSchema = z.object({
   name: z.string(),
@@ -40,6 +46,13 @@ const removeTableActionSchema = z.object({
 const renameTableActionSchema = z.object({
   op: z.literal("rename_table"),
   table: z.string(),
+  new_name: z.string(),
+});
+
+const renameFieldActionSchema = z.object({
+  op: z.literal("rename_field"),
+  table: z.string(),
+  field: z.string(),
   new_name: z.string(),
 });
 
@@ -89,6 +102,7 @@ export const SchemaActionSchema = z.discriminatedUnion("op", [
   removeFieldActionSchema,
   removeTableActionSchema,
   renameTableActionSchema,
+  renameFieldActionSchema,
   addRelationshipActionSchema,
   removeRelationshipActionSchema,
   setPkActionSchema,
@@ -149,20 +163,49 @@ function relationshipExists(
   );
 }
 
-function removeRelationshipsForTable(schema: Schema, tableId: string): void {
+function removeRelationshipsForTable(schema: Schema, tableId: string): Relationship[] {
+  const removed = schema.relationships.filter(
+    (relationship) => relationship.fromTable === tableId || relationship.toTable === tableId,
+  );
   schema.relationships = schema.relationships.filter(
     (relationship) => relationship.fromTable !== tableId && relationship.toTable !== tableId,
   );
+  return removed;
 }
 
-function removeRelationshipsForField(schema: Schema, tableId: string, fieldId: string): void {
-  schema.relationships = schema.relationships.filter(
-    (relationship) =>
-      !(
-        (relationship.fromTable === tableId && relationship.fromField === fieldId) ||
-        (relationship.toTable === tableId && relationship.toField === fieldId)
-      ),
-  );
+function removeRelationshipsForField(
+  schema: Schema,
+  tableId: string,
+  fieldId: string,
+): Relationship[] {
+  const matches = (relationship: Relationship): boolean =>
+    (relationship.fromTable === tableId && relationship.fromField === fieldId) ||
+    (relationship.toTable === tableId && relationship.toField === fieldId);
+  const removed = schema.relationships.filter(matches);
+  schema.relationships = schema.relationships.filter((relationship) => !matches(relationship));
+  return removed;
+}
+
+/**
+ * The `fk` flag on a field mirrors "this column is the from-side of some relationship" so the
+ * canvas badge tracks reality. After relationships are removed, clear the flag on any from-field
+ * that no longer sources a relationship (fields explicitly created with `fk: true` but never
+ * linked are untouched — only fields whose relationship just went away are cleared).
+ */
+function clearOrphanedFkFlags(schema: Schema, removed: Relationship[]): void {
+  for (const relationship of removed) {
+    const stillSource = schema.relationships.some(
+      (candidate) => candidate.fromField === relationship.fromField,
+    );
+    if (stillSource) {
+      continue;
+    }
+    const table = schema.tables.find((candidate) => candidate.id === relationship.fromTable);
+    const field = table?.fields.find((candidate) => candidate.id === relationship.fromField);
+    if (field) {
+      field.fk = false;
+    }
+  }
 }
 
 function cascadeTablePosition(tableCount: number): { x: number; y: number } {
@@ -315,7 +358,8 @@ export function applyActions(
         }
 
         table.fields = table.fields.filter((candidate) => candidate.id !== field.id);
-        removeRelationshipsForField(working, table.id, field.id);
+        const removed = removeRelationshipsForField(working, table.id, field.id);
+        clearOrphanedFkFlags(working, removed);
 
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
@@ -332,7 +376,8 @@ export function applyActions(
         }
 
         working.tables = working.tables.filter((candidate) => candidate.id !== table.id);
-        removeRelationshipsForTable(working, table.id);
+        const removed = removeRelationshipsForTable(working, table.id);
+        clearOrphanedFkFlags(working, removed);
 
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
@@ -357,6 +402,47 @@ export function applyActions(
         }
 
         table.name = action.new_name;
+        applied.push({ op: action.op, tableIds: [table.id] });
+        break;
+      }
+
+      case "rename_field": {
+        const table = findTableByName(working, action.table);
+        if (!table) {
+          rejected.push({
+            action: rawAction,
+            reason: `table '${action.table}' not found`,
+          });
+          break;
+        }
+
+        const field = findFieldByName(table, action.field);
+        if (!field) {
+          rejected.push({
+            action: rawAction,
+            reason: `field '${action.field}' not found in table '${table.name}'`,
+          });
+          break;
+        }
+
+        if (action.new_name.trim() === "") {
+          rejected.push({
+            action: rawAction,
+            reason: "new field name must not be empty",
+          });
+          break;
+        }
+
+        const existing = findFieldByName(table, action.new_name);
+        if (existing && existing.id !== field.id) {
+          rejected.push({
+            action: rawAction,
+            reason: `field '${action.new_name}' already exists in table '${table.name}'`,
+          });
+          break;
+        }
+
+        field.name = action.new_name;
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -415,6 +501,8 @@ export function applyActions(
           toField: toField.id,
           cardinality: action.cardinality,
         });
+        // The from-side column now sources a relationship — keep the FK badge in sync.
+        fromField.fk = true;
 
         applied.push({
           op: action.op,
@@ -473,6 +561,7 @@ export function applyActions(
         working.relationships = working.relationships.filter(
           (candidate) => candidate.id !== relationship.id,
         );
+        clearOrphanedFkFlags(working, [relationship]);
 
         applied.push({
           op: action.op,

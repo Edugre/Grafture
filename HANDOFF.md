@@ -63,10 +63,12 @@ assume a server.
 - `Relationship = { id, fromTable, fromField, toTable, toField, cardinality: "1:1"|"1:N"|"N:M" }`
 
 Action protocol (zod discriminated union in core, discriminated on `op`) —
-**9 ops confirmed in `packages/core/src/actions.ts`:**
-`add_table | add_field | remove_field | remove_table | rename_table | add_relationship |
-remove_relationship | set_pk | set_type`.
-There is **no `set_cardinality` op** (see T7).
+**11 ops confirmed in `packages/core/src/actions.ts`:**
+`add_table | add_field | remove_field | remove_table | rename_table | rename_field |
+add_relationship | remove_relationship | set_pk | set_type | set_cardinality`.
+T7 is done: every store command routes through `applyActions` (`rename_field` was added so
+manual field renames could too). `add_relationship` now sets the from-field's `fk` flag and
+removals clear it when the last relationship on that field goes away.
 
 ### Commands
 
@@ -120,10 +122,10 @@ LICENSE (MIT) already exists.
 These undermine rule #2 (everything through `applyActions`). Small, core-adjacent, worth
 doing before launch so the contract holds.
 
-| #   | Task                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Where                                                                                       |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| T7  | Route manual commands through `applyActions` instead of `commitSnapshot` direct mutation. **Verified in `schemaStore.ts`:** `togglePk` (l.255), `removeRelationship` (l.381), `setCardinality` (l.415) all mutate a snapshot directly. **`set_pk` and `remove_relationship` ops already exist** — `togglePk`/`removeRelationship` can route today with no core change (note `togglePk` currently emits a fake `op:"toggle_pk"` applied entry, l.274). **`setCardinality` needs a new `set_cardinality` op** added to `packages/core/src/actions.ts` + zod + `applyActions` + tests. | `apps/web/src/store/schemaStore.ts` (+ `packages/core/src/actions.ts` for cardinality only) |
-| T8  | **Manual QA pass** with a real Anthropic key: canonical grant-number prompt end-to-end; HRSA CSV + OPAIS upload; verify rejected-action surfacing in chat.                                                                                                                                                                                                                                                                                                                                                                                                                          | browser                                                                                     |
+| #   | Task                                                                                                                                                                                                                                                                                                                                    | Where                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| T7  | ✅ **Done.** Every store command routes through `applyActions`: `togglePk`/`removeRelationship`/`setCardinality` (with the `set_cardinality` op) landed first; `setFieldType` (via `set_type`) and `renameField` (via a new core `rename_field` op) followed. No `commitSnapshot` schema mutations remain outside pure-visual geometry. | `apps/web/src/store/schemaStore.ts` + `packages/core/src/actions.ts` |
+| T8  | **Manual QA pass** with a real Anthropic key: canonical grant-number prompt end-to-end; HRSA CSV + OPAIS upload; verify rejected-action surfacing in chat.                                                                                                                                                                              | browser                                                              |
 
 ### P2 — High-value design follow-ups (unlock multiple features)
 

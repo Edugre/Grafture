@@ -92,6 +92,7 @@ const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal
 - remove_field: { "op": "remove_field", "table": string, "field": string }
 - remove_table: { "op": "remove_table", "table": string }
 - rename_table: { "op": "rename_table", "table": string, "new_name": string }
+- rename_field: { "op": "rename_field", "table": string, "field": string, "new_name": string }
 - add_relationship: { "op": "add_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality"?: "1:1" | "1:N" | "N:M" }
 - remove_relationship: { "op": "remove_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string }
 - set_pk: { "op": "set_pk", "table": string, "field": string, "pk": boolean }

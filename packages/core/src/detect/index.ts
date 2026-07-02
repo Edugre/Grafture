@@ -91,9 +91,17 @@ const NORMALIZERS = {
 
 type NormalizerKey = keyof typeof NORMALIZERS;
 
+/**
+ * The values a field is compared by: the full distinct set captured at parse time, falling back
+ * to the 5-value display samples for sources persisted before `distinctValues` existed.
+ */
+function fieldValues(field: SourceField): string[] {
+  return field.distinctValues ?? field.samples;
+}
+
 function valueSet(field: SourceField, normalize: (value: string) => string): Set<string> {
   const set = new Set<string>();
-  for (const sample of field.samples) {
+  for (const sample of fieldValues(field)) {
     const normalized = normalize(sample);
     if (normalized !== "") {
       set.add(normalized);
@@ -291,6 +299,17 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
 
   const candidates: JoinKeyCandidate[] = [];
 
+  // Each field's sets are needed once per field on the other side; build them once, not per pair.
+  const setsByField = new Map<SourceField, { raw: Set<string>; full: Set<string> }>();
+  const setsFor = (field: SourceField): { raw: Set<string>; full: Set<string> } => {
+    let sets = setsByField.get(field);
+    if (!sets) {
+      sets = { raw: valueSet(field, NORMALIZERS.raw), full: valueSet(field, NORMALIZERS.full) };
+      setsByField.set(field, sets);
+    }
+    return sets;
+  };
+
   for (let i = 0; i < sources.length; i += 1) {
     for (let j = i + 1; j < sources.length; j += 1) {
       const leftSource = sources[i];
@@ -301,14 +320,11 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
 
       for (const leftField of leftSource.fields) {
         for (const rightField of rightSource.fields) {
-          const rawOverlap = jaccard(
-            valueSet(leftField, NORMALIZERS.raw),
-            valueSet(rightField, NORMALIZERS.raw),
-          );
-          const leftFull = valueSet(leftField, NORMALIZERS.full);
-          const rightFull = valueSet(rightField, NORMALIZERS.full);
-          const sharedValues = intersectionSize(leftFull, rightFull);
-          const normalizedOverlap = jaccard(leftFull, rightFull);
+          const left = setsFor(leftField);
+          const right = setsFor(rightField);
+          const rawOverlap = jaccard(left.raw, right.raw);
+          const sharedValues = intersectionSize(left.full, right.full);
+          const normalizedOverlap = jaccard(left.full, right.full);
 
           if (normalizedOverlap < minOverlap || sharedValues < minShared) {
             continue;

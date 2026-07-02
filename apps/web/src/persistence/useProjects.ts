@@ -102,12 +102,17 @@ export function useProjects(
   const writeActive = useCallback(
     async (id: string, schema: Schema, sources: Source[], chat: ChatMessage[]) => {
       const previous = await loadProjectRecord(kv, id);
-      const now = Date.now();
+      // Every live project record is created explicitly (create/import/bootstrap) before it can
+      // become active, so a missing record means the project was deleted while this save was
+      // pending (e.g. the debounce timer fired mid-delete). Writing would resurrect it.
+      if (!previous) {
+        return;
+      }
       await saveProjectRecord(kv, {
         id,
-        name: previous?.name ?? DEFAULT_NAME,
-        createdAt: previous?.createdAt ?? now,
-        updatedAt: now,
+        name: previous.name,
+        createdAt: previous.createdAt,
+        updatedAt: Date.now(),
         schema,
         sources,
         chat,

@@ -144,10 +144,9 @@ describe("applyActions", () => {
   });
 
   describe("add_relationship", () => {
-    it("adds a relationship with default cardinality and leaves fk flags unchanged", () => {
+    it("adds a relationship with default cardinality and flags the from-field as fk", () => {
       const makeId = makeTestIds();
       const schema = seedSchema(makeId);
-      const postsBefore = structuredClone(schema.tables[1]!);
       const result = applyActions(
         schema,
         [
@@ -168,7 +167,8 @@ describe("applyActions", () => {
         id: "id-8",
         cardinality: "1:N",
       });
-      expect(result.schema.tables[1]).toEqual(postsBefore);
+      const posts = result.schema.tables.find((table) => table.name === "posts")!;
+      expect(posts.fields.find((field) => field.name === "id")?.fk).toBe(true);
     });
 
     it("rejects missing tables and fields", () => {
@@ -378,6 +378,134 @@ describe("applyActions", () => {
 
       expect(result.schema).toEqual(schema);
       expect(result.rejected[0]?.reason).toBe("table 'Posts' already exists");
+    });
+  });
+
+  describe("rename_field", () => {
+    it("renames a field with case-insensitive lookup", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const postsId = schema.tables[1]!.id;
+      const result = applyActions(
+        schema,
+        [{ op: "rename_field", table: "POSTS", field: "AUTHOR_ID", new_name: "user_id" }],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.tables[1]?.fields[1]?.name).toBe("user_id");
+      expect(result.applied).toEqual([{ op: "rename_field", tableIds: [postsId] }]);
+    });
+
+    it("allows a case-only rename of the same field", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [{ op: "rename_field", table: "posts", field: "author_id", new_name: "Author_ID" }],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.tables[1]?.fields[1]?.name).toBe("Author_ID");
+    });
+
+    it("rejects renaming onto another field's name", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [{ op: "rename_field", table: "posts", field: "author_id", new_name: "ID" }],
+        { makeId },
+      );
+
+      expect(result.schema).toEqual(schema);
+      expect(result.rejected[0]?.reason).toBe("field 'ID' already exists in table 'posts'");
+    });
+
+    it("rejects an empty new name and unknown fields", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [
+          { op: "rename_field", table: "posts", field: "author_id", new_name: "  " },
+          { op: "rename_field", table: "posts", field: "ghost", new_name: "x" },
+        ],
+        { makeId },
+      );
+
+      expect(result.schema).toEqual(schema);
+      expect(result.rejected[0]?.reason).toBe("new field name must not be empty");
+      expect(result.rejected[1]?.reason).toBe("field 'ghost' not found in table 'posts'");
+    });
+  });
+
+  describe("fk flag maintenance", () => {
+    it("clears fk when a field's last relationship is removed", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [
+          {
+            op: "remove_relationship",
+            from_table: "posts",
+            from_field: "author_id",
+            to_table: "users",
+            to_field: "id",
+          },
+        ],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.tables[1]?.fields[1]?.fk).toBe(false);
+    });
+
+    it("keeps fk while another relationship still uses the field", () => {
+      const makeId = makeTestIds();
+      const schema = seedSchema(makeId);
+      const result = applyActions(
+        schema,
+        [
+          {
+            op: "add_relationship",
+            from_table: "posts",
+            from_field: "author_id",
+            to_table: "users",
+            to_field: "email",
+          },
+          {
+            op: "remove_relationship",
+            from_table: "posts",
+            from_field: "author_id",
+            to_table: "users",
+            to_field: "id",
+          },
+        ],
+        { makeId },
+      );
+
+      expect(result.rejected).toEqual([]);
+      expect(result.schema.relationships).toHaveLength(1);
+      expect(result.schema.tables[1]?.fields[1]?.fk).toBe(true);
+    });
+
+    it("clears fk on other tables when a cascade removes the relationship", () => {
+      const makeId = makeTestIds();
+
+      const viaRemoveTable = applyActions(seedSchema(makeId), [
+        { op: "remove_table", table: "users" },
+      ]);
+      const posts = viaRemoveTable.schema.tables.find((table) => table.name === "posts")!;
+      expect(posts.fields[1]?.fk).toBe(false);
+
+      const viaRemoveField = applyActions(seedSchema(makeTestIds()), [
+        { op: "remove_field", table: "users", field: "id" },
+      ]);
+      const posts2 = viaRemoveField.schema.tables.find((table) => table.name === "posts")!;
+      expect(posts2.fields[1]?.fk).toBe(false);
     });
   });
 

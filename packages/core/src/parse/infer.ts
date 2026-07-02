@@ -6,6 +6,10 @@ const BOOL_VALUES = new Set(["true", "false", "yes", "no", "t", "f"]);
 
 const INT_PATTERN = /^[+-]?\d+$/;
 
+// A zero-padded value ("01234") is an identifier, not a number: casting it to int drops the
+// zeros and breaks joins (the HRSA↔OPAIS grant-number case). "0" itself stays numeric.
+const LEADING_ZERO_PATTERN = /^[+-]?0\d/;
+
 const NUMERIC_PATTERN = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
 
 const DATE_PATTERNS = [
@@ -32,7 +36,7 @@ function matchesBool(value: string): boolean {
 }
 
 function matchesInt(value: string): boolean {
-  return INT_PATTERN.test(value);
+  return INT_PATTERN.test(value) && !LEADING_ZERO_PATTERN.test(value);
 }
 
 function hasFractionalPart(value: string): boolean {
@@ -40,7 +44,7 @@ function hasFractionalPart(value: string): boolean {
 }
 
 function matchesNumeric(value: string): boolean {
-  return NUMERIC_PATTERN.test(value);
+  return NUMERIC_PATTERN.test(value) && !LEADING_ZERO_PATTERN.test(value);
 }
 
 function matchesDate(value: string): boolean {

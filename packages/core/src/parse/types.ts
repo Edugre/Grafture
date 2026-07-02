@@ -29,6 +29,13 @@ export const SourceFieldSchema = z.object({
   samples: z.array(z.string()),
   /** Optional — older persisted sources may predate stats capture. */
   stats: FieldStatsSchema.optional(),
+  /**
+   * Distinct non-empty values over the scanned rows (first-seen order, capped at
+   * MAX_SCAN_ROWS). This is the value set the join-key detectors compare — the 5-value
+   * `samples` are a display/prompt digest and far too small to measure overlap between
+   * real files. Optional: older persisted sources fall back to `samples`.
+   */
+  distinctValues: z.array(z.string()).optional(),
 });
 export type SourceField = z.infer<typeof SourceFieldSchema>;
 
