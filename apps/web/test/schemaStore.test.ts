@@ -4,6 +4,7 @@ import type { Source } from "@schema-studio/core";
 import { emptySchema } from "@schema-studio/core";
 
 import { createSchemaStore } from "../src/store/schemaStore.js";
+import { HISTORY_LIMIT, createHistoryController, pushHistory } from "../src/store/history.js";
 
 function makeTestIds(prefix = "id") {
   let counter = 0;
@@ -281,6 +282,24 @@ describe("schemaStore", () => {
   });
 
   describe("undo and redo", () => {
+    it("caps the undo stack at HISTORY_LIMIT, dropping the oldest snapshots", () => {
+      const history = createHistoryController();
+      const snapshot = (marker: number) => ({
+        schema: { tables: [], relationships: [] },
+        sources: [],
+        selection: { tableId: `t-${marker}` },
+      });
+
+      for (let index = 0; index < HISTORY_LIMIT + 5; index += 1) {
+        pushHistory(history, snapshot(index));
+      }
+
+      expect(history.past).toHaveLength(HISTORY_LIMIT);
+      // The five oldest entries were dropped, not the newest.
+      expect(history.past[0]?.selection.tableId).toBe("t-5");
+      expect(history.past.at(-1)?.selection.tableId).toBe(`t-${HISTORY_LIMIT + 4}`);
+    });
+
     it("undoes and redoes schema mutations from runActions", () => {
       const store = createSchemaStore({ makeId: makeTestIds() });
 

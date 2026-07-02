@@ -17,6 +17,13 @@ export type HistoryController = {
   coalesceKey: string | null;
 };
 
+/**
+ * Each snapshot deep-clones the schema and every source, so an unbounded stack grows memory
+ * for the whole session. 100 undo steps is far more than anyone walks back; beyond that the
+ * oldest snapshots are dropped.
+ */
+export const HISTORY_LIMIT = 100;
+
 export function createHistoryController(): HistoryController {
   return { past: [], future: [], coalesceKey: null };
 }
@@ -39,6 +46,9 @@ export function pushHistory(
   }
 
   history.past.push(snapshot);
+  if (history.past.length > HISTORY_LIMIT) {
+    history.past.shift();
+  }
   history.future = [];
   history.coalesceKey = coalesceKey ?? null;
 }

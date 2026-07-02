@@ -331,43 +331,21 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           if (!next || next === field.name) {
             return { applied: [], rejected: [] };
           }
-          if (
-            table.fields.some(
-              (candidate) =>
-                candidate.id !== fieldId && candidate.name.toLowerCase() === next.toLowerCase(),
-            )
-          ) {
-            return {
-              applied: [],
-              rejected: [
-                {
-                  action: { op: "rename_field", tableId, fieldId, name: next },
-                  reason: `field '${next}' already exists in '${table.name}'`,
-                },
-              ],
-            };
-          }
 
-          commitSnapshot((draft) => {
-            const draftTable = findTableById(draft.schema, tableId);
-            const draftField = draftTable && findFieldById(draftTable, fieldId);
-            if (draftField) {
-              draftField.name = next;
-            }
-          });
-
-          return { applied: [{ op: "rename_field", tableIds: [tableId] }], rejected: [] };
+          return runValidatedActions([
+            { op: "rename_field", table: table.name, field: field.name, new_name: next },
+          ]);
         },
 
         setFieldType: (tableId, fieldId, type) => {
           const table = findTableById(get().schema, tableId);
           if (!table) {
-            return rejectUnknownTable(tableId, "set_field_type");
+            return rejectUnknownTable(tableId, "set_type");
           }
 
           const field = findFieldById(table, fieldId);
           if (!field) {
-            return rejectUnknownField(tableId, fieldId, "set_field_type");
+            return rejectUnknownField(tableId, fieldId, "set_type");
           }
 
           const next = type.trim();
@@ -375,15 +353,9 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             return { applied: [], rejected: [] };
           }
 
-          commitSnapshot((draft) => {
-            const draftTable = findTableById(draft.schema, tableId);
-            const draftField = draftTable && findFieldById(draftTable, fieldId);
-            if (draftField) {
-              draftField.type = next;
-            }
-          });
-
-          return { applied: [{ op: "set_field_type", tableIds: [tableId] }], rejected: [] };
+          return runValidatedActions([
+            { op: "set_type", table: table.name, field: field.name, type: next },
+          ]);
         },
 
         addRelationship: (fromTableId, fromFieldId, toTableId, toFieldId, cardinality) => {

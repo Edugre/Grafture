@@ -25,6 +25,8 @@ function describeAction(action: unknown): string {
       return `remove table "${String(payload["table"] ?? "")}"`;
     case "rename_table":
       return `rename table "${String(payload["table"] ?? "")}" → "${String(payload["new_name"] ?? "")}"`;
+    case "rename_field":
+      return `rename field "${String(payload["field"] ?? "")}" in ${String(payload["table"] ?? "")} → "${String(payload["new_name"] ?? "")}"`;
     case "add_relationship":
       return `link ${String(payload["from_table"] ?? "")}.${String(payload["from_field"] ?? "")} → ${String(payload["to_table"] ?? "")}.${String(payload["to_field"] ?? "")}`;
     case "remove_relationship":
