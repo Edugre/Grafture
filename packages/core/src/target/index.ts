@@ -7,7 +7,7 @@ import { z } from "zod";
  * `../export`. This is the "libraries and tools" the copilot is contextualized on.
  *
  * Grounded in the exporters: the canonical Schema Studio types (`int | numeric | bool | date |
- * text`) map cleanly to every target; Postgres emits any other type verbatim, Prisma falls back
+ * timestamp | text`) map cleanly to every target; Postgres emits any other type verbatim, Prisma falls back
  * to `String`. The profiles below encode exactly that so the model's output stays exportable.
  */
 
@@ -64,6 +64,7 @@ export const TARGET_PROFILES: Record<TargetId, TargetProfile> = {
       { type: "numeric", note: "exact decimals — money, ratios, measurements" },
       { type: "boolean", note: "true/false flags" },
       { type: "date", note: "calendar dates" },
+      { type: "timestamptz", note: "points in time — dates that carry a time of day" },
       {
         type: "text",
         note: "variable-length strings; the safe default for identifiers, especially codes with leading zeros",

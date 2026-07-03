@@ -26,6 +26,7 @@ describe("inferType", () => {
       "bool",
       "int",
       "numeric",
+      "timestamp",
       "date",
       "text",
     ]);
@@ -64,7 +65,21 @@ describe("inferType", () => {
     expect(inferType(["2024-01-15", "2024-02-20"])).toBe("date");
     expect(inferType(["2024/01/15", "2024/02/20"])).toBe("date");
     expect(inferType(["01/15/2024", "02/20/2024"])).toBe("date");
-    expect(inferType(["2024-01-15T10:30:00Z", "2024-02-20T08:00:00+00:00"])).toBe("date");
+  });
+
+  it("infers timestamp — not date — when values carry a time of day", () => {
+    expect(inferType(["2024-01-15T10:30:00Z", "2024-02-20T08:00:00+00:00"])).toBe("timestamp");
+    expect(inferType(["2024-01-15 10:30:00", "2024-02-20 08:00:00"])).toBe("timestamp");
+    expect(inferType(["2024-01-15T10:30", "2024-02-20T08:00"])).toBe("timestamp");
+    expect(inferType(["2024-01-15T10:30:00.123Z", "2024-02-20T08:00:00.456Z"])).toBe("timestamp");
+  });
+
+  it("ignores textual null tokens when inferring the type", () => {
+    // "NULL" among ints must not drag the column to text.
+    expect(inferType(["1", "2", "NULL", "3", "n/a"])).toBe("int");
+    expect(inferType(["2024-01-15", "#N/A", "2024-02-20"])).toBe("date");
+    // An all-null-token column has no evidence at all.
+    expect(inferType(["NULL", "N/A", "-", "--", "NaN"])).toBe("text");
   });
 
   it("falls back to text when fewer than 95% of values match", () => {
@@ -94,6 +109,28 @@ describe("collectSamples", () => {
 
   it("excludes empty cells", () => {
     expect(collectSamples(["", "alpha", "", "beta"])).toEqual(["alpha", "beta"]);
+  });
+
+  it("excludes textual null tokens (NULL, N/A, #N/A, NaN, dashes)", () => {
+    expect(collectSamples(["NULL", "alpha", "N/A", "#N/A", "beta", "NaN", "-", "--"])).toEqual([
+      "alpha",
+      "beta",
+    ]);
+  });
+});
+
+describe("null-token handling in stats", () => {
+  it("counts null tokens as blank, disqualifying fake primary keys", () => {
+    // Distinct real values, but a third of the column is "N/A" — not PK material.
+    const stats = collectStats(["a", "b", "N/A", "c", "NULL", "d"]);
+
+    expect(stats).toEqual({ nonEmpty: 4, distinct: 4, blank: 2 });
+  });
+
+  it("recognizes tokens case-insensitively and with padding", () => {
+    const stats = collectStats([" null ", "Null", "x", " n/a"]);
+
+    expect(stats).toEqual({ nonEmpty: 1, distinct: 1, blank: 3 });
   });
 });
 

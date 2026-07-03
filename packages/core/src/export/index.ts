@@ -126,6 +126,7 @@ const POSTGRES_TYPES: Record<string, string> = {
   numeric: "numeric",
   bool: "boolean",
   date: "date",
+  timestamp: "timestamptz",
   text: "text",
 };
 
@@ -208,6 +209,7 @@ const PRISMA_TYPES: Record<string, string> = {
   numeric: "Decimal",
   bool: "Boolean",
   date: "DateTime",
+  timestamp: "DateTime",
   text: "String",
 };
 

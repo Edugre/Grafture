@@ -83,6 +83,7 @@ export {
   collectSamples,
   collectStats,
   inferType,
+  isNullToken,
   parseCsv,
   parseJson,
   parseSource,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const InferredTypeSchema = z.enum(["int", "numeric", "bool", "date", "text"]);
+export const InferredTypeSchema = z.enum(["int", "numeric", "bool", "date", "timestamp", "text"]);
 export type InferredType = z.infer<typeof InferredTypeSchema>;
 
 export const SourceKindSchema = z.enum(["csv", "xlsx", "json"]);

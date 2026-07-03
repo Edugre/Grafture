@@ -12,6 +12,7 @@ export {
   collectInferenceValues,
   collectSamples,
   collectStats,
+  isNullToken,
 } from "./sample.js";
 export {
   FieldStatsSchema,

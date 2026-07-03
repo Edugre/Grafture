@@ -201,6 +201,24 @@ describe("export", () => {
     it("emits no extension preamble for plain types", () => {
       expect(toSql(schema340B())).not.toContain("CREATE EXTENSION");
     });
+
+    it("maps the timestamp type to timestamptz", () => {
+      const schema: Schema = {
+        tables: [
+          {
+            id: "t",
+            name: "events",
+            x: 0,
+            y: 0,
+            fields: [{ id: "a", name: "occurred_at", type: "timestamp", pk: false, fk: false }],
+          },
+        ],
+        relationships: [],
+      };
+
+      expect(toSql(schema)).toContain('"occurred_at" timestamptz');
+      expect(toPrisma(schema)).toContain("occurred_at DateTime");
+    });
   });
 
   describe("toPrisma", () => {

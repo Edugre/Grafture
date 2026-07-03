@@ -4,8 +4,22 @@ export const MAX_SCAN_ROWS = 1000;
 export const MAX_INFERENCE_VALUES = 200;
 export const MAX_SAMPLES = 5;
 
+/**
+ * Case-insensitive tokens real exports use for missing data ("#N/A" is Excel's error literal,
+ * "nan" comes from pandas). Treating them as blank keeps the content-aware evidence honest: a
+ * column that is 30% "N/A" is not a primary-key candidate, and "NULL" is not a join value.
+ * Deliberately conservative — ambiguous strings that can be legitimate values ("NA" the country
+ * code, "none" the option) are NOT included.
+ */
+const NULL_TOKENS = new Set(["", "null", "n/a", "#n/a", "nan", "-", "--"]);
+
+/** Is this cell a real value, or empty/missing (including textual null tokens)? */
+export function isNullToken(value: string | null | undefined): boolean {
+  return value === null || value === undefined || NULL_TOKENS.has(value.trim().toLowerCase());
+}
+
 function isNonEmpty(value: string | null | undefined): value is string {
-  return value !== null && value !== undefined && value !== "";
+  return !isNullToken(value);
 }
 
 /**

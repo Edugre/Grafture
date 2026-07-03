@@ -1,4 +1,5 @@
 import type { InferredType } from "./types.js";
+import { isNullToken } from "./sample.js";
 
 export const TYPE_INFERENCE_THRESHOLD = 0.95;
 
@@ -16,11 +17,16 @@ const DATE_PATTERNS = [
   /^\d{4}-\d{2}-\d{2}$/,
   /^\d{4}\/\d{2}\/\d{2}$/,
   /^\d{2}\/\d{2}\/\d{4}$/,
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/,
+] as const;
+
+// A value with a time component is a point in time, not a calendar date — collapsing it to
+// `date` silently drops the time of day on export (timestamptz/DateTime round-trip properly).
+const TIMESTAMP_PATTERNS = [
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
 ] as const;
 
 function isNonEmpty(value: string): boolean {
-  return value !== "";
+  return !isNullToken(value);
 }
 
 function meetsThreshold(values: string[], matches: (value: string) => boolean): boolean {
@@ -51,6 +57,10 @@ function matchesDate(value: string): boolean {
   return DATE_PATTERNS.some((pattern) => pattern.test(value));
 }
 
+function matchesTimestamp(value: string): boolean {
+  return TIMESTAMP_PATTERNS.some((pattern) => pattern.test(value));
+}
+
 export type TypeInferenceRule = {
   type: InferredType;
   matches: (values: string[]) => boolean;
@@ -68,6 +78,10 @@ export const TYPE_INFERENCE_RULES: readonly TypeInferenceRule[] = [
   {
     type: "numeric",
     matches: (values) => values.some(hasFractionalPart) && meetsThreshold(values, matchesNumeric),
+  },
+  {
+    type: "timestamp",
+    matches: (values) => meetsThreshold(values, matchesTimestamp),
   },
   {
     type: "date",
