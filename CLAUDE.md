@@ -35,13 +35,17 @@ must stay fully usable offline with the user's own API key.
 
 A `Schema` is `{ tables: Table[], relationships: Relationship[] }`.
 
-- `Table`: `{ id, name, x, y, fields: Field[] }`
+- `Table`: `{ id, name, x, y, width?, fields: Field[] }`
 - `Field`: `{ id, name, type, pk: boolean, fk: boolean }`
 - `Relationship`: `{ id, fromTable, fromField, toTable, toField, cardinality: "1:1" | "1:N" | "N:M" }`
 
 The AI mutates the canvas only through the **action protocol** — a discriminated union
-validated by zod in `packages/core`:
-`add_table | add_field | remove_field | remove_table | rename_table | add_relationship | remove_relationship`.
+validated by zod in `packages/core` (the `op` discriminants in
+`packages/core/src/actions.ts` are the source of truth; 11 ops as of 2026-07-03):
+`add_table | add_field | remove_field | remove_table | rename_table | rename_field | add_relationship | remove_relationship | set_pk | set_type | set_cardinality`.
+
+Task status and current-state facts live in `HANDOFF.md` — it wins on **facts**; this
+file wins on **rules**.
 
 `applyActions(schema, actions)` in core is a **pure, tested** function. AI output and
 manual edits both flow through it.

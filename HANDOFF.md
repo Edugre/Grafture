@@ -58,21 +58,38 @@ assume a server.
 
 `Schema = { tables: Table[], relationships: Relationship[] }`
 
-- `Table = { id, name, x, y, fields: Field[] }`
+- `Table = { id, name, x, y, width?, fields: Field[] }` (`width` is optional presentation
+  geometry, resized via the store's `resizeTable` command)
 - `Field = { id, name, type, pk: boolean, fk: boolean }`
 - `Relationship = { id, fromTable, fromField, toTable, toField, cardinality: "1:1"|"1:N"|"N:M" }`
 
-Action protocol (zod discriminated union in core, discriminated on `op`) —
-**11 ops confirmed in `packages/core/src/actions.ts`:**
+Action protocol (zod discriminated union in core, discriminated on `op`). **The `op`
+discriminants in `packages/core/src/actions.ts` are the source of truth**; snapshot as of
+2026-07-03 on `feat/copilot-intelligence` — 11 ops:
 `add_table | add_field | remove_field | remove_table | rename_table | rename_field |
 add_relationship | remove_relationship | set_pk | set_type | set_cardinality`.
-T7 is done: every store command routes through `applyActions` (`rename_field` was added so
-manual field renames could too). `add_relationship` now sets the from-field's `fk` flag and
-removals clear it when the last relationship on that field goes away.
+
+> **Branch caveat:** on `main`, `actions.ts` has **10 ops (no `rename_field`)**, and T7's
+> second tranche (`setFieldType`/`renameField` routing) is not landed — its first tranche
+> (`togglePk`/`removeRelationship`/`setCardinality`) is on `main`. The rest lives on the
+> unmerged `feat/copilot-intelligence`. If you base
+> work on `main`, expect that delta; land/merge that branch before anything that depends
+> on §3 as written. (CLAUDE.md's older 7-op list has been corrected; where CLAUDE.md and
+> this file disagree on **facts**, this file wins — CLAUDE.md wins on **rules**.)
+
+T7 is done (on the branch): every store command routes through `applyActions`
+(`rename_field` was added so manual field renames could too). `add_relationship` now sets
+the from-field's `fk` flag and removals clear it when the last relationship on that field
+goes away.
 
 ### Commands
 
 `pnpm install` · `pnpm dev` · `pnpm test` · `pnpm lint` · `pnpm build`
+
+Cold-start notes: **Node 22 + Corepack** required (setup details in CONTRIBUTING.md).
+The API key is entered on the BYO-key page (`apps/web/src/byokey/ByoKeyPage.tsx`),
+reached from a copilot CTA or Settings → API keys. The bundled demo dataset
+(`apps/web/public/demo/`) is **not auto-loaded** — drag its files into the Sources panel.
 
 ---
 
@@ -80,19 +97,55 @@ removals clear it when the last relationship on that field goes away.
 
 **Open-Core v1 feature loop is SHIPPED** (SS-0 → SS-9). Clone → `pnpm dev` → upload files →
 build a schema with AI that reasons over sample values → export a migration → persists
-locally, with no account and no server. ~167 tests green (verify with `pnpm test`).
+locally, with no account and no server. 299 tests green as of 2026-07-03
+(the count rots — verify with `pnpm test`).
 
-| Epic                         | State                                               |
-| ---------------------------- | --------------------------------------------------- |
-| Core engine (SS-0/1/2)       | ✅ model, action protocol, parsers                  |
-| Web foundation (SS-3/4/5)    | ✅ store, canvas, sources panel                     |
-| Ingestion + AI (SS-6)        | ✅ copilot + agentic loop + BYO key                 |
-| Round-trip (SS-7/8)          | ✅ exporters (DBML/SQL/Prisma) + local persistence  |
-| Modeling intelligence (SS-9) | ✅ join/format/grain/PK/type detectors, copilot-fed |
-| **Launch packaging (SS-10)** | 🟨 **the remaining gap for public launch**          |
-| Design follow-ups            | 🟨 17 deferred items (mostly UI wiring, see §6)     |
+| Epic                         | State                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------- |
+| Core engine (SS-0/1/2)       | ✅ model, action protocol, parsers (incl. even-spread row sampling, null-token handling, `timestamp` type) |
+| Web foundation (SS-3/4/5)    | ✅ store, canvas, sources panel                                                             |
+| Ingestion + AI (SS-6)        | ✅ copilot + agentic loop + BYO key; `preview_export` agentic tool (on `main`)              |
+| Round-trip (SS-7/8)          | ✅ exporters (DBML/SQL/Prisma) + local persistence                                          |
+| Modeling intelligence (SS-9) | ✅ detectors, copilot-fed — the list rots; source of truth is the exports of `packages/core/src/detect/index.ts` (7 as of 2026-07-03: join, format, grain, PK, semantic-type, value-set, composite-key) |
+| Copilot intelligence overhaul| ✅ on `feat/copilot-intelligence` (**unmerged as of 2026-07-03** — verify with `git branch --merged main`): target profiles, forced tool call, `inspect_source` agentic tool, retained row tuples, `rename_field` op, T7's second tranche, undo-history cap + autosave delete guard + AI fetch timeouts |
+| Suggestions UI               | ✅ merged: `apps/web/src/suggest/` — full inventory and consumers below this table          |
+| **Launch packaging (SS-10)** | 🟨 **T5 (static deploy) + T6 (demo clip) are the remaining gap** — T1–T4 landed (PR #12; verify by artifact: `ls .github/workflows/ci.yml CONTRIBUTING.md apps/web/public/demo/`) |
+| Design follow-ups            | 🟨 see §6 for the live deferred/done/blocked states                                         |
 
-Current branch: `feat/suggestions-tab-toast`.
+**Suggestions subsystem map** (for anyone extending _or removing_ it):
+`apps/web/src/suggest/` holds `SuggestionsTab`, `SuggestionsToast`, `joinSuggestions.ts`,
+`useSuggestions.ts`, `useRankedSuggestions.ts`, `rerank.ts`, `rerankPreference.ts`, their
+CSS files, and an `index.ts` barrel. **Not all imports go through the barrel** — two
+files deep-import: `settings/SettingsPage.tsx` (`useRerankPreference`) and, notably,
+`ai/AnthropicBrowserProvider.ts` (`parseRankingResponse` from `rerank.ts` — the provider
+layer depends on this UI-feature dir; an architectural wrinkle to keep in mind).
+Consumers outside the dir: `App.tsx` (imports the toast and lifts `copilotTab` /
+`activeSuggestionId` state for its "View suggestions" CTA), `CopilotPanel.tsx`,
+`CanvasPanel.tsx` + `canvas/suggestionPreview.ts` (suggestion preview; the latter
+type-imports from the barrel), `schemaStore.ts` (`dismissedSuggestionIds` state, no
+import), `SettingsPage.tsx`, and `AnthropicBrowserProvider.ts`.
+T11 depends on `joinSuggestions.ts`.
+
+**Other load-bearing modules the board doesn't otherwise name:**
+
+- `packages/core/src/target/` — the copilot's **export-grounding contract** (grounds
+  exports via the *prompt* — `TARGET_PROFILES` does not feed exporter code; the SQL
+  extension map and Prisma fallbacks are hardcoded in `export/index.ts` and merely
+  *described* by the profiles, so behavior changes must be mirrored in both places):
+  `TargetIdSchema` (`postgres | prisma`), `TARGET_PROFILES` (per-target type vocabularies,
+  extension rules like PostGIS/citext auto-`CREATE EXTENSION`, Prisma scalar fallbacks),
+  `DEFAULT_TARGET`, `describeTargetForPrompt` (consumed by `copilot/systemPrompt.ts`).
+  Own test file. UI side: `apps/web/src/ai/{targetPreference,modelPreference,models,useModels}.ts`
+  drive the target-database and model selectors in `SettingsPage.tsx`. **T10's
+  export-inclusion decision (D1) runs through this module.**
+- **Eval harness**: `apps/web/test/evals.offline.test.ts` (deterministic golden-fixture
+  prompt regressions, always runs) + `evals.live.test.ts` (opt-in live-model eval,
+  `describe.runIf` on `ANTHROPIC_API_KEY` — this is the "1 skipped" in the test count
+  when no key is set; run command in its header). T8's manual QA overlaps the live eval's
+  draft-quality half — run the eval first, QA what it can't cover (UI surfacing).
+- Web export surface: `apps/web/src/export/ExportMenu.tsx` (the UI over core's exporters).
+- Shell/utility dirs not on the board (small, self-explanatory): `topbar/`, `ui/`,
+  `theme/`, plus canvas auto-layout (`canvas/{arrangeBridge,layout}.ts`, elkjs).
 
 ---
 
@@ -106,14 +159,14 @@ after launch · **P3** polish / nice-to-have.
 The only thing standing between v1 and a public "Show HN" launch. Ships in `apps/web` root /
 repo root, isolated from the store/canvas spine — safe to own end-to-end.
 
-| #   | Task                                                                                      | Notes                                                         |
-| --- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| T1  | **README** leading with the positioning sentence (file-first, _not_ "another ERD editor") | Keep it product-focused; don't paste internal strategy notes. |
-| T2  | **CONTRIBUTING.md**                                                                       | Dev setup, `pnpm` commands, package-boundary rule.            |
-| T3  | **CI** — `.github/workflows` running lint + test + build on PR                            | Gate the done-bar automatically.                              |
-| T4  | **Bundled demo dataset** (HRSA + OPAIS style)                                             | The data that shows off content-aware joins.                  |
-| T5  | **Static demo deploy**                                                                    | Static build of the OSS app; no server dependency.            |
-| T6  | Short demo clip                                                                           | The Show-HN moment.                                           |
+| #   | Task                                                                                          | Notes                                                                                        |
+| --- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| T1  | ✅ **Done.** README leads with the file-first positioning (_not_ "another ERD editor")        | Landed via PR #12 (`feat/launch-packaging`).                                                 |
+| T2  | ✅ **Done.** CONTRIBUTING.md: dev setup, `pnpm` commands, package-boundary rule               | Landed via PR #12.                                                                           |
+| T3  | ✅ **Done.** CI — `.github/workflows/ci.yml` runs lint + test + build on PRs + push-to-main   | Landed via PR #12.                                                                           |
+| T4  | ✅ **Done.** Bundled demo dataset (HRSA/340B style) in `apps/web/public/demo/`                | `health_centers.csv` + `covered_entities.json`, deliberate grain difference.                 |
+| T5  | **Static demo deploy**                                                                        | No deploy workflow/config exists yet; `apps/web/vite.config.ts` has no `base` setting (needed for GH Pages subpath hosting). BYO-key **does** survive static hosting — `AnthropicBrowserProvider` sends `anthropic-dangerous-direct-browser-access` for CORS, so "no server" is real. Host choice + whether the deployed demo auto-loads the bundled dataset: see Decisions D2/D3 (§8a). |
+| T6  | Short demo clip                                                                               | The Show-HN moment.                                                                          |
 
 LICENSE (MIT) already exists.
 
@@ -124,8 +177,9 @@ doing before launch so the contract holds.
 
 | #   | Task                                                                                                                                                                                                                                                                                                                                    | Where                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| T7  | ✅ **Done.** Every store command routes through `applyActions`: `togglePk`/`removeRelationship`/`setCardinality` (with the `set_cardinality` op) landed first; `setFieldType` (via `set_type`) and `renameField` (via a new core `rename_field` op) followed. No `commitSnapshot` schema mutations remain outside pure-visual geometry. | `apps/web/src/store/schemaStore.ts` + `packages/core/src/actions.ts` |
-| T8  | **Manual QA pass** with a real Anthropic key: canonical grant-number prompt end-to-end; HRSA CSV + OPAIS upload; verify rejected-action surfacing in chat.                                                                                                                                                                              | browser                                                              |
+| T7  | ✅ **Done.** Every store command routes through `applyActions`: `togglePk`/`removeRelationship`/`setCardinality` (with the `set_cardinality` op) landed first; `setFieldType` (via `set_type`) and `renameField` (via a new core `rename_field` op) followed. No `commitSnapshot` schema mutations remain outside pure-visual geometry — **except the wholesale schema swaps listed under T20**. | `apps/web/src/store/schemaStore.ts` + `packages/core/src/actions.ts` |
+| T8  | **Manual QA pass** with a real Anthropic key, reproducible from the repo alone: first run the scripted live eval (`apps/web/test/evals.live.test.ts` — command in its header) which covers draft quality; then in the browser, upload the bundled demo pair (`apps/web/public/demo/health_centers.csv` + `covered_entities.json`), prompt the copilot to derive a joined schema across them (the grain-difference join is the point), and verify rejected-action surfacing in chat — the part the eval can't cover. (The older "OPAIS upload" referred to gitignored `local-data/` files a second collaborator won't have.) | browser + `pnpm test`                                                |
+| T20 | **Route `acceptDraft` through `applyActions`.** Today `acceptDraft` installs the draft schema wholesale (`state.schema = structuredClone(proposed)`, `schemaStore.ts`), bypassing the validated path. The draft is *built* via `applyActions` in `CopilotPanel.tsx`, so it's not unvalidated — but it's an unremarked exception to rule #2 worth closing (replay the draft's actions, or document the exception in §3). Two other wholesale swaps exist: undo/redo restore (**sanctioned** — inherent to snapshot history) and `loadProject` — which is only zod-validated on the **file-import path** (`parseProjectFile` in `useProjects.ts`); the everyday project-switch path (`activate()` in `useProjects.ts`) passes `record.schema` straight from IndexedDB with no validation. Scope of T20: route `acceptDraft` through `applyActions` **and** zod-validate `loadProject`'s activate path (`SchemaSchema.safeParse` on read). | `apps/web/src/store/schemaStore.ts`, `apps/web/src/persistence/useProjects.ts`                                  |
 
 ### P2 — High-value design follow-ups (unlock multiple features)
 
@@ -133,10 +187,10 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 
 | #   | Task                                                                                                                                                                                                                                    | Unblocks                                                  | Where                                                                                                                                   |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| T9  | **Add `rowCount` to `SourceSchema`**, capture during parse.                                                                                                                                                                             | DESIGN #7 (source row counts), #15 (project footer rows). | `packages/core/src/parse/types.ts` + `parse/` + tests                                                                                   |
-| T10 | **Proposed/applied/rejected relationship state on canvas**: add `status` to `Relationship` (+ zod + `applyActions` + tests), then dashed-purple edge, purple ring + join-key row, purple cardinality pill, amber "Couldn't apply" chip. | DESIGN #6 — the visible payoff of content-aware joins.    | `packages/core/src/model.ts` first, then `apps/web/src/canvas/{RelationshipEdge,TableNode}.tsx`, `App.css` (tokens exist)               |
+| T9  | ✅ **Done (model side).** `rowCount` exists on `SourceSchema` (`parse/types.ts`), captured uncapped at parse; `sampleRows`/`distinctValues`/`stats` also exist. Remaining work is the UI wiring only (DESIGN #7, #15).                  | DESIGN #7 (source row counts), #15 (project footer rows). | UI: sources panel + `apps/web/src/persistence/projectStore.ts`                                                                          |
+| T10 | **Proposed/applied relationship state on canvas.** Read this before starting — the naive "add `status` to `Relationship`" spec was wrong in two ways. (1) **Three proposal-visual mechanisms already exist**: the whole-schema draft/`acceptDraft` preview (`schemaStore.ts`), the per-suggestion purple overlay (`canvas/suggestionPreview.ts` + `PreviewOverlay.tsx`), and the `--proposed` ghost styles in `App.css`. Decide unify-vs-coexist first (Decisions D1, §8a) or you'll build a fourth. (2) **"Rejected" cannot live on `Relationship`**: a rejected `add_relationship` never creates a Relationship row (rule #3 surfaces it in chat), so the enum on the model is `proposed \| applied` only; "Couldn't apply" is a chat/suggestion-surface concern. Touch list beyond the obvious: `packages/core/src/actions.ts` (default status in `add_relationship`; who flips proposed→applied?), `canvas/CanvasPanel.tsx` (where edges are constructed), `persistence/serialize.ts` (`status` must be **optional** or every saved project fails zod on load), and the export path — `packages/core/src/export/` plus its UI surface `apps/web/src/export/ExportMenu.tsx` and the target-grounding in `packages/core/src/target/` (proposed relationships in DBML/SQL/Prisma exports: include or exclude? — Decisions D1). | DESIGN #6 — the visible payoff of content-aware joins.    | `packages/core/src/model.ts` + `actions.ts` first (one PR), then `apps/web/src/canvas/{RelationshipEdge,TableNode,CanvasPanel}.tsx` + `serialize.ts` (follow-up PR)                                          |
 | T11 | **Content-aware status badges on Home cards** (inferred/mismatch/validated). Needs per-project detector run at list time — mind perf on large files.                                                                                    | DESIGN #13.                                               | `listProjectSummaries` in `apps/web/src/persistence/projectStore.ts`, reuse `suggest/joinSuggestions.ts`, `+status` on `ProjectSummary` |
-| T12 | **Real BYO-key validation**: add `validate()`/ping to `AnthropicBrowserProvider`; wire `keyStatus: empty\|validating\|valid\|invalid` + inline error; last-4 display after save.                                                        | DESIGN #1, #2, #5.                                        | `apps/web/src/byokey/ByoKeyPage.tsx`, `apps/web/src/ai/`, `useApiKey`/`ApiKeyContext`/`secretStore`                                     |
+| T12 | **Real BYO-key validation**: add `validate()`/ping to `AnthropicBrowserProvider`; wire `keyStatus: empty\|validating\|valid\|invalid` + inline error; last-4 display after save. Integration facts: the provider is constructed (memoized) in `apps/web/src/ai/useAiProvider.ts` — `validate()` must fit that; `ByoKeyPage.tsx` already has the inline-error pattern to extend (`error` state + `byok__helper--error`); the key is *also* shown masked in `settings/SettingsPage.tsx` (`maskKey`) — last-4 touches both surfaces; and the key persists only when "remember" is opted in (`secretStore.ts`), so "last-4 after save" needs a story for the non-remembered case. | DESIGN #1, #2, #5.                                        | `apps/web/src/byokey/ByoKeyPage.tsx`, `apps/web/src/ai/useAiProvider.ts`, `apps/web/src/copilot/{useApiKey,ApiKeyContext}`, `apps/web/src/persistence/secretStore.ts`, `apps/web/src/settings/SettingsPage.tsx` |
 
 ### P3 — Polish / later
 
@@ -154,6 +208,9 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 
 ## 6. Deferred design-follow-up index
 
+> DESIGN #s are historical IDs from a retired local doc (`DESIGN_FOLLOWUPS.md`, no longer
+> extant). The **Item** column is the spec; the numbers are just stable cross-reference keys.
+
 | DESIGN # | Item                                          | Task            | Status                                                           |
 | -------- | --------------------------------------------- | --------------- | ---------------------------------------------------------------- |
 | 1        | Real provider key validation                  | T12             | deferred                                                         |
@@ -162,7 +219,7 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 | 4        | Settings page + key revocation                | —               | ✅ done                                                          |
 | 5        | Last-4 display after save                     | T12             | deferred                                                         |
 | 6        | Proposed/applied relationship state on canvas | T10             | deferred                                                         |
-| 7        | Source-file row counts                        | T9              | deferred                                                         |
+| 7        | Source-file row counts                        | T9              | unblocked (model done) — UI wiring deferred                      |
 | 8        | General settings page                         | T13             | deferred                                                         |
 | 9        | Data & privacy / Members / Billing nav        | —               | not built (no account/backend in the OSS app)                    |
 | 10       | Multi-key management                          | T14             | deferred                                                         |
@@ -170,7 +227,7 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 | 12       | Theme Save/Cancel + colors                    | —               | ✅ done (immediate-apply, purple accent — intentional deviation) |
 | 13       | Content-aware Home status badges              | T11             | deferred                                                         |
 | 14       | Per-project type icons                        | T16             | deferred                                                         |
-| 15       | Project row counts in card footer             | T9 (root cause) | deferred                                                         |
+| 15       | Project row counts in card footer             | T9 (root cause) | unblocked (model done) — UI wiring deferred                      |
 | 16       | User avatar / account identity                | T19             | blocked on account model                                         |
 | 17       | "Derive from files" drop target               | T17             | deferred                                                         |
 
@@ -179,12 +236,18 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 ## 7. Working agreement for two people
 
 - **Don't both edit the store/canvas spine in the same window.** Suggested split:
-  - **Owner A → launch track:** T1–T6 (SS-10) + T8 QA. Repo-root / packaging, isolated.
-  - **Owner B → correctness + model track:** T7, then T9/T10 (the `Relationship` and
-    `Source` model changes that unblock the design follow-ups).
-- **Land core-model changes first** (T9, T10) before the UI that depends on them — one PR
+  - **Owner A → launch track:** T5/T6 (the open remainder of SS-10) + T8 QA. Repo-root /
+    packaging, isolated. (T1–T4 landed via PR #12.)
+  - **Owner B → model track:** T10 (the `Relationship.status` model change) plus the UI
+    wiring T9 left open (DESIGN #7/#15). (T7 and T9's model side are done.)
+- **Land core-model changes first** (T10) before the UI that depends on them — one PR
   for the model + zod + `applyActions` + tests, a follow-up PR for the UI.
 - Every PR: `pnpm test && pnpm build && pnpm lint` green; name what you left untouched.
+- **Branch base:** merge `feat/copilot-intelligence` before starting model-track work — §3's
+  contract describes that branch, not `main`. Owner A's packaging work (T5/T6) is
+  repo-root-isolated and safe to base on `main` meanwhile.
+- If your PR changes task status, ops, detectors, or file layout, **update this file in the
+  same PR** (also stated in CONTRIBUTING.md's checklist — that's the enforcement hook).
 
 ---
 
@@ -195,3 +258,56 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 - **Positioning = file-first schema derivation from raw data**, not "another AI ERD tool."
 - **The differentiator = content-aware modeling reasoning + code round-trip**, not the canvas.
 - **AI capability stays in the app via BYO key.**
+
+---
+
+## 8a. Open decisions (forward-action options only)
+
+| ID | Question | Options (first = recommended) |
+| --- | --- | --- |
+| D1 | T10: three proposal-visual mechanisms exist (draft/`acceptDraft`, suggestion `PreviewOverlay`, `--proposed` CSS). Unify or coexist? And do `proposed` relationships appear in exports? | **(a)** One status-driven mechanism: `Relationship.status` becomes the single source, `PreviewOverlay` renders from it, draft preview retired into it; proposed rows **excluded** from exports. (b) Keep draft preview for New Project only, status for per-relationship — two mechanisms, documented split. |
+| D2 | T5: deploy host? | **(a)** GitHub Pages via a `deploy.yml` workflow + Vite `base` setting — zero new accounts, same platform as CI. (b) Netlify/Cloudflare Pages — nicer URLs, no `base` needed. |
+| D3 | T5: does the deployed demo auto-load the bundled dataset? | **(a)** Auto-load behind a "Try the demo data" CTA on Home — the Show-HN visitor sees content-aware joins in one click. (b) Keep manual drag, add a visible hint. |
+
+---
+
+## 9. Adversarial review log
+
+**Last full re-verify: 2026-07-03.** Treat every count/status above as stale if `HEAD`
+has moved materially since.
+
+- **R1 (fact-check, 2026-07-03):** Doc was ~10 commits stale. Folded: T1–T4 marked done
+  (PR #12), T9 model side done (`rowCount` shipped), branch + test count corrected,
+  `feat/copilot-intelligence` + suggestions-UI work added to §4, `Table.width` added to
+  the contract, detector list extended, T10 marked partially built, §7 split re-scoped.
+- **R2 (hostile-contributor + decay audit, 2026-07-03):** Folded: branch-relative caveat
+  in §3 (`main` has 10 ops, no `rename_field`); T10 rewritten (three existing preview
+  mechanisms, "rejected" can't live on `Relationship`, serialize/export touch points);
+  T20 added (`acceptDraft` bypasses `applyActions`); T5/T8/T12 specs made executable;
+  suggestions-subsystem map added; cold-start notes added; free-floating counts converted
+  to pointers/commands; §8a Decisions table added; CLAUDE.md op list corrected + fact/rule
+  tie-break stated; CONTRIBUTING.md gained the update-HANDOFF checklist line.
+  Rejected: a claimed precedence conflict with a local-only (gitignored) working note —
+  that note's own header already concedes precedence to this file (reviewer misparse).
+- **R3 (fresh-eyes post-fold, 2026-07-03):** All heavy R2 claims verified against source.
+  Folded: T7 now cross-references T20's sanctioned-swap exceptions; T20 lists undo/redo +
+  `loadProject` as sanctioned wholesale swaps; suggestions map gained the `index.ts`
+  barrel + CSS files; detector pointer names `detect/index.ts` exports.
+  **Action item (not foldable): HANDOFF.md, CLAUDE.md, and CONTRIBUTING.md edits are
+  working-tree-only — commit and push all three together or none of this exists for the
+  second collaborator.**
+- **R4 (completeness-by-omission + fold-validation, 2026-07-03):** Refuted R3's barrel
+  claim (SettingsPage + AnthropicBrowserProvider deep-import `suggest/`; both added to
+  the consumer map, provider→suggest dependency flagged). Folded: `packages/core/src/target/`
+  + the model/target preference layer documented (load-bearing for T10/D1); eval harness
+  documented and wired into T8; `inspect_source` + branch hardening added to §4;
+  `loadProject`'s unvalidated activate path corrected and pulled into T20's scope;
+  `ExportMenu.tsx` added to T10's touch list; branch caveat made precise (T7 tranche 1 is
+  on `main`).
+- **R5 (fold-validation, 2026-07-03): CLEAN.** All R4-introduced claims confirmed against
+  source; no new SEV-1/SEV-2. Two nits folded: `suggestionPreview.ts` added to the
+  consumer map; noted that `TARGET_PROFILES` grounds exports via prompt text only (the
+  exporter code hardcodes the same rules — keep them mirrored). **Review exited here:
+  all six inventory angles ran (fact-check, hostile-contributor, decay, fresh-eyes,
+  completeness-by-omission, inverse-use/doc-drift via R2), and the final validation was
+  clean.**

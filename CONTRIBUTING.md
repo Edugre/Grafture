@@ -64,3 +64,5 @@ These keep the project's core promise intact — read them before a first PR.
 - [ ] Core logic has vitest coverage.
 - [ ] `pnpm test`, `pnpm lint`, and `pnpm build` are green.
 - [ ] No React or network code added to `packages/core`.
+- [ ] If the change affects task status, action ops, detectors, or file layout:
+      `HANDOFF.md` updated in the same PR (or N/A).
