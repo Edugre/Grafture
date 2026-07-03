@@ -13,6 +13,7 @@ export {
   collectSamples,
   collectStats,
   isNullToken,
+  sampleScanRows,
 } from "./sample.js";
 export {
   FieldStatsSchema,

@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_SCAN_ROWS,
   TYPE_INFERENCE_RULES,
   TYPE_INFERENCE_THRESHOLD,
   ParseError,
@@ -12,6 +13,7 @@ import {
   parseJson,
   parseSource,
   parseXlsx,
+  sampleScanRows,
 } from "../src/parse/index.js";
 
 function makeTestIds(prefix = "test-id"): () => string {
@@ -116,6 +118,52 @@ describe("collectSamples", () => {
       "alpha",
       "beta",
     ]);
+  });
+});
+
+describe("sampleScanRows", () => {
+  it("returns the rows unchanged when they fit the limit", () => {
+    const rows = ["a", "b", "c"];
+    expect(sampleScanRows(rows, 5)).toBe(rows);
+  });
+
+  it("samples evenly across the file, preserving order, deterministically", () => {
+    const rows = Array.from({ length: 100 }, (_, index) => index);
+    const sampled = sampleScanRows(rows, 10);
+
+    // Every region of the file is represented, not just the head.
+    expect(sampled).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90]);
+    expect(sampleScanRows(rows, 10)).toEqual(sampled);
+  });
+
+  it("de-biases a file sorted by the sampled column", () => {
+    // 3000 rows sorted by status: a head slice of 1000 would see only "alpha".
+    const rows = Array.from({ length: 3000 }, (_, index) =>
+      index < 1000 ? "alpha" : index < 2000 ? "beta" : "gamma",
+    );
+
+    expect(new Set(sampleScanRows(rows))).toEqual(new Set(["alpha", "beta", "gamma"]));
+  });
+});
+
+describe("scan-window sampling through parseCsv", () => {
+  it("captures values from the whole file, not just the first 1000 rows", () => {
+    const statuses = Array.from({ length: 2400 }, (_, index) =>
+      index < 800 ? "alpha" : index < 1600 ? "beta" : "gamma",
+    );
+    const input = ["id,status", ...statuses.map((status, index) => `${index},${status}`)].join(
+      "\n",
+    );
+
+    const source = parseCsv(input, "sorted.csv");
+    const status = source.fields.find((field) => field.name === "status");
+
+    expect(source.rowCount).toBe(2400);
+    // The scan window is still bounded…
+    expect(status?.stats?.nonEmpty).toBe(MAX_SCAN_ROWS);
+    // …but now sees every region of the sorted file.
+    expect(status?.stats?.distinct).toBe(3);
+    expect(status?.distinctValues).toEqual(["alpha", "beta", "gamma"]);
   });
 });
 

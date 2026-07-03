@@ -1,7 +1,7 @@
 import { ParseError } from "./errors.js";
 import type { Source } from "./types.js";
 import { buildSourceField, dedupeNames, resolveMakeId, type ParseOptions } from "./util.js";
-import { MAX_SCAN_ROWS } from "./sample.js";
+import { sampleScanRows } from "./sample.js";
 
 const MAX_KEY_SCAN_RECORDS = 200;
 const MAX_FLATTEN_DEPTH = 2;
@@ -144,7 +144,7 @@ export function parseJson(input: string, name: string, opts?: ParseOptions): Sou
 
   const records = extractRecords(parsed);
 
-  const scanRecords = records.slice(0, MAX_SCAN_ROWS);
+  const scanRecords = sampleScanRows(records);
   const keyOrder = unionFieldKeys(scanRecords);
   const dedupedNames = dedupeNames(keyOrder);
 

@@ -10,8 +10,8 @@ export type SourceKind = z.infer<typeof SourceKindSchema>;
  * Per-field value statistics over the scanned rows. These power the content-aware
  * detectors (SS-9): a field that is unique and non-blank is a primary-key candidate, and
  * the ratio of distinct values on each side of a join tells us its grain (1:1 vs 1:N).
- * Counts are over the first ~1000 scanned rows, so `distinct` is a lower bound for very
- * large files — the *ratio* stays a reliable signal.
+ * Counts are over up to ~1000 rows sampled evenly across the file, so `distinct` is a lower
+ * bound for very large files — the *ratio* stays a reliable signal.
  */
 export const FieldStatsSchema = z.object({
   /** Non-empty values scanned. */

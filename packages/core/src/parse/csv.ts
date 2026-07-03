@@ -2,7 +2,7 @@ import Papa from "papaparse";
 
 import type { Source } from "./types.js";
 import { buildSourceField, dedupeNames, resolveMakeId, type ParseOptions } from "./util.js";
-import { MAX_SCAN_ROWS } from "./sample.js";
+import { sampleScanRows } from "./sample.js";
 
 export function parseCsv(input: string, name: string, opts?: ParseOptions): Source {
   const result = Papa.parse<string[]>(input, {
@@ -27,7 +27,7 @@ export function parseCsv(input: string, name: string, opts?: ParseOptions): Sour
     return trimmed === "" ? `column_${index + 1}` : trimmed;
   });
   const fieldNames = dedupeNames(rawNames);
-  const dataRows = rows.slice(1, 1 + MAX_SCAN_ROWS);
+  const dataRows = sampleScanRows(rows.slice(1));
 
   const fields = fieldNames.map((fieldName, columnIndex) => {
     const columnValues = dataRows.map((row) => row[columnIndex] ?? "");

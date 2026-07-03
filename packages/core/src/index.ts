@@ -84,6 +84,7 @@ export {
   collectStats,
   inferType,
   isNullToken,
+  sampleScanRows,
   parseCsv,
   parseJson,
   parseSource,

@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { ParseError } from "./errors.js";
 import type { Source } from "./types.js";
 import { buildSourceField, dedupeNames, resolveMakeId, type ParseOptions } from "./util.js";
-import { MAX_SCAN_ROWS } from "./sample.js";
+import { sampleScanRows } from "./sample.js";
 
 function toArrayBuffer(input: ArrayBuffer | Uint8Array): ArrayBuffer {
   if (input instanceof ArrayBuffer) {
@@ -91,7 +91,7 @@ export function parseXlsx(
       return prefixSheets ? `${sheetName}.${base}` : base;
     });
     const fieldNames = dedupeNames(rawNames);
-    const dataRows = rows.slice(1, 1 + MAX_SCAN_ROWS);
+    const dataRows = sampleScanRows(rows.slice(1));
 
     for (let columnIndex = 0; columnIndex < fieldNames.length; columnIndex++) {
       const fieldName = fieldNames[columnIndex];
