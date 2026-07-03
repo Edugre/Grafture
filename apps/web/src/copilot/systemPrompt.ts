@@ -2,6 +2,7 @@ import type { Schema, Source, TargetId } from "@schema-studio/core";
 import {
   DEFAULT_TARGET,
   describeTargetForPrompt,
+  detectCompositeKeys,
   detectJoinKeys,
   detectPrimaryKeys,
   detectSemanticTypes,
@@ -93,6 +94,7 @@ const MAX_JOIN_FINDINGS = 8;
 const MAX_PK_FINDINGS = 12;
 const MAX_VALUE_SET_FINDINGS = 10;
 const MAX_SEMANTIC_FINDINGS = 12;
+const MAX_COMPOSITE_KEY_FINDINGS = 6;
 
 /**
  * Deterministic, content-aware findings from the core detectors (SS-9). Feeding these into the
@@ -135,16 +137,24 @@ function summarizeDetectorFindings(sources: Source[]) {
       looks_like: finding.semantic,
     }));
 
+  const compositeKeys = detectCompositeKeys(sources)
+    .slice(0, MAX_COMPOSITE_KEY_FINDINGS)
+    .map((candidate) => ({
+      fields: candidate.fields.map((field) => `${candidate.sourceName}.${field}`),
+      reason: candidate.reason,
+    }));
+
   if (
     joins.length === 0 &&
     primaryKeys.length === 0 &&
     valueSets.length === 0 &&
-    semantics.length === 0
+    semantics.length === 0 &&
+    compositeKeys.length === 0
   ) {
     return null;
   }
 
-  return { joins, primaryKeys, valueSets, semantics };
+  return { joins, primaryKeys, valueSets, semantics, compositeKeys };
 }
 
 const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal ids):
@@ -280,7 +290,9 @@ export function buildDynamicContext(schema: Schema, sources: Source[]): string {
           "Detector findings (computed deterministically from the data — strong evidence, but",
           "confirm against the samples and the user's intent before acting). `grain` is the inferred",
           "relationship cardinality; `normalize` lists steps needed before the columns will join;",
-          "`primaryKeys` are columns that are unique and non-null in the data; `valueSets` are",
+          "`primaryKeys` are columns that are unique and non-null in the data; `compositeKeys`",
+          "are column pairs that are only unique together (sampled evidence — the natural key of",
+          "a line-item/junction grain); `valueSets` are",
           "closed low-cardinality value sets (weigh enum vs lookup table per the design doctrine —",
           "`hint` is an ordering hint, not a verdict); `semantics` are columns whose values match a",
           "known shape (emails, coordinates, timestamps…) — consider richer target types for them:",

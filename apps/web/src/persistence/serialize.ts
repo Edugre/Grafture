@@ -17,7 +17,16 @@ export function toProjectFile(project: ExportableProject): ProjectFile {
     version: PROJECT_FILE_VERSION,
     name: project.name,
     schema: project.schema,
-    sources: project.sources,
+    // Strip sampleRows from the shareable export: aligned raw row tuples restore the
+    // cross-column correlation that the per-column digests (samples/distinctValues)
+    // deliberately don't carry — a re-identification risk in a file meant to be shared.
+    // Local persistence (IndexedDB) keeps them; an imported project merely lacks
+    // composite-key evidence until its sources are re-uploaded.
+    sources: project.sources.map((source) => {
+      const exported = { ...source };
+      delete exported.sampleRows;
+      return exported;
+    }),
     chat: project.chat,
   };
 }

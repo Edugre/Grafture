@@ -3,6 +3,8 @@ import type { FieldStats } from "./types.js";
 export const MAX_SCAN_ROWS = 1000;
 export const MAX_INFERENCE_VALUES = 200;
 export const MAX_SAMPLES = 5;
+/** Cap on retained row tuples (`Source.sampleRows`) — enough for multi-column uniqueness checks. */
+export const MAX_ROW_TUPLES = 200;
 
 /**
  * Pick up to `limit` rows spread evenly across the whole file, preserving order. A head slice

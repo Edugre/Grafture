@@ -174,6 +174,41 @@ describe("prompt structure", () => {
     expect(dynamic).toContain('"looks_like":"latitude"');
   });
 
+  it("surfaces composite-key evidence from sampled row tuples", () => {
+    const rows: string[][] = [];
+    for (let order = 1; order <= 10; order += 1) {
+      for (let line = 1; line <= 3; line += 1) {
+        rows.push([`O${order}`, String(line)]);
+      }
+    }
+    const dynamic = buildDynamicContext(emptySchema(), [
+      {
+        id: "s1",
+        name: "lines.csv",
+        kind: "csv" as const,
+        fields: [
+          {
+            name: "order_id",
+            type: "text" as const,
+            samples: ["O1", "O2"],
+            stats: { nonEmpty: 30, distinct: 10, blank: 0 },
+          },
+          {
+            name: "line_no",
+            type: "int" as const,
+            samples: ["1", "2"],
+            stats: { nonEmpty: 30, distinct: 3, blank: 0 },
+          },
+        ],
+        sampleRows: rows,
+      },
+    ]);
+
+    expect(dynamic).toContain('"compositeKeys"');
+    expect(dynamic).toContain('"lines.csv.order_id"');
+    expect(dynamic).toContain("unique together");
+  });
+
   it("orders dynamic sections deterministically: schema, sources, findings", () => {
     const dynamic = buildDynamicContext(emptySchema(), [
       ...sources,

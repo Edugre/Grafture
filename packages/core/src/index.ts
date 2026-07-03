@@ -10,6 +10,8 @@ export type {
   SuggestionRanking,
 } from "./ai/provider.js";
 export type {
+  CompositeKeyCandidate,
+  CompositeKeyOptions,
   DetectOptions,
   FieldRef,
   FormatIssue,
@@ -26,6 +28,7 @@ export type {
   ValueSetSuggestion,
 } from "./detect/index.js";
 export {
+  detectCompositeKeys,
   detectFormatMismatch,
   detectJoinKeys,
   detectPrimaryKeys,

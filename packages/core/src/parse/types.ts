@@ -45,6 +45,14 @@ export const SourceSchema = z.object({
   kind: SourceKindSchema,
   fields: z.array(SourceFieldSchema),
   /**
+   * Row tuples sampled evenly across the scan window (at most MAX_ROW_TUPLES rows), each
+   * aligned with `fields` order. Per-field value sets cannot answer multi-column questions —
+   * composite-key uniqueness and functional dependencies need co-occurring values from the
+   * same row. Optional: omitted for multi-sheet XLSX (columns come from different sheets, so
+   * no single row matrix exists) and for sources persisted before capture.
+   */
+  sampleRows: z.array(z.array(z.string())).optional(),
+  /**
    * Total data rows in the file (records for JSON), excluding the header. Unlike the per-field
    * `stats`, this is the *full* count — it is not capped at `MAX_SCAN_ROWS` — so the UI can show
    * true source size. Optional: older persisted sources predate row-count capture.

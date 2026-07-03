@@ -7,6 +7,7 @@ export {
 } from "./infer.js";
 export {
   MAX_INFERENCE_VALUES,
+  MAX_ROW_TUPLES,
   MAX_SAMPLES,
   MAX_SCAN_ROWS,
   collectInferenceValues,

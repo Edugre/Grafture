@@ -119,6 +119,24 @@ describe("project file serialization", () => {
     }
   });
 
+  it("strips sampleRows from the shareable export but keeps per-column digests", () => {
+    const source = {
+      ...sampleSource(),
+      sampleRows: [
+        ["1", "a@x.com"],
+        ["2", "b@y.org"],
+      ],
+    };
+
+    const file = toProjectFile({ name: "P", schema: sampleSchema(), sources: [source], chat: [] });
+
+    // Aligned raw row tuples are a cross-column correlation leak in a file meant to be shared.
+    expect(file.sources[0]?.sampleRows).toBeUndefined();
+    expect(file.sources[0]?.fields).toEqual(source.fields);
+    // The in-memory source the app keeps using is untouched.
+    expect(source.sampleRows).toHaveLength(2);
+  });
+
   it("round-trips chat history", () => {
     const json = serializeProjectFile({
       name: "With chat",

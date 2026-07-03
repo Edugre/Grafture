@@ -167,6 +167,69 @@ describe("scan-window sampling through parseCsv", () => {
   });
 });
 
+describe("sampleRows retention", () => {
+  it("captures field-aligned row tuples from CSV, capped at 200", () => {
+    const small = parseCsv("a,b\n1,x\n2,y", "small.csv");
+    expect(small.sampleRows).toEqual([
+      ["1", "x"],
+      ["2", "y"],
+    ]);
+
+    const bigInput = [
+      "id,status",
+      ...Array.from({ length: 2400 }, (_, i) => `${i},s${i % 3}`),
+    ].join("\n");
+    const big = parseCsv(bigInput, "big.csv");
+    expect(big.sampleRows).toHaveLength(200);
+    // Tuples stay aligned: each row's id and status came from the same source line.
+    for (const row of big.sampleRows ?? []) {
+      expect(`s${Number(row[0]) % 3}`).toBe(row[1]);
+    }
+  });
+
+  it("captures row tuples from JSON records", () => {
+    const source = parseJson('[{"a":1,"b":"x"},{"a":2,"b":"y"}]', "r.json");
+    expect(source.sampleRows).toEqual([
+      ["1", "x"],
+      ["2", "y"],
+    ]);
+  });
+
+  it("captures tuples for a single-sheet workbook but not multi-sheet", () => {
+    const single = parseSource({
+      name: "single.xlsx",
+      kind: "xlsx",
+      content: workbookBufferFor({
+        Only: [
+          ["id", "name"],
+          ["1", "Ada"],
+        ],
+      }),
+    });
+    expect(single.sampleRows).toEqual([["1", "Ada"]]);
+
+    const multi = parseSource({
+      name: "multi.xlsx",
+      kind: "xlsx",
+      content: workbookBufferFor({
+        People: [["id"], ["1"]],
+        Places: [["city"], ["Paris"]],
+      }),
+    });
+    // Columns come from different sheets — no single row matrix exists.
+    expect(multi.sampleRows).toBeUndefined();
+  });
+});
+
+/** Standalone workbook builder for tests outside the parseXlsx describe block. */
+function workbookBufferFor(sheets: Record<string, string[][]>): ArrayBuffer {
+  const workbook = XLSX.utils.book_new();
+  for (const [sheetName, rows] of Object.entries(sheets)) {
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), sheetName);
+  }
+  return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+}
+
 describe("null-token handling in stats", () => {
   it("counts null tokens as blank, disqualifying fake primary keys", () => {
     // Distinct real values, but a third of the column is "N/A" — not PK material.

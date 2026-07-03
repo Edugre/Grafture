@@ -2,7 +2,7 @@ import Papa from "papaparse";
 
 import type { Source } from "./types.js";
 import { buildSourceField, dedupeNames, resolveMakeId, type ParseOptions } from "./util.js";
-import { sampleScanRows } from "./sample.js";
+import { MAX_ROW_TUPLES, sampleScanRows } from "./sample.js";
 
 export function parseCsv(input: string, name: string, opts?: ParseOptions): Source {
   const result = Papa.parse<string[]>(input, {
@@ -34,11 +34,16 @@ export function parseCsv(input: string, name: string, opts?: ParseOptions): Sour
     return buildSourceField(columnValues, fieldName);
   });
 
+  const sampleRows = sampleScanRows(dataRows, MAX_ROW_TUPLES).map((row) =>
+    fieldNames.map((_, columnIndex) => row[columnIndex] ?? ""),
+  );
+
   return {
     id: resolveMakeId(opts)(),
     name,
     kind: "csv",
     fields,
+    sampleRows,
     // Full data-row count (header excluded), uncapped — not limited to the scanned slice.
     rowCount: rows.length - 1,
   };

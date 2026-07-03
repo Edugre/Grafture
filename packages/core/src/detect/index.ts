@@ -1,4 +1,5 @@
 import type { Source, SourceField } from "../parse/types.js";
+import { collectStats } from "../parse/sample.js";
 
 /**
  * Content-aware modeling primitives (SS-9). These are pure, deterministic functions
@@ -364,6 +365,130 @@ export function detectValueSets(sources: Source[], options?: ValueSetOptions): V
       a.sourceName.localeCompare(b.sourceName) ||
       a.field.localeCompare(b.field),
   );
+
+  return candidates;
+}
+
+export type CompositeKeyCandidate = {
+  sourceId: string;
+  sourceName: string;
+  /** The two columns that are unique together (neither is unique alone). */
+  fields: [string, string];
+  /** Sampled row tuples the verdict is based on. */
+  rows: number;
+  /** Human-readable justification. */
+  reason: string;
+};
+
+export type CompositeKeyOptions = {
+  /** Minimum sampled rows before pair uniqueness is trustworthy. Default 20. */
+  minRows?: number;
+  /** Maximum candidates reported per source. Default 3. */
+  maxPerSource?: number;
+};
+
+const MIN_TUPLE_ROWS = 20;
+const MAX_COMPOSITE_PER_SOURCE = 3;
+
+/** Joins two cell values into a collision-safe compound key (NUL never appears in data). */
+function tupleKey(a: string, b: string): string {
+  return `${a}\u0000${b}`;
+}
+
+/**
+ * Propose composite primary keys from the sampled row tuples: a pair of columns that is unique
+ * *together* while neither is unique alone (e.g. `(order_id, line_no)` in an order-lines file).
+ * Column-level value sets cannot see this — it needs co-occurring values from the same row,
+ * which is exactly what `Source.sampleRows` retains.
+ *
+ * Uniqueness over a ~200-row sample is weaker evidence than the full scan window, so candidates
+ * are ranked (most-repetitive columns first — pairs involving a nearly-unique column are usually
+ * coincidental) and capped per source; the `rows` count travels with each so consumers can
+ * weigh the evidence. Sources without `sampleRows` (old persistence, multi-sheet XLSX) yield none.
+ */
+export function detectCompositeKeys(
+  sources: Source[],
+  options?: CompositeKeyOptions,
+): CompositeKeyCandidate[] {
+  const minRows = options?.minRows ?? MIN_TUPLE_ROWS;
+  const maxPerSource = options?.maxPerSource ?? MAX_COMPOSITE_PER_SOURCE;
+
+  const candidates: CompositeKeyCandidate[] = [];
+
+  for (const source of sources) {
+    const rows = source.sampleRows;
+    if (!rows || rows.length < minRows) {
+      continue;
+    }
+
+    // Per-column view over the tuples, using the shared stats helper (null-token-aware).
+    const columns = source.fields.map((field, index) => {
+      const values = rows.map((row) => row[index] ?? "");
+      const sampleStats = collectStats(values);
+      // A key column must be non-null, and a composite *member* must repeat BOTH in the
+      // tuple sample AND in the full scan window (when stats exist). Pair uniqueness is
+      // judged over the sample, so a column that is unique within the sample would make
+      // any pair containing it trivially "unique together" — requiring in-sample repeats
+      // keeps the two verdicts on the same window. The full-window check (via keyRole)
+      // additionally rejects columns that are near-unique overall.
+      const duplicatedInSample = sampleStats.distinct < sampleStats.nonEmpty;
+      const duplicatedInWindow = field.stats
+        ? field.stats.blank === 0 && keyRole(field) === "duplicated"
+        : true;
+      return {
+        name: field.name,
+        values,
+        eligible: sampleStats.blank === 0 && duplicatedInSample && duplicatedInWindow,
+        distinctRatio: sampleStats.distinct / rows.length,
+      };
+    });
+
+    const sourceCandidates: Array<CompositeKeyCandidate & { score: number }> = [];
+
+    for (let i = 0; i < columns.length; i += 1) {
+      for (let j = i + 1; j < columns.length; j += 1) {
+        const left = columns[i];
+        const right = columns[j];
+        if (!left?.eligible || !right?.eligible) {
+          continue;
+        }
+
+        const combined = new Set<string>();
+        for (let row = 0; row < rows.length; row += 1) {
+          combined.add(tupleKey(left.values[row] ?? "", right.values[row] ?? ""));
+        }
+        if (combined.size !== rows.length) {
+          continue;
+        }
+
+        sourceCandidates.push({
+          sourceId: source.id,
+          sourceName: source.name,
+          fields: [left.name, right.name],
+          rows: rows.length,
+          reason: `unique together across ${rows.length} sampled rows; neither column is unique alone`,
+          // Lower = both columns genuinely repeat — the strongest composite evidence.
+          score: left.distinctRatio + right.distinctRatio,
+        });
+      }
+    }
+
+    sourceCandidates.sort(
+      (a, b) =>
+        a.score - b.score ||
+        a.fields[0].localeCompare(b.fields[0]) ||
+        a.fields[1].localeCompare(b.fields[1]),
+    );
+    for (const scored of sourceCandidates.slice(0, maxPerSource)) {
+      candidates.push({
+        sourceId: scored.sourceId,
+        sourceName: scored.sourceName,
+        fields: scored.fields,
+        rows: scored.rows,
+        reason: scored.reason,
+      });
+    }
+  }
 
   return candidates;
 }

@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { ParseError } from "./errors.js";
 import type { Source } from "./types.js";
 import { buildSourceField, dedupeNames, resolveMakeId, type ParseOptions } from "./util.js";
-import { sampleScanRows } from "./sample.js";
+import { MAX_ROW_TUPLES, sampleScanRows } from "./sample.js";
 
 function toArrayBuffer(input: ArrayBuffer | Uint8Array): ArrayBuffer {
   if (input instanceof ArrayBuffer) {
@@ -83,6 +83,9 @@ export function parseXlsx(
   const columnValues = new Map<string, string[]>();
   const fieldOrder: string[] = [];
 
+  // Kept only for a sole-sheet workbook, where it becomes the row-tuple basis below.
+  let soleSheetDataRows: string[][] | undefined;
+
   for (const { name: sheetName, rows } of nonEmptySheets) {
     const headerRow = rows[0] ?? [];
     const rawNames = headerRow.map((cell, index) => {
@@ -92,6 +95,9 @@ export function parseXlsx(
     });
     const fieldNames = dedupeNames(rawNames);
     const dataRows = sampleScanRows(rows.slice(1));
+    if (nonEmptySheets.length === 1) {
+      soleSheetDataRows = dataRows;
+    }
 
     for (let columnIndex = 0; columnIndex < fieldNames.length; columnIndex++) {
       const fieldName = fieldNames[columnIndex];
@@ -117,11 +123,20 @@ export function parseXlsx(
     return buildSourceField(values, fieldName);
   });
 
+  // Row tuples only make sense when all fields come from the same sheet — a multi-sheet
+  // workbook merges columns from different sheets, so no single row matrix exists.
+  const sampleRows = soleSheetDataRows
+    ? sampleScanRows(soleSheetDataRows, MAX_ROW_TUPLES).map((row) =>
+        fieldOrder.map((_, columnIndex) => row[columnIndex] ?? ""),
+      )
+    : undefined;
+
   return {
     id: resolveMakeId(opts)(),
     name,
     kind: "xlsx",
     fields,
     rowCount,
+    ...(sampleRows ? { sampleRows } : {}),
   };
 }
