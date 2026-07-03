@@ -1,8 +1,8 @@
 # Schema Studio — Collaboration Handoff
 
-> Single source of truth for two people working the codebase together. Centralizes
-> `CLAUDE.md` (rules), `ROADMAP.md` / `ROADMAP2.md` (build board), and
-> `DESIGN_FOLLOWUPS.md` (deferred UI wiring). Where those disagree, **this file wins** —
+> Single source of truth for two people working the codebase together. Self-contained:
+> the task board (§5), the deferred design-follow-up index (§6), and the locked decisions
+> (§8) live here directly. Where any local working note disagrees, **this file wins** —
 > update it as work lands.
 
 ---
@@ -152,7 +152,7 @@ Grouped by root cause: knocking out the model change unblocks several UI items a
 
 ---
 
-## 6. Deferred design-follow-up index (DESIGN_FOLLOWUPS.md → tasks)
+## 6. Deferred design-follow-up index
 
 | DESIGN # | Item                                          | Task            | Status                                                           |
 | -------- | --------------------------------------------- | --------------- | ---------------------------------------------------------------- |
