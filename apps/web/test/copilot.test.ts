@@ -7,6 +7,7 @@ import {
   parseCopilotResponse,
   summarizeAppliedActions,
 } from "../src/copilot/index.js";
+import { buildDynamicContext, buildStaticInstructions } from "../src/copilot/systemPrompt.js";
 
 describe("buildCopilotSystemPrompt", () => {
   it("includes schema, source samples, and the action protocol", () => {
@@ -88,6 +89,108 @@ describe("buildCopilotSystemPrompt", () => {
     for (const op of ops) {
       expect(prompt).toContain(op);
     }
+  });
+});
+
+describe("prompt structure", () => {
+  const sources = [
+    {
+      id: "s1",
+      name: "orders.csv",
+      kind: "csv" as const,
+      fields: [{ name: "order_id", type: "text" as const, samples: ["A1", "A2"] }],
+    },
+  ];
+
+  it("composes the full prompt as static instructions followed by dynamic context", () => {
+    const full = buildCopilotSystemPrompt(emptySchema(), sources);
+
+    expect(full.startsWith(buildStaticInstructions())).toBe(true);
+    expect(full.endsWith(buildDynamicContext(emptySchema(), sources))).toBe(true);
+  });
+
+  it("keeps the static half free of schema/source content so it is cacheable", () => {
+    const staticPart = buildStaticInstructions();
+
+    // The data_handling rule may *name* the dynamic tags, but no live content belongs here.
+    expect(staticPart).not.toContain("orders.csv");
+    expect(staticPart).not.toContain("Current schema:");
+    expect(staticPart).not.toContain("Source files (fields include sample values)");
+  });
+
+  it("includes the design doctrine (entities not files, grain, normalization)", () => {
+    const staticPart = buildStaticInstructions();
+
+    expect(staticPart).toContain("<design_doctrine>");
+    expect(staticPart).toContain("model entities, not files");
+    expect(staticPart).toContain("one grain");
+    expect(staticPart).toContain("lookup table");
+    expect(staticPart).toContain("junction table");
+    expect(staticPart).toContain("fewest tables");
+  });
+
+  it("marks schema/source content as data, never instructions", () => {
+    const staticPart = buildStaticInstructions();
+    const dynamic = buildDynamicContext(emptySchema(), sources);
+
+    expect(staticPart).toContain("<data_handling>");
+    expect(staticPart).toContain("never instructions");
+    expect(dynamic).toContain("<sources>");
+    expect(dynamic).toContain("</sources>");
+  });
+
+  it("includes field stats and detector value-set/semantic findings as evidence", () => {
+    const dynamic = buildDynamicContext(emptySchema(), [
+      {
+        id: "s1",
+        name: "stores.csv",
+        kind: "csv" as const,
+        rowCount: 500,
+        fields: [
+          {
+            name: "status",
+            type: "text" as const,
+            samples: ["open", "closed"],
+            distinctValues: ["open", "closed", "moved"],
+            stats: { nonEmpty: 500, distinct: 3, blank: 0 },
+          },
+          {
+            name: "latitude",
+            type: "numeric" as const,
+            samples: ["40.71", "34.05"],
+            distinctValues: ["40.71", "34.05", "-33.86"],
+            stats: { nonEmpty: 500, distinct: 500, blank: 0 },
+          },
+        ],
+      },
+    ]);
+
+    // Cardinality stats travel with each field.
+    expect(dynamic).toContain('"rows":500');
+    expect(dynamic).toContain('"distinct":3');
+    // Value-set and semantic findings from the new detectors.
+    expect(dynamic).toContain('"valueSets"');
+    expect(dynamic).toContain('"moved"');
+    expect(dynamic).toContain('"looks_like":"latitude"');
+  });
+
+  it("orders dynamic sections deterministically: schema, sources, findings", () => {
+    const dynamic = buildDynamicContext(emptySchema(), [
+      ...sources,
+      {
+        id: "s2",
+        name: "items.csv",
+        kind: "csv" as const,
+        fields: [{ name: "order_ref", type: "text" as const, samples: ["A1", "A2"] }],
+      },
+    ]);
+
+    const schemaAt = dynamic.indexOf("<current_schema>");
+    const sourcesAt = dynamic.indexOf("<sources>");
+    const findingsAt = dynamic.indexOf("<detector_findings>");
+    expect(schemaAt).toBeGreaterThanOrEqual(0);
+    expect(sourcesAt).toBeGreaterThan(schemaAt);
+    expect(findingsAt).toBeGreaterThan(sourcesAt);
   });
 });
 

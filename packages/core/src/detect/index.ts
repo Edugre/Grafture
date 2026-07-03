@@ -280,6 +280,237 @@ export function detectPrimaryKeys(
   return candidates;
 }
 
+export type ValueSetSuggestion = "enum" | "lookup";
+
+export type ValueSetCandidate = {
+  sourceId: string;
+  sourceName: string;
+  field: string;
+  /** Distinct non-empty values over the scanned rows. */
+  distinct: number;
+  /** Non-empty rows the ratio is based on. */
+  nonEmpty: number;
+  /** The full distinct value set (bounded by the low-cardinality gate itself). */
+  values: string[];
+  /**
+   * Ordering hint only, never a verdict: "lookup" when the values read like entity names that
+   * could carry attributes of their own, "enum" for short code-like sets. The copilot decides
+   * per the design doctrine (lookup table only when it carries attributes or needs integrity).
+   */
+  suggestion: ValueSetSuggestion;
+};
+
+export type ValueSetOptions = {
+  /** Maximum distinct values for a field to count as a closed value set. Default 12. */
+  maxDistinct?: number;
+  /** Maximum distinct/nonEmpty ratio — values must actually repeat. Default 0.5. */
+  maxRatio?: number;
+  /** Minimum non-empty rows before repetition is trustworthy. Default 4. */
+  minRows?: number;
+};
+
+const DEFAULT_MAX_DISTINCT = 12;
+const DEFAULT_MAX_RATIO = 0.5;
+
+/** Values that read like names/labels (spaces, longer text) hint "lookup"; short codes hint "enum". */
+function suggestValueSetKind(values: string[]): ValueSetSuggestion {
+  const descriptive = values.filter((value) => value.length > 12 || value.includes(" ")).length;
+  return descriptive * 2 > values.length ? "lookup" : "enum";
+}
+
+/**
+ * Detect closed value sets: columns whose few distinct values repeat across many rows
+ * (status, category, country). These are the copilot's evidence for enum-vs-lookup-table
+ * normalization decisions. Booleans are excluded — a true/false column is already modeled
+ * by its type. Deterministically sorted (fewest distinct values first — the strongest sets).
+ */
+export function detectValueSets(sources: Source[], options?: ValueSetOptions): ValueSetCandidate[] {
+  const maxDistinct = options?.maxDistinct ?? DEFAULT_MAX_DISTINCT;
+  const maxRatio = options?.maxRatio ?? DEFAULT_MAX_RATIO;
+  const minRows = options?.minRows ?? MIN_STATS_ROWS;
+
+  const candidates: ValueSetCandidate[] = [];
+
+  for (const source of sources) {
+    for (const field of source.fields) {
+      const stats = field.stats;
+      if (field.type === "bool" || !stats || stats.nonEmpty < minRows) {
+        continue;
+      }
+      if (stats.distinct > maxDistinct || stats.distinct / stats.nonEmpty > maxRatio) {
+        continue;
+      }
+
+      const values = (field.distinctValues ?? field.samples).filter((value) => value !== "");
+      if (values.length === 0) {
+        continue;
+      }
+
+      candidates.push({
+        sourceId: source.id,
+        sourceName: source.name,
+        field: field.name,
+        distinct: stats.distinct,
+        nonEmpty: stats.nonEmpty,
+        values: [...values].sort((a, b) => a.localeCompare(b)),
+        suggestion: suggestValueSetKind(values),
+      });
+    }
+  }
+
+  candidates.sort(
+    (a, b) =>
+      a.distinct - b.distinct ||
+      a.sourceName.localeCompare(b.sourceName) ||
+      a.field.localeCompare(b.field),
+  );
+
+  return candidates;
+}
+
+export type SemanticType =
+  | "email"
+  | "url"
+  | "uuid"
+  | "phone"
+  | "timestamp"
+  | "currency_amount"
+  | "postal_code"
+  | "latitude"
+  | "longitude";
+
+export type SemanticTypeFinding = {
+  sourceId: string;
+  sourceName: string;
+  field: string;
+  semantic: SemanticType;
+  /** Share of non-empty scanned values matching the pattern, [0, 1]. */
+  matchRate: number;
+};
+
+export type SemanticTypeOptions = {
+  /** Minimum share of values that must match. Default 0.9. */
+  minMatchRate?: number;
+  /** Minimum non-empty values before a verdict. Default 3. */
+  minValues?: number;
+};
+
+const DEFAULT_MIN_MATCH_RATE = 0.9;
+const DEFAULT_MIN_SEMANTIC_VALUES = 3;
+
+function isFiniteInRange(value: string, min: number, max: number): boolean {
+  if (!/^-?\d+(\.\d+)?$/.test(value.trim())) {
+    return false;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max;
+}
+
+/**
+ * Pattern matchers in priority order — a field gets its first matching semantic. Ambiguous
+ * value shapes (5-digit zips vs plain ids, phone-like digit runs, coordinates) additionally
+ * require a corroborating column name so plain identifiers don't get misclassified.
+ */
+const SEMANTIC_MATCHERS: Array<{
+  semantic: SemanticType;
+  nameHint?: RegExp;
+  test: (value: string) => boolean;
+}> = [
+  {
+    semantic: "uuid",
+    test: (value) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim()),
+  },
+  {
+    semantic: "email",
+    test: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim()),
+  },
+  {
+    semantic: "url",
+    test: (value) => /^https?:\/\/\S+$/i.test(value.trim()),
+  },
+  {
+    semantic: "timestamp",
+    test: (value) => /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(value.trim()),
+  },
+  {
+    semantic: "currency_amount",
+    test: (value) => /^-?[$€£]\s?\d[\d,]*(\.\d+)?$/.test(value.trim()),
+  },
+  {
+    semantic: "latitude",
+    nameHint: /(^|_)lat(itude)?($|_)/i,
+    test: (value) => isFiniteInRange(value, -90, 90),
+  },
+  {
+    semantic: "longitude",
+    nameHint: /(^|_)(lon|lng|long(itude)?)($|_)/i,
+    test: (value) => isFiniteInRange(value, -180, 180),
+  },
+  {
+    semantic: "postal_code",
+    nameHint: /zip|postal/i,
+    test: (value) => /^\d{5}(-\d{4})?$/.test(value.trim()),
+  },
+  {
+    semantic: "phone",
+    nameHint: /phone|mobile|tel|fax/i,
+    test: (value) => {
+      const trimmed = value.trim();
+      return /^\+?[0-9()\s.-]{7,20}$/.test(trimmed) && (trimmed.match(/\d/g)?.length ?? 0) >= 7;
+    },
+  },
+];
+
+/**
+ * Classify columns by what their values *are* (emails, URLs, coordinates, timestamps…), not just
+ * their storage type. These findings let the copilot propose richer target types — e.g. paired
+ * latitude/longitude columns become a PostGIS `geography(Point, 4326)` suggestion. Deterministic
+ * and sorted (sourceName, field).
+ */
+export function detectSemanticTypes(
+  sources: Source[],
+  options?: SemanticTypeOptions,
+): SemanticTypeFinding[] {
+  const minMatchRate = options?.minMatchRate ?? DEFAULT_MIN_MATCH_RATE;
+  const minValues = options?.minValues ?? DEFAULT_MIN_SEMANTIC_VALUES;
+
+  const findings: SemanticTypeFinding[] = [];
+
+  for (const source of sources) {
+    for (const field of source.fields) {
+      const values = fieldValues(field).filter((value) => value.trim() !== "");
+      if (values.length < minValues) {
+        continue;
+      }
+
+      for (const matcher of SEMANTIC_MATCHERS) {
+        if (matcher.nameHint && !matcher.nameHint.test(field.name)) {
+          continue;
+        }
+        const matched = values.filter(matcher.test).length;
+        const matchRate = matched / values.length;
+        if (matchRate >= minMatchRate) {
+          findings.push({
+            sourceId: source.id,
+            sourceName: source.name,
+            field: field.name,
+            semantic: matcher.semantic,
+            matchRate,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  findings.sort(
+    (a, b) => a.sourceName.localeCompare(b.sourceName) || a.field.localeCompare(b.field),
+  );
+
+  return findings;
+}
+
 function compareRefs(a: FieldRef, b: FieldRef): number {
   return (
     a.sourceId.localeCompare(b.sourceId) ||

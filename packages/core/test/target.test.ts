@@ -37,3 +37,24 @@ describe("target profiles", () => {
     expect(block).toContain("@id");
   });
 });
+
+describe("target extensions", () => {
+  it("includes extension guidance in the Postgres prompt block", () => {
+    const block = describeTargetForPrompt(TARGET_PROFILES.postgres);
+
+    expect(block).toContain("Extensions you may propose");
+    expect(block).toContain("PostGIS");
+    expect(block).toContain("geography(Point, 4326)");
+    expect(block).toContain("CREATE EXTENSION postgis");
+    expect(block).toContain("citext");
+    expect(block).toContain("pg_trgm");
+  });
+
+  it("includes Prisma-idiom extension guidance for the Prisma target", () => {
+    const block = describeTargetForPrompt(TARGET_PROFILES.prisma);
+
+    expect(block).toContain("postgresqlExtensions");
+    expect(block).toContain("Unsupported(");
+    expect(block).toContain("@db.Citext");
+  });
+});

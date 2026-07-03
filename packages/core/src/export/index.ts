@@ -137,10 +137,40 @@ function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
+/**
+ * Column types that only exist behind a Postgres extension, keyed by the type's base name
+ * (lowercased, parameters stripped). When the schema uses one, the DDL must create the
+ * extension first or the CREATE TABLE fails — this keeps the copilot's extension-type
+ * suggestions (PostGIS, citext) honest through `preview_export`.
+ */
+const POSTGRES_EXTENSION_BY_TYPE: Record<string, string> = {
+  geography: "postgis",
+  geometry: "postgis",
+  citext: "citext",
+};
+
+function requiredExtensions(schema: Schema): string[] {
+  const extensions = new Set<string>();
+  for (const table of schema.tables) {
+    for (const field of table.fields) {
+      const baseType = postgresType(field.type).toLowerCase().split("(")[0]?.trim() ?? "";
+      const extension = POSTGRES_EXTENSION_BY_TYPE[baseType];
+      if (extension) {
+        extensions.add(extension);
+      }
+    }
+  }
+  return [...extensions].sort();
+}
+
 export function toSql(schema: Schema, dialect: SqlDialect = "postgres"): string {
   void dialect; // Postgres is the only supported dialect for now.
   const relationships = resolveRelationships(schema);
   const statements: string[] = [];
+
+  for (const extension of requiredExtensions(schema)) {
+    statements.push(`CREATE EXTENSION IF NOT EXISTS ${extension};`);
+  }
 
   for (const table of schema.tables) {
     const pkFields = table.fields.filter((field) => field.pk);

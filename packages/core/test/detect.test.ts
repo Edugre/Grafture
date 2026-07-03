@@ -5,6 +5,8 @@ import {
   detectFormatMismatch,
   detectJoinKeys,
   detectPrimaryKeys,
+  detectSemanticTypes,
+  detectValueSets,
   inferGrain,
 } from "../src/detect/index.js";
 
@@ -240,5 +242,152 @@ describe("detectPrimaryKeys", () => {
 
     const candidates = detectPrimaryKeys([source1]);
     expect(candidates.map((c) => c.field)).toEqual(["user_id", "title"]);
+  });
+});
+
+describe("detectValueSets", () => {
+  /** A field whose distinct value set is fully captured, as parse would produce. */
+  function enumField(
+    name: string,
+    type: SourceField["type"],
+    distinctValues: string[],
+    nonEmpty: number,
+  ): SourceField {
+    return {
+      name,
+      type,
+      samples: distinctValues.slice(0, 5),
+      distinctValues,
+      stats: { nonEmpty, distinct: distinctValues.length, blank: 0 },
+    };
+  }
+
+  it("detects a repeating status column as a closed value set", () => {
+    const src = source("s1", "orders.csv", [
+      enumField("status", "text", ["shipped", "pending", "cancelled"], 200),
+    ]);
+
+    const candidates = detectValueSets([src]);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      sourceName: "orders.csv",
+      field: "status",
+      distinct: 3,
+      nonEmpty: 200,
+      suggestion: "enum",
+    });
+    expect(candidates[0]?.values).toEqual(["cancelled", "pending", "shipped"]);
+  });
+
+  it("suggests lookup for descriptive name-like values", () => {
+    const src = source("s1", "orders.csv", [
+      enumField(
+        "shipping_method",
+        "text",
+        ["Standard Ground Shipping", "Express Overnight Delivery", "In-Store Pickup"],
+        150,
+      ),
+    ]);
+
+    expect(detectValueSets([src])[0]?.suggestion).toBe("lookup");
+  });
+
+  it("ignores high-cardinality columns, booleans, and columns without repeats", () => {
+    const src = source("s1", "orders.csv", [
+      // Unique identifier: distinct === nonEmpty, ratio 1.
+      enumField("order_id", "text", ["a", "b", "c", "d", "e", "f"], 6),
+      // Boolean columns are already modeled by their type.
+      enumField("is_paid", "bool", ["true", "false"], 100),
+    ]);
+
+    expect(detectValueSets([src])).toEqual([]);
+  });
+
+  it("skips fields without stats or with too few rows", () => {
+    const src = source("s1", "orders.csv", [
+      field("status", "text", ["a", "b"]),
+      enumField("tiny", "text", ["x"], 2),
+    ]);
+
+    expect(detectValueSets([src])).toEqual([]);
+  });
+});
+
+describe("detectSemanticTypes", () => {
+  function valuesField(
+    name: string,
+    type: SourceField["type"],
+    distinctValues: string[],
+  ): SourceField {
+    return { name, type, samples: distinctValues.slice(0, 5), distinctValues };
+  }
+
+  it("detects emails, urls, and uuids from values alone", () => {
+    const src = source("s1", "users.csv", [
+      valuesField("contact", "text", ["a@x.com", "b@y.org", "c@z.net"]),
+      valuesField("website", "text", ["https://a.com", "http://b.org", "https://c.io/x"]),
+      valuesField("token", "text", [
+        "6fa459ea-ee8a-3ca4-894e-db77e160355e",
+        "16fd2706-8baf-433b-82eb-8c7fada847da",
+        "886313e1-3b8a-5372-9b90-0c9aee199e5d",
+      ]),
+    ]);
+
+    const semantics = detectSemanticTypes([src]).map((finding) => [
+      finding.field,
+      finding.semantic,
+    ]);
+
+    expect(semantics).toEqual([
+      ["contact", "email"],
+      ["token", "uuid"],
+      ["website", "url"],
+    ]);
+  });
+
+  it("detects latitude/longitude pairs only with a corroborating name", () => {
+    const src = source("s1", "stores.csv", [
+      valuesField("latitude", "numeric", ["40.7128", "34.0522", "-33.8688"]),
+      valuesField("lng", "numeric", ["-74.0060", "-118.2437", "151.2093"]),
+      // Same value shapes but a neutral name — must NOT classify.
+      valuesField("score", "numeric", ["40.7", "34.0", "-33.8"]),
+    ]);
+
+    const findings = detectSemanticTypes([src]);
+
+    expect(findings).toEqual([
+      expect.objectContaining({ field: "latitude", semantic: "latitude" }),
+      expect.objectContaining({ field: "lng", semantic: "longitude" }),
+    ]);
+  });
+
+  it("requires a name hint for zips and phones so plain ids stay unclassified", () => {
+    const src = source("s1", "orgs.csv", [
+      valuesField("zip_code", "text", ["07030", "10001", "94103"]),
+      valuesField("org_id", "text", ["07031", "10002", "94104"]),
+      valuesField("phone", "text", ["(212) 555-0100", "+1 415-555-0101", "646.555.0102"]),
+    ]);
+
+    const semantics = detectSemanticTypes([src]).map((finding) => [
+      finding.field,
+      finding.semantic,
+    ]);
+
+    expect(semantics).toEqual([
+      ["phone", "phone"],
+      ["zip_code", "postal_code"],
+    ]);
+  });
+
+  it("stays quiet below the match-rate or value-count thresholds", () => {
+    const src = source("s1", "misc.csv", [
+      // Only 2 of 4 values are emails — below the 0.9 match rate.
+      valuesField("notes", "text", ["a@x.com", "call later", "b@y.org", "n/a"]),
+      // Too few values to judge.
+      valuesField("maybe_email", "text", ["a@x.com", "b@y.org"]),
+    ]);
+
+    expect(detectSemanticTypes([src])).toEqual([]);
   });
 });

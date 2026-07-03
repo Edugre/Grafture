@@ -168,6 +168,39 @@ describe("export", () => {
         ].join("\n"),
       );
     });
+
+    it("emits CREATE EXTENSION preambles for extension-backed column types", () => {
+      const schema: Schema = {
+        tables: [
+          {
+            id: "t",
+            name: "stores",
+            x: 0,
+            y: 0,
+            fields: [
+              { id: "a", name: "id", type: "int", pk: true, fk: false },
+              { id: "b", name: "location", type: "geography(Point, 4326)", pk: false, fk: false },
+              { id: "c", name: "email", type: "citext", pk: false, fk: false },
+            ],
+          },
+        ],
+        relationships: [],
+      };
+
+      const sql = toSql(schema);
+
+      // Extensions come first (alphabetical, deterministic) so the CREATE TABLE succeeds.
+      expect(sql.startsWith("CREATE EXTENSION IF NOT EXISTS citext;")).toBe(true);
+      expect(sql).toContain("CREATE EXTENSION IF NOT EXISTS postgis;");
+      expect(sql.indexOf("CREATE EXTENSION IF NOT EXISTS postgis;")).toBeLessThan(
+        sql.indexOf("CREATE TABLE"),
+      );
+      expect(sql).toContain('"location" geography(Point, 4326)');
+    });
+
+    it("emits no extension preamble for plain types", () => {
+      expect(toSql(schema340B())).not.toContain("CREATE EXTENSION");
+    });
   });
 
   describe("toPrisma", () => {

@@ -11,9 +11,14 @@ import type {
 } from "@schema-studio/core";
 import { DEFAULT_TARGET } from "@schema-studio/core";
 
-import { buildCopilotSystemPrompt, buildRerankSystemPrompt } from "../copilot/systemPrompt.js";
+import {
+  buildDynamicContext,
+  buildRerankSystemPrompt,
+  buildStaticInstructions,
+} from "../copilot/systemPrompt.js";
 import { COPILOT_RESPONSE_TOOL, parseToolUseResponse } from "../copilot/responseTool.js";
 import { PREVIEW_EXPORT_TOOL, runExportPreview } from "../copilot/exportPreviewTool.js";
+import { INSPECT_SOURCE_TOOL, runInspectSource } from "../copilot/inspectSourceTool.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 import { DEFAULT_MODEL, parseModelsPage } from "./models.js";
 
@@ -44,6 +49,7 @@ type AnthropicMessageResponse = {
   content: AnthropicContentBlock[];
 };
 
+type SystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
 type ToolSpec = { name: string; description: string; input_schema: unknown };
 type ToolChoice = { type: "tool"; name: string } | { type: "any" } | { type: "auto" };
 type MessageContent = string | AnthropicContentBlock[];
@@ -62,35 +68,51 @@ export class AnthropicBrowserProvider implements AiProvider {
     message: string,
     history: ConversationTurn[] = [],
   ): Promise<AiProviderResult> {
-    // The system prompt re-embeds the live schema + source samples each turn (the largest block).
-    // Caching it means follow-up turns with an unchanged canvas reuse that prefix at ~0.1x cost;
-    // history is sent after `system`, so it never invalidates this cache.
-    const systemPrompt = buildCopilotSystemPrompt(schema, sources, this.target);
-    const tools = [PREVIEW_EXPORT_TOOL, COPILOT_RESPONSE_TOOL];
+    // Two system blocks with the cache breakpoint between them: the static instructions never
+    // change per target, so they hit the prompt cache on every turn; the dynamic block re-embeds
+    // the live schema + source samples and is invalidated by canvas edits — but no longer drags
+    // the instruction prefix with it. History is sent after `system`, so it never invalidates
+    // either block.
+    const systemBlocks: SystemBlock[] = [
+      {
+        type: "text",
+        text: buildStaticInstructions(this.target),
+        cache_control: { type: "ephemeral" },
+      },
+      { type: "text", text: buildDynamicContext(schema, sources) },
+    ];
+    const tools = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, COPILOT_RESPONSE_TOOL];
     let messages: ProviderMessage[] = [...history, { role: "user", content: message }];
 
-    // Agentic tool loop: the model may call preview_export (read-only, in-memory) to inspect the
-    // migration its design would generate, then finalize with submit_schema_response. `tool_choice:
-    // any` forces a tool call every step, so the loop never dead-ends on a stray sentence.
+    // Agentic tool loop: the model may call preview_export (see the migration its design would
+    // generate) or inspect_source (see more of a column's values) — both read-only, in-memory —
+    // then finalize with submit_schema_response. `tool_choice: any` forces a tool call every
+    // step, so the loop never dead-ends on a stray sentence.
     for (let iteration = 0; iteration < MAX_PREVIEW_ITERATIONS; iteration += 1) {
-      const data = await this.request(systemPrompt, messages, tools, { type: "any" });
+      const data = await this.request(systemBlocks, messages, tools, { type: "any" });
 
       if (data.content.some((block) => isToolUse(block, COPILOT_RESPONSE_TOOL.name))) {
         return this.finalizeResponse(data);
       }
 
-      const previews = data.content.filter((block) => isToolUse(block, PREVIEW_EXPORT_TOOL.name));
-      if (previews.length === 0) {
+      const calls = data.content.filter(
+        (block) =>
+          isToolUse(block, PREVIEW_EXPORT_TOOL.name) || isToolUse(block, INSPECT_SOURCE_TOOL.name),
+      );
+      if (calls.length === 0) {
         // No recognized tool — parse whatever came back (text fallback) or surface it as blocked.
         return this.finalizeResponse(data);
       }
 
-      // Answer every preview call (the API requires a tool_result per tool_use) with the exported
-      // code, then let the model continue from what it saw.
-      const toolResults: AnthropicContentBlock[] = previews.map((preview) => ({
+      // Answer every call (the API requires a tool_result per tool_use), then let the model
+      // continue from what it saw.
+      const toolResults: AnthropicContentBlock[] = calls.map((call) => ({
         type: "tool_result",
-        tool_use_id: preview.id ?? "",
-        content: runExportPreview(schema, preview.input),
+        tool_use_id: call.id ?? "",
+        content:
+          call.name === PREVIEW_EXPORT_TOOL.name
+            ? runExportPreview(schema, call.input)
+            : runInspectSource(sources, call.input),
       }));
       messages = [
         ...messages,
@@ -100,7 +122,7 @@ export class AnthropicBrowserProvider implements AiProvider {
     }
 
     // Spent the preview budget without finalizing — force one submission so the turn still resolves.
-    const finalData = await this.request(systemPrompt, messages, [COPILOT_RESPONSE_TOOL], {
+    const finalData = await this.request(systemBlocks, messages, [COPILOT_RESPONSE_TOOL], {
       type: "tool",
       name: COPILOT_RESPONSE_TOOL.name,
     });
@@ -191,11 +213,18 @@ export class AnthropicBrowserProvider implements AiProvider {
    * tool-use; omitting them yields a normal text completion.
    */
   private async request(
-    systemPrompt: string,
+    system: string | SystemBlock[],
     messages: ProviderMessage[],
     tools?: ToolSpec[],
     toolChoice?: ToolChoice,
   ): Promise<AnthropicMessageResponse> {
+    // A bare string becomes a single cached block (the rerank path); propose passes its own
+    // blocks so the static/dynamic cache split is preserved.
+    const systemBlocks: SystemBlock[] =
+      typeof system === "string"
+        ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
+        : system;
+
     const response = await fetch(ANTHROPIC_API_URL, {
       method: "POST",
       headers: this.headers(),
@@ -203,7 +232,7 @@ export class AnthropicBrowserProvider implements AiProvider {
       body: JSON.stringify({
         model: this.model,
         max_tokens: 4096,
-        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        system: systemBlocks,
         messages,
         ...(tools ? { tools } : {}),
         ...(toolChoice ? { tool_choice: toolChoice } : {}),

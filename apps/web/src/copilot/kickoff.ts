@@ -13,7 +13,9 @@ export function buildInitialSchemaPrompt({
 }): string {
   const lines = [
     "Draft an initial relational schema from the uploaded source files.",
-    "Create a table for each file, infer primary keys and column types from the sample values, and add relationships wherever values overlap across files.",
+    "First identify the distinct entities across ALL files — files are exports, not entities: merge files that describe the same entity, and split a file that mixes several entities or grains into separate tables. Do not create a table that merely mirrors a file.",
+    'In your reply, start with the entity list and each table\'s grain ("one row = one ___") before the actions.',
+    "Infer primary keys and column types from the sample values, and add relationships where identifier values overlap across sources.",
   ];
 
   const context: string[] = [];

@@ -6,6 +6,11 @@ describe("buildInitialSchemaPrompt", () => {
   it("always includes the drafting instruction", () => {
     const prompt = buildInitialSchemaPrompt({ name: "", description: "" });
     expect(prompt).toContain("Draft an initial relational schema");
+    // Entity-first framing: the old "table for each file" instruction caused table bloat.
+    expect(prompt).toContain("distinct entities");
+    expect(prompt).not.toContain("table for each file");
+    // Plan-then-act: the reply must state entities and grain before actions.
+    expect(prompt).toContain("one row = one ___");
     // No context block when neither field is provided.
     expect(prompt).not.toContain("Project:");
     expect(prompt).not.toContain("Goals:");
