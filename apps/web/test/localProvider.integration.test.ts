@@ -21,6 +21,10 @@ type Seen = { method: string; url: string; headers: NodeJS.Dict<string | string[
 let server: Server;
 let baseUrl: string;
 let lastRequest: Seen | null = null;
+// When true, the server rejects any request carrying tools (simulates a model without function
+// calling); when set, requests WITHOUT tools return `jsonModeReply` as plain-text content.
+let rejectTools = false;
+let jsonModeReply: string | null = null;
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
@@ -56,6 +60,18 @@ beforeAll(async () => {
     }
 
     if (req.method === "POST" && req.url === "/v1/chat/completions") {
+      const sentTools = JSON.parse(lastRequest.body).tools !== undefined;
+      // Simulate a model without function calling: reject requests that carry tools exactly as
+      // Ollama does. The provider should retry in JSON mode (no tools).
+      if (sentTools && rejectTools) {
+        json(res, 400, { error: "registry.ollama.ai/library/llama2 does not support tools" });
+        return;
+      }
+      if (!sentTools && jsonModeReply !== null) {
+        // JSON-mode retry: the model emits the structured object as plain text.
+        json(res, 200, { choices: [{ message: { role: "assistant", content: jsonModeReply } }] });
+        return;
+      }
       // A tool-capable model finalizing with submit_schema_response.
       json(res, 200, {
         choices: [
@@ -118,8 +134,29 @@ describe("LocalBrowserProvider over real http", () => {
     // Assert what actually crossed the wire: correct path, chosen model, and NO auth header.
     expect(lastRequest?.method).toBe("POST");
     expect(lastRequest?.url).toBe("/v1/chat/completions");
-    expect(lastRequest?.headers.authorization).toBeUndefined();
+    expect(lastRequest?.headers["authorization"]).toBeUndefined();
     expect(JSON.parse(lastRequest?.body ?? "{}").model).toBe("llama3.1:8b");
+  });
+
+  it("falls back to JSON mode over real http when the server rejects tools", async () => {
+    rejectTools = true;
+    jsonModeReply = JSON.stringify({
+      reply: "Added a customers table.",
+      actions: [{ op: "add_table", name: "customers" }],
+      status: "complete",
+    });
+    try {
+      const provider = new LocalBrowserProvider(baseUrl, "llama2");
+      const result = await provider.propose(EMPTY_SCHEMA, [], "make a customers table");
+
+      expect(result.reply).toBe("Added a customers table.");
+      expect(result.actions).toEqual([{ op: "add_table", name: "customers" }]);
+      // The final (successful) request that reached the server carried no tools.
+      expect(JSON.parse(lastRequest?.body ?? "{}").tools).toBeUndefined();
+    } finally {
+      rejectTools = false;
+      jsonModeReply = null;
+    }
   });
 
   it("maps a refused connection to actionable server/CORS guidance", async () => {

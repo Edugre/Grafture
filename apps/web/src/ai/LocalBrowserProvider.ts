@@ -67,6 +67,9 @@ export class LocalBrowserProvider extends OpenAiCompatibleProvider {
         authHeaders: () => ({}),
         parseModels: parseLocalModels,
         describeTransportError: (error) => describeLocalTransportError(error, base),
+        // Many local models lack function calling; fall back to prompt-based JSON when the tool
+        // loop can't run. Hosted providers keep the strict tool loop.
+        allowJsonFallback: true,
       },
       target,
     );

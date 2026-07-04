@@ -123,7 +123,7 @@ export const PROVIDERS: Record<ProviderId, ProviderMeta> = {
     credential: {
       label: "Server URL",
       noun: "endpoint",
-      help: "Point this at any OpenAI-compatible local runtime (Ollama, LM Studio, llama.cpp). The model must support tool calling — e.g. Llama 3.1, Qwen2.5, Mistral.",
+      help: "Point this at any OpenAI-compatible local runtime (Ollama, LM Studio, llama.cpp). Works best with a tool-capable model (Llama 3.1, Qwen2.5, Mistral); others fall back to JSON mode.",
       linkLabel: "Set up a local model",
       secret: false,
       validate: expectHttpUrl,

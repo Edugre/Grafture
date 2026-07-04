@@ -123,6 +123,74 @@ describe("LocalBrowserProvider.listModels", () => {
   });
 });
 
+/** A non-OK response carrying an error body. */
+function errorResponse(status: number, body: string) {
+  return { ok: false, status, text: async () => body } as Response;
+}
+
+const JSON_REPLY = JSON.stringify({
+  reply: "Made an orders table.",
+  actions: [{ op: "add_table", name: "orders" }],
+  status: "complete",
+});
+
+describe("LocalBrowserProvider JSON fallback (models without tool calling)", () => {
+  it("falls back to JSON mode when the runtime rejects tools", async () => {
+    const { calls } = stubFetch([
+      errorResponse(400, '{"error":"llama2 does not support tools"}'),
+      okResponse({ role: "assistant", content: JSON_REPLY }),
+    ]);
+
+    const provider = new LocalBrowserProvider("http://localhost:11434/v1", "llama2");
+    const result = await provider.propose(EMPTY_SCHEMA, [], "make an orders table");
+
+    expect(result).toEqual({
+      reply: "Made an orders table.",
+      actions: [{ op: "add_table", name: "orders" }],
+      status: "complete",
+    });
+    // The retry is a plain completion: no tools, no tool_choice, and it carries the JSON directive.
+    expect(calls[1]?.body["tools"]).toBeUndefined();
+    expect(calls[1]?.body["tool_choice"]).toBeUndefined();
+    const messages = calls[1]?.body["messages"] as Array<{ role: string; content: string }>;
+    expect(messages[0]?.content).toContain("<output_format>");
+  });
+
+  it("falls back to JSON mode when the model answers in prose instead of calling a tool", async () => {
+    const { fetchMock } = stubFetch([
+      // Tool loop: model ignores tool_choice and replies in prose (no tool_calls).
+      okResponse({ role: "assistant", content: "Sure, here's what I'd do…" }),
+      // JSON-mode retry returns the structured object.
+      okResponse({ role: "assistant", content: JSON_REPLY }),
+    ]);
+
+    const provider = new LocalBrowserProvider();
+    const result = await provider.propose(EMPTY_SCHEMA, [], "make an orders table");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.reply).toBe("Made an orders table.");
+    expect(result.actions).toEqual([{ op: "add_table", name: "orders" }]);
+  });
+
+  it("tolerates markdown-fenced JSON in the fallback reply", async () => {
+    stubFetch([
+      errorResponse(400, "tool_choice is not supported by this model"),
+      okResponse({ role: "assistant", content: "```json\n" + JSON_REPLY + "\n```" }),
+    ]);
+
+    const result = await new LocalBrowserProvider().propose(EMPTY_SCHEMA, [], "go");
+    expect(result.status).toBe("complete");
+    expect(result.actions).toEqual([{ op: "add_table", name: "orders" }]);
+  });
+
+  it("surfaces a non-tool error unchanged (no fallback for an unrelated failure)", async () => {
+    stubFetch([errorResponse(500, "internal server error")]);
+    const provider = new LocalBrowserProvider();
+    // 500 isn't a tool-support problem, so it propagates instead of retrying in JSON mode.
+    await expect(provider.propose(EMPTY_SCHEMA, [], "go")).rejects.toThrow(/500/);
+  });
+});
+
 describe("LocalBrowserProvider transport errors", () => {
   it("rewrites a bare fetch TypeError into actionable server/CORS guidance", async () => {
     const fetchMock = vi.fn(async () => {

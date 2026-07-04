@@ -20,6 +20,43 @@ import { parseRankingResponse } from "../suggest/rerank.js";
 /** Cap on preview/inspect round-trips within a single propose() before we force a finalization. */
 const MAX_PREVIEW_ITERATIONS = 3;
 
+/**
+ * Appended to the system prompt in JSON mode. The static prompt already defines every action op and
+ * the `{ reply, actions, status }` shape (via the tool description that defers to it); this only
+ * overrides the "call submit_schema_response" workflow with "emit the JSON directly", for runtimes
+ * that can't do tool calls.
+ */
+const JSON_OUTPUT_INSTRUCTION = [
+  "<output_format>",
+  "This runtime does not support tool calls. Do NOT attempt to call any tool or function.",
+  "Ignore any earlier instruction to call submit_schema_response.",
+  "Respond with ONLY a single JSON object and nothing else — no markdown fences, no prose outside it:",
+  '{ "reply": string, "actions": [ /* action objects using the ops above; [] for a plain question */ ], "status": "complete" | "needs_revision" | "blocked" }',
+  "</output_format>",
+].join("\n");
+
+// A local runtime signals "no function calling" either by rejecting the request outright (these
+// substrings appear in the error body) or by answering in prose. Both route to the JSON fallback.
+const TOOL_UNSUPPORTED_PATTERNS = [
+  /does not support tools/i,
+  /tools? (?:are|is)? ?not supported/i,
+  /unsupported.*\btool/i,
+  /tool[_ ]?choice/i,
+  /function[_ ]?call(?:ing)? (?:is )?not/i,
+];
+
+/** True when an error message reads like the runtime can't do tool calls (vs an unrelated failure). */
+function isToolUnsupportedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return TOOL_UNSUPPORTED_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+/**
+ * Thrown inside the tool loop when the model returns no tool call and JSON fallback is enabled, so
+ * `propose` can retry in JSON mode. Internal control flow only — never surfaced to the user.
+ */
+class ToolCallMissingError extends Error {}
+
 /** A JSON Schema tool spec in the shared `{ name, description, input_schema }` shape. */
 type ToolSpec = { name: string; description: string; input_schema: unknown };
 
@@ -77,6 +114,13 @@ export type OpenAiCompatibleConfig = {
    * it. Used by the local provider to explain a down server or a CORS block.
    */
   describeTransportError?: (error: unknown) => string | undefined;
+  /**
+   * Optional: when the tool loop can't run (the runtime rejects `tools`/`tool_choice`, or the model
+   * answers in prose instead of calling a tool), retry once in prompt-based JSON mode — no tools,
+   * an explicit "reply with only JSON" instruction, parsed from the text. Enabled only for local
+   * runtimes, where many models lack function calling; hosted providers keep the strict tool loop.
+   */
+  allowJsonFallback?: boolean;
 };
 
 /** Wrap a shared JSON-Schema tool spec in OpenAI's Chat Completions `function` tool shape. */
@@ -133,6 +177,29 @@ export class OpenAiCompatibleProvider implements AiProvider {
     // OpenAI has no cache-control blocks, so the static + dynamic halves collapse into one system
     // message (automatic prompt caching still applies to the stable prefix, no extra work).
     const system = buildCopilotSystemPrompt(schema, sources, this.target);
+    try {
+      return await this.proposeWithTools(system, schema, sources, message, history);
+    } catch (error) {
+      // A runtime without function calling either rejects the request or answers in prose
+      // (ToolCallMissingError). When fallback is enabled, retry once in prompt-based JSON mode.
+      if (
+        this.config.allowJsonFallback &&
+        (error instanceof ToolCallMissingError || isToolUnsupportedError(error))
+      ) {
+        return this.proposeJsonMode(system, message, history);
+      }
+      throw error;
+    }
+  }
+
+  /** The agentic tool loop (the path tool-capable models take). */
+  private async proposeWithTools(
+    system: string,
+    schema: Schema,
+    sources: ParsedSource[],
+    message: string,
+    history: ConversationTurn[],
+  ): Promise<AiProviderResult> {
     const tools = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, COPILOT_RESPONSE_TOOL].map(
       toOpenAiTool,
     );
@@ -153,7 +220,11 @@ export class OpenAiCompatibleProvider implements AiProvider {
         return this.finalizeMessage(msg);
       }
       if (!msg || toolCalls.length === 0) {
-        // No tool call — parse whatever came back (text fallback) or surface it as blocked.
+        // No tool call. With fallback enabled, bail to JSON mode instead of guessing at prose;
+        // otherwise parse whatever came back (text fallback) or surface it as blocked.
+        if (this.config.allowJsonFallback) {
+          throw new ToolCallMissingError("model returned no tool call");
+        }
         return this.finalizeMessage(msg);
       }
 
@@ -172,6 +243,34 @@ export class OpenAiCompatibleProvider implements AiProvider {
       function: { name: COPILOT_RESPONSE_TOOL.name },
     });
     return this.finalizeMessage(finalData.choices?.[0]?.message);
+  }
+
+  /**
+   * Prompt-based JSON fallback for runtimes without function calling: one plain completion (no
+   * tools) with an explicit "reply with only JSON" instruction appended, parsed from the text via
+   * the shared {@link parseCopilotResponse} (which tolerates fences/surrounding prose). The model
+   * still sees the full schema + sample values in the system prompt, so content-aware modeling is
+   * preserved — it just can't request more samples via inspect_source.
+   */
+  private async proposeJsonMode(
+    system: string,
+    message: string,
+    history: ConversationTurn[],
+  ): Promise<AiProviderResult> {
+    const messages: OpenAiMessage[] = [
+      ...history.map((turn) => ({ role: turn.role, content: turn.content })),
+      { role: "user", content: message },
+    ];
+    const data = await this.request(`${system}\n\n${JSON_OUTPUT_INSTRUCTION}`, messages);
+    const text = data.choices?.[0]?.message?.content ?? "";
+    if (!text.trim()) {
+      return { reply: "The model returned no usable response.", actions: [], status: "blocked" };
+    }
+    const parsed = parseCopilotResponse(text);
+    if ("error" in parsed) {
+      return { reply: `${text}\n\n(${parsed.error})`.trim(), actions: [], status: "blocked" };
+    }
+    return parsed;
   }
 
   /** Dispatch one preview/inspect tool call to its pure runner, or report an unknown tool. */
