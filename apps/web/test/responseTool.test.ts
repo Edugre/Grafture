@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { COPILOT_RESPONSE_TOOL, parseToolUseResponse } from "../src/copilot/responseTool.js";
+import {
+  COPILOT_RESPONSE_TOOL,
+  parseResponseArgs,
+  parseToolUseResponse,
+} from "../src/copilot/responseTool.js";
 
 function toolBlock(input: unknown) {
   return [{ type: "tool_use", name: COPILOT_RESPONSE_TOOL.name, input }];
@@ -72,5 +76,27 @@ describe("parseToolUseResponse", () => {
     expect(parseToolUseResponse(null)).toEqual({
       error: "Copilot response had no content to read.",
     });
+  });
+});
+
+// The shared validator every provider funnels finalize args through (Anthropic blocks + OpenAI
+// tool-call JSON), so payload handling can't drift between them.
+describe("parseResponseArgs", () => {
+  it("reads reply, actions, and status", () => {
+    expect(
+      parseResponseArgs({ reply: "ok", actions: [{ op: "set_pk" }], status: "complete" }),
+    ).toEqual({ reply: "ok", actions: [{ op: "set_pk" }], status: "complete" });
+  });
+
+  it("defaults missing actions to [] and unknown status to needs_revision", () => {
+    expect(parseResponseArgs({ reply: "x" })).toEqual({
+      reply: "x",
+      actions: [],
+      status: "needs_revision",
+    });
+  });
+
+  it("surfaces a non-array actions payload", () => {
+    expect(parseResponseArgs({ reply: "x", actions: 5 })).toHaveProperty("error");
   });
 });

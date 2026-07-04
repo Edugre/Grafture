@@ -18,6 +18,7 @@ import {
 } from "../ui/icons.js";
 import "./CopilotPanel.css";
 import { Markdown } from "./Markdown.js";
+import { ModelPicker } from "./ModelPicker.js";
 import {
   collectAffectedTableIds,
   formatRejectedAction,
@@ -490,17 +491,20 @@ export function CopilotPanel({
 
             {provider ? (
               <div className="copilot-compose">
-                {busy ? (
-                  <button
-                    type="button"
-                    className="copilot-compose__cancel"
-                    onClick={() => {
-                      cancelledRef.current = true;
-                    }}
-                  >
-                    Cancel
-                  </button>
-                ) : null}
+                <div className="copilot-compose__toolbar">
+                  <ModelPicker onConnect={onConnect} />
+                  {busy ? (
+                    <button
+                      type="button"
+                      className="copilot-compose__cancel"
+                      onClick={() => {
+                        cancelledRef.current = true;
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  ) : null}
+                </div>
                 <div className="copilot-compose__shell">
                   <textarea
                     rows={1}
@@ -528,6 +532,9 @@ export function CopilotPanel({
               </div>
             ) : (
               <div className="copilot-compose">
+                <div className="copilot-compose__toolbar">
+                  <ModelPicker onConnect={onConnect} />
+                </div>
                 <div className="copilot-compose__shell is-locked">
                   <LockIcon size={15} className="copilot-compose__lock" />
                   <input

@@ -1,8 +1,15 @@
 import { TARGET_PROFILES, TargetIdSchema, type TargetId } from "@schema-studio/core";
 import { useState, type ReactNode } from "react";
 
-import { useModelPreference } from "../ai/modelPreference.js";
-import { useModels } from "../ai/useModels.js";
+import { setModelPreference, useModelPreference } from "../ai/modelPreference.js";
+import { useProviderPreference } from "../ai/providerPreference.js";
+import {
+  PROVIDERS,
+  PROVIDER_IDS,
+  decodeProviderModel,
+  encodeProviderModel,
+} from "../ai/providers.js";
+import { useAllModels } from "../ai/useModels.js";
 import { useTargetPreference } from "../ai/targetPreference.js";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
 import { useAutoDraftPreference } from "../copilot/autoDraftPreference.js";
@@ -112,26 +119,42 @@ function formatContext(maxInputTokens?: number): string {
 }
 
 function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
-  const { apiKey, remember, setApiKey, setRemember } = useApiKeyContext();
+  const { provider, setProvider } = useProviderPreference();
+  const { keyFor, setApiKey, setRemember } = useApiKeyContext();
   const { enabled: rerank, setEnabled: setRerank } = useRerankPreference();
   const { enabled: autoDraft, setEnabled: setAutoDraft } = useAutoDraftPreference();
-  const { model, setModel } = useModelPreference();
-  const { models, loading: modelsLoading } = useModels();
+  const { model } = useModelPreference(provider);
+  const { models, loading: modelsLoading } = useAllModels();
   const { target, setTarget } = useTargetPreference();
 
-  const hasKey = apiKey.trim().length > 0;
+  // Every provider that has a key, in registry order — the unified key list.
+  const configured = PROVIDER_IDS.filter((id) => keyFor(id).apiKey.trim().length > 0);
+  const anyKey = configured.length > 0;
+  // Rerank + auto-draft run through the ACTIVE provider (useAiProvider), so they need the active
+  // provider's key specifically — not just any key. Gating on `anyKey` would enable them while the
+  // active provider is keyless (e.g. after removing its key), where they silently no-op.
+  const activeHasKey = keyFor(provider).apiKey.trim().length > 0;
 
-  // Make sure the saved model is always selectable, even if the live list (or the static catalog)
-  // doesn't include it — a custom or no-longer-listed id still shows as the current choice.
-  const modelOptions = models.some((candidate) => candidate.id === model)
-    ? models
-    : [{ id: model, displayName: model }, ...models];
+  // The dropdown value encodes the (provider, model) pair — a single option-value string routed
+  // through the registry's encode/decode helpers so the separator convention lives in one place.
+  const currentValue = encodeProviderModel(provider, model);
+  const listed = models.some(
+    (candidate) => encodeProviderModel(candidate.provider, candidate.id) === currentValue,
+  );
+  // Keep the saved model selectable even if no catalog/live list carries it.
+  const allModels = listed ? models : [{ id: model, displayName: model, provider }, ...models];
+  const selectedModel = allModels.find(
+    (candidate) => encodeProviderModel(candidate.provider, candidate.id) === currentValue,
+  );
 
-  const selectedModel = modelOptions.find((candidate) => candidate.id === model);
-
-  const handleRemove = () => {
-    setRemember(false);
-    setApiKey("");
+  const chooseModel = (value: string) => {
+    const decoded = decodeProviderModel(value);
+    if (!decoded) {
+      return;
+    }
+    // Set the chosen provider's model, then make that provider active so the copilot uses it.
+    setModelPreference(decoded.provider, decoded.model);
+    setProvider(decoded.provider);
   };
 
   return (
@@ -157,37 +180,58 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         </span>
       </div>
 
-      {hasKey ? (
-        <div className="settings__key-card">
-          <div className="settings__key-row">
-            <span className="settings__key-tile" aria-hidden>
-              <SparkleIcon size={18} />
-            </span>
-            <div className="settings__key-body">
-              <div className="settings__key-name">
-                Anthropic
-                <span className="settings__pill settings__pill--active">
-                  <span className="settings__pill-dot" />
-                  Active
-                </span>
+      {anyKey ? (
+        <div className="settings__key-list">
+          {configured.map((id) => {
+            const state = keyFor(id);
+            const isActive = id === provider;
+            return (
+              <div className="settings__key-card" key={id}>
+                <div className="settings__key-row">
+                  <span className="settings__key-tile" aria-hidden>
+                    <SparkleIcon size={18} />
+                  </span>
+                  <div className="settings__key-body">
+                    <div className="settings__key-name">
+                      {PROVIDERS[id].label}
+                      {isActive ? (
+                        <span className="settings__pill settings__pill--active">
+                          <span className="settings__pill-dot" />
+                          Active
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="settings__key-value">{maskKey(state.apiKey)}</div>
+                    <div className="settings__key-meta">
+                      {state.remember ? "Saved on this device" : "In memory · this session only"}
+                    </div>
+                    <label className="settings__remember">
+                      <input
+                        type="checkbox"
+                        checked={state.remember}
+                        onChange={(event) => setRemember(id, event.target.checked)}
+                      />
+                      Remember this key on this device
+                    </label>
+                  </div>
+                  <div className="settings__key-actions">
+                    <button
+                      type="button"
+                      className="settings__icon-btn settings__icon-btn--danger"
+                      onClick={() => {
+                        setRemember(id, false);
+                        setApiKey(id, "");
+                      }}
+                      aria-label={`Remove ${PROVIDERS[id].label} key`}
+                      title="Remove key"
+                    >
+                      <TrashIcon size={16} />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="settings__key-value">{maskKey(apiKey)}</div>
-              <div className="settings__key-meta">
-                {remember ? "Saved on this device" : "In memory · this session only"} · Claude
-              </div>
-            </div>
-            <div className="settings__key-actions">
-              <button
-                type="button"
-                className="settings__icon-btn settings__icon-btn--danger"
-                onClick={handleRemove}
-                aria-label="Remove key"
-                title="Remove key"
-              >
-                <TrashIcon size={16} />
-              </button>
-            </div>
-          </div>
+            );
+          })}
         </div>
       ) : (
         <div className="settings__empty">
@@ -196,8 +240,8 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
           </span>
           <p className="settings__empty-title">No keys yet</p>
           <p className="settings__empty-body">
-            Add an Anthropic API key to enable Copilot. It stays in this browser and is used to call
-            the provider directly.
+            Add an API key from any supported provider to enable Copilot. It stays in this browser
+            and is used to call the provider directly.
           </p>
           <button type="button" className="settings__btn settings__btn--primary" onClick={onAddKey}>
             <PlusIcon size={16} />
@@ -206,19 +250,10 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         </div>
       )}
 
-      <label className="settings__remember">
-        <input
-          type="checkbox"
-          checked={remember}
-          disabled={!hasKey}
-          onChange={(event) => setRemember(event.target.checked)}
-        />
-        Remember this key on this device (otherwise it is kept in memory for this session only)
-      </label>
-
       <h2 className="settings__section-heading">Model</h2>
       <p className="settings__field-label">
-        The Claude model used for Copilot, suggestion ranking, and the initial-schema draft.
+        The model used for Copilot, suggestion ranking, and the initial-schema draft. Choosing a
+        model also selects its provider.
         {modelsLoading ? " Loading your available models…" : ""}
       </p>
       <div className="settings__field-row">
@@ -226,14 +261,27 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
           <span className="settings__field-name">Model</span>
           <select
             className="settings__select"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
+            value={currentValue}
+            onChange={(event) => chooseModel(event.target.value)}
           >
-            {modelOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.displayName}
-              </option>
-            ))}
+            {PROVIDER_IDS.map((id) => {
+              const options = allModels.filter((candidate) => candidate.provider === id);
+              if (options.length === 0) {
+                return null;
+              }
+              return (
+                <optgroup key={id} label={PROVIDERS[id].label}>
+                  {options.map((option) => {
+                    const value = encodeProviderModel(id, option.id);
+                    return (
+                      <option key={value} value={value}>
+                        {option.displayName}
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              );
+            })}
           </select>
         </label>
         <label className="settings__field">
@@ -245,8 +293,8 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         </label>
       </div>
       <p className="settings__hint">
-        {hasKey
-          ? "Pulled live from your key’s available models, with current models as a fallback."
+        {anyKey
+          ? "Pulled live from your keys’ available models, with current models as a fallback."
           : "Add a key to load the exact models it can access. The current models are shown until then."}
       </p>
 
@@ -280,7 +328,7 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         <input
           type="checkbox"
           checked={rerank}
-          disabled={!hasKey}
+          disabled={!activeHasKey}
           onChange={(event) => setRerank(event.target.checked)}
         />
         Use AI to reorder and explain content-aware suggestions (makes a billable call to your
@@ -293,7 +341,7 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         <input
           type="checkbox"
           checked={autoDraft}
-          disabled={!hasKey}
+          disabled={!activeHasKey}
           onChange={(event) => setAutoDraft(event.target.checked)}
         />
         When you create a project, have AI draft an initial schema from your files and description

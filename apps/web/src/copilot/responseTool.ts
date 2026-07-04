@@ -81,10 +81,21 @@ export function parseToolUseResponse(
     return { error: "Copilot tool call arguments had an unexpected shape." };
   }
 
-  const record = input as Record<string, unknown>;
+  return parseResponseArgs(input as Record<string, unknown>);
+}
+
+/**
+ * Validate a finalizing tool call's argument object into `{ reply, actions, status }`. Shared by
+ * every provider so payload validation can't drift between them: the Anthropic block reader
+ * ({@link parseToolUseResponse}) and the OpenAI provider (which `JSON.parse`s
+ * `tool_call.function.arguments`) both funnel through here. A present-but-non-array `actions` is
+ * treated as malformed and surfaced, never silently dropped.
+ */
+export function parseResponseArgs(
+  record: Record<string, unknown>,
+): ParsedCopilotResponse | ParseCopilotResponseError {
   const reply = typeof record["reply"] === "string" ? record["reply"] : "";
 
-  // A present-but-non-array `actions` is malformed — surface it rather than silently dropping it.
   const rawActions = record["actions"];
   if (rawActions !== undefined && !Array.isArray(rawActions)) {
     return { error: "Copilot returned 'actions' in an unexpected shape (expected an array)." };

@@ -460,6 +460,14 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+.copilot-compose__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .copilot-compose__shell {
   display: flex;
   align-items: flex-end;
@@ -547,7 +555,6 @@
 }
 
 .copilot-compose__cancel {
-  margin-bottom: 8px;
   padding: 5px 12px;
   font-size: 12px;
   border-radius: 8px;

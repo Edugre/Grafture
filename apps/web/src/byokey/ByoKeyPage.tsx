@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { useProviderPreference } from "../ai/providerPreference.js";
+import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "../ai/providers.js";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
 import {
   CheckIcon,
@@ -13,36 +15,54 @@ import {
 } from "../ui/icons.js";
 import "./ByoKeyPage.css";
 
-type ProviderId = "anthropic" | "openai" | "local";
+type SegmentId = ProviderId | "local";
 
-const PROVIDERS: Array<{ id: ProviderId; label: string; enabled: boolean }> = [
-  { id: "anthropic", label: "Anthropic", enabled: true },
-  { id: "openai", label: "OpenAI", enabled: false },
+// The real providers come from the registry; "local" stays a disabled "Soon" segment.
+const SEGMENTS: Array<{ id: SegmentId; label: string; enabled: boolean }> = [
+  ...PROVIDER_IDS.map((id) => ({ id, label: PROVIDERS[id].label, enabled: true })),
   { id: "local", label: "Local", enabled: false },
 ];
 
-const ANTHROPIC_KEYS_URL = "https://console.anthropic.com/settings/keys";
-
 export function ByoKeyPage({ onClose }: { onClose: () => void }) {
-  const { apiKey, remember, setApiKey, setRemember } = useApiKeyContext();
-  // Only Anthropic is wired up today; the other segments are disabled.
-  const provider: ProviderId = "anthropic";
-  const [draft, setDraft] = useState(apiKey);
+  const { keyFor, setApiKey, setRemember } = useApiKeyContext();
+  const { provider: activeProvider, setProvider } = useProviderPreference();
+  const [selected, setSelected] = useState<ProviderId>(activeProvider);
+  const meta = PROVIDERS[selected];
+  const storedKey = keyFor(selected).apiKey;
+  const { remember } = keyFor(selected);
+  const [draft, setDraft] = useState(storedKey);
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Remembered keys hydrate from IndexedDB asynchronously after mount, so `draft` may be seeded
+  // empty on the first render. Adopt the stored key once it lands (or when switching to a provider
+  // that has one) — but only when the field is still empty, never overwriting what the user typed.
+  useEffect(() => {
+    setDraft((current) => (current.trim() === "" ? storedKey : current));
+  }, [storedKey, selected]);
+
   const trimmed = draft.trim();
+
+  const chooseProvider = (next: ProviderId) => {
+    setSelected(next);
+    setDraft(keyFor(next).apiKey);
+    setError(null);
+  };
 
   const handleSave = () => {
     if (!trimmed) {
       return;
     }
-    if (!trimmed.startsWith("sk-ant-")) {
-      setError("That doesn't look like an Anthropic key — it should start with “sk-ant-”.");
+    if (!trimmed.startsWith(meta.keyPrefix)) {
+      setError(
+        `That doesn't look like a ${meta.label} key — it should start with “${meta.keyPrefix}”.`,
+      );
       return;
     }
     setError(null);
-    setApiKey(trimmed);
+    setApiKey(selected, trimmed);
+    // Make the just-entered provider the active one so the copilot uses it immediately.
+    setProvider(selected);
     onClose();
   };
 
@@ -73,18 +93,19 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
           <div className="byok__form">
             <span className="byok__label">Provider</span>
             <div className="byok__segments" role="group" aria-label="AI provider">
-              {PROVIDERS.map((item) => {
-                const selected = item.id === provider;
+              {SEGMENTS.map((item) => {
+                const isSelected = item.id === selected;
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className={`byok__segment${selected ? " is-selected" : ""}`}
-                    aria-pressed={selected}
+                    className={`byok__segment${isSelected ? " is-selected" : ""}`}
+                    aria-pressed={isSelected}
                     disabled={!item.enabled}
                     title={item.enabled ? undefined : "Coming soon"}
+                    onClick={() => item.enabled && chooseProvider(item.id as ProviderId)}
                   >
-                    {selected ? <CheckIcon size={15} /> : null}
+                    {isSelected ? <CheckIcon size={15} /> : null}
                     {item.label}
                     {!item.enabled ? <span className="byok__segment-soon">Soon</span> : null}
                   </button>
@@ -96,7 +117,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
               <span className="byok__label">API key</span>
               <a
                 className="byok__link"
-                href={ANTHROPIC_KEYS_URL}
+                href={meta.keysUrl}
                 target="_blank"
                 rel="noreferrer noopener"
               >
@@ -109,7 +130,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
               <input
                 type={revealed ? "text" : "password"}
                 className="byok__input-field"
-                placeholder="sk-ant-api03-…"
+                placeholder={meta.keyPlaceholder}
                 value={draft}
                 autoComplete="off"
                 spellCheck={false}
@@ -148,7 +169,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
               <input
                 type="checkbox"
                 checked={remember}
-                onChange={(event) => setRemember(event.target.checked)}
+                onChange={(event) => setRemember(selected, event.target.checked)}
               />
               Remember this key on this device
             </label>
