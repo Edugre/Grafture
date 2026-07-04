@@ -7,6 +7,7 @@ import {
   PROVIDERS,
   PROVIDER_IDS,
   decodeProviderModel,
+  effectiveCredential,
   encodeProviderModel,
 } from "../ai/providers.js";
 import { useAllModels } from "../ai/useModels.js";
@@ -127,13 +128,15 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
   const { models, loading: modelsLoading } = useAllModels();
   const { target, setTarget } = useTargetPreference();
 
-  // Every provider that has a key, in registry order — the unified key list.
+  // Every provider that has an explicitly-entered credential, in registry order — the unified key
+  // list. (Local with its default endpoint isn't listed here; it only appears once a custom
+  // endpoint is saved, like a key.)
   const configured = PROVIDER_IDS.filter((id) => keyFor(id).apiKey.trim().length > 0);
   const anyKey = configured.length > 0;
   // Rerank + auto-draft run through the ACTIVE provider (useAiProvider), so they need the active
-  // provider's key specifically — not just any key. Gating on `anyKey` would enable them while the
-  // active provider is keyless (e.g. after removing its key), where they silently no-op.
-  const activeHasKey = keyFor(provider).apiKey.trim().length > 0;
+  // provider to be usable — a key, or local's default endpoint. Gating on a key alone would wrongly
+  // disable them for a default-endpoint local provider (which needs no key).
+  const activeReady = effectiveCredential(provider, keyFor(provider).apiKey).length > 0;
 
   // The dropdown value encodes the (provider, model) pair — a single option-value string routed
   // through the registry's encode/decode helpers so the separator convention lives in one place.
@@ -141,8 +144,11 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
   const listed = models.some(
     (candidate) => encodeProviderModel(candidate.provider, candidate.id) === currentValue,
   );
-  // Keep the saved model selectable even if no catalog/live list carries it.
-  const allModels = listed ? models : [{ id: model, displayName: model, provider }, ...models];
+  // Keep the saved model selectable even if no catalog/live list carries it. When no model is set
+  // (local before a pick), label the placeholder rather than rendering a blank option.
+  const allModels = listed
+    ? models
+    : [{ id: model, displayName: model || "Choose a model…", provider }, ...models];
   const selectedModel = allModels.find(
     (candidate) => encodeProviderModel(candidate.provider, candidate.id) === currentValue,
   );
@@ -185,6 +191,8 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
           {configured.map((id) => {
             const state = keyFor(id);
             const isActive = id === provider;
+            // A non-secret credential (a local endpoint URL) is shown in full; secrets stay masked.
+            const { secret, noun } = PROVIDERS[id].credential;
             return (
               <div className="settings__key-card" key={id}>
                 <div className="settings__key-row">
@@ -201,7 +209,9 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
                         </span>
                       ) : null}
                     </div>
-                    <div className="settings__key-value">{maskKey(state.apiKey)}</div>
+                    <div className="settings__key-value">
+                      {secret ? maskKey(state.apiKey) : state.apiKey}
+                    </div>
                     <div className="settings__key-meta">
                       {state.remember ? "Saved on this device" : "In memory · this session only"}
                     </div>
@@ -211,7 +221,7 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
                         checked={state.remember}
                         onChange={(event) => setRemember(id, event.target.checked)}
                       />
-                      Remember this key on this device
+                      Remember this {noun} on this device
                     </label>
                   </div>
                   <div className="settings__key-actions">
@@ -328,7 +338,7 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         <input
           type="checkbox"
           checked={rerank}
-          disabled={!activeHasKey}
+          disabled={!activeReady}
           onChange={(event) => setRerank(event.target.checked)}
         />
         Use AI to reorder and explain content-aware suggestions (makes a billable call to your
@@ -341,7 +351,7 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
         <input
           type="checkbox"
           checked={autoDraft}
-          disabled={!activeHasKey}
+          disabled={!activeReady}
           onChange={(event) => setAutoDraft(event.target.checked)}
         />
         When you create a project, have AI draft an initial schema from your files and description

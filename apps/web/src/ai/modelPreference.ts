@@ -30,9 +30,10 @@ export function readModelPreference(provider: ProviderId): string {
         return legacy;
       }
     }
-    return PROVIDERS[provider].defaultModel;
+    // Empty when the provider has no default (local) — it's unusable until a model is picked.
+    return PROVIDERS[provider].defaultModel ?? "";
   } catch {
-    return PROVIDERS[provider].defaultModel;
+    return PROVIDERS[provider].defaultModel ?? "";
   }
 }
 

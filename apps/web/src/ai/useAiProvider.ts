@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
 import { useModelPreference } from "./modelPreference.js";
 import { useProviderPreference } from "./providerPreference.js";
-import { PROVIDERS } from "./providers.js";
+import { PROVIDERS, effectiveCredential } from "./providers.js";
 import { useTargetPreference } from "./targetPreference.js";
 
 /**
@@ -19,7 +19,14 @@ export function useAiProvider(): AiProvider | null {
   const { model } = useModelPreference(provider);
   const { target } = useTargetPreference();
   return useMemo(() => {
-    const trimmed = apiKey.trim();
-    return trimmed ? PROVIDERS[provider].create(trimmed, model, target) : null;
+    // A provider with a `defaultCredential` (local) is usable before the user sets anything; key
+    // providers stay null until a key is entered.
+    const credential = effectiveCredential(provider, apiKey);
+    // A concrete model is required too: local has no default model, so it stays null until the user
+    // picks one from the picker — never build a provider that would POST an empty model id.
+    const trimmedModel = model.trim();
+    return credential && trimmedModel
+      ? PROVIDERS[provider].create(credential, trimmedModel, target)
+      : null;
   }, [provider, apiKey, model, target]);
 }

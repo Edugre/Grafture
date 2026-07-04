@@ -39,13 +39,13 @@ export function isSelectableOpenAiModel(id: string): boolean {
   );
 }
 
-/** Shape of one entry in the OpenAI `GET /v1/models` response `data` array (fields we read). */
+/** Shape of one entry in an OpenAI-compatible `GET /v1/models` response `data` array. */
 type RawModel = {
   id?: unknown;
   created?: unknown;
 };
 
-function toModelInfo(raw: unknown): ModelInfo | null {
+function toModelInfo(raw: unknown, isSelectable?: (id: string) => boolean): ModelInfo | null {
   if (typeof raw !== "object" || raw === null) {
     return null;
   }
@@ -53,12 +53,12 @@ function toModelInfo(raw: unknown): ModelInfo | null {
   if (typeof entry.id !== "string" || !entry.id) {
     return null;
   }
-  if (!isSelectableOpenAiModel(entry.id)) {
+  if (isSelectable && !isSelectable(entry.id)) {
     return null;
   }
   return {
     id: entry.id,
-    // OpenAI reports no display name — the id is the friendly-enough label.
+    // These endpoints report no display name — the id is the friendly-enough label.
     displayName: entry.id,
     // `created` is a Unix timestamp (seconds); normalize to ISO like the Anthropic catalog.
     ...(typeof entry.created === "number"
@@ -68,16 +68,27 @@ function toModelInfo(raw: unknown): ModelInfo | null {
 }
 
 /**
- * Parse the OpenAI `GET /v1/models` list into `ModelInfo`s, newest-first. OpenAI returns the full
- * list in a single response (no pagination cursor), so this is a one-shot parse. Non-chat models
- * are filtered out ({@link isSelectableOpenAiModel}).
+ * Parse an OpenAI-compatible `GET /v1/models` list into `ModelInfo`s, newest-first. Shared by the
+ * hosted OpenAI provider and the local-runtime provider, which speak the same list shape. Pass an
+ * `isSelectable` predicate to filter by model family (OpenAI does; local deliberately doesn't).
  */
-export function parseOpenAiModels(json: unknown): ModelInfo[] {
+export function parseOpenAiCompatibleModels(
+  json: unknown,
+  isSelectable?: (id: string) => boolean,
+): ModelInfo[] {
   const body = (json ?? {}) as { data?: unknown };
   const data = Array.isArray(body.data) ? body.data : [];
   const models = data
-    .map((entry) => toModelInfo(entry))
+    .map((entry) => toModelInfo(entry, isSelectable))
     .filter((model): model is ModelInfo => model !== null);
   // Newest first when timestamps are present; stable otherwise.
   return models.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+}
+
+/**
+ * Parse the OpenAI `GET /v1/models` list, filtered to the chat/reasoning families we support
+ * ({@link isSelectableOpenAiModel}). Non-chat models (embeddings, audio, image) are dropped.
+ */
+export function parseOpenAiModels(json: unknown): ModelInfo[] {
+  return parseOpenAiCompatibleModels(json, isSelectableOpenAiModel);
 }

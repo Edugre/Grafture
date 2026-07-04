@@ -89,9 +89,12 @@
   background: var(--surface-hover);
 }
 
-.model-picker__soon {
-  font-size: 10px;
+.model-picker__empty {
+  margin: 0;
+  padding: 6px 8px;
   color: var(--text-faint);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .model-picker__option {
