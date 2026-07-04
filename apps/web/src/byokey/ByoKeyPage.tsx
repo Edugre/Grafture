@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useProviderPreference } from "../ai/providerPreference.js";
 import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "../ai/providers.js";
@@ -28,10 +28,18 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
   const { provider: activeProvider, setProvider } = useProviderPreference();
   const [selected, setSelected] = useState<ProviderId>(activeProvider);
   const meta = PROVIDERS[selected];
+  const storedKey = keyFor(selected).apiKey;
   const { remember } = keyFor(selected);
-  const [draft, setDraft] = useState(keyFor(selected).apiKey);
+  const [draft, setDraft] = useState(storedKey);
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Remembered keys hydrate from IndexedDB asynchronously after mount, so `draft` may be seeded
+  // empty on the first render. Adopt the stored key once it lands (or when switching to a provider
+  // that has one) — but only when the field is still empty, never overwriting what the user typed.
+  useEffect(() => {
+    setDraft((current) => (current.trim() === "" ? storedKey : current));
+  }, [storedKey, selected]);
 
   const trimmed = draft.trim();
 

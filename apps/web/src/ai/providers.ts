@@ -59,3 +59,24 @@ export const PROVIDER_IDS: ProviderId[] = ["anthropic", "openai"];
 export function toProviderId(value: unknown): ProviderId {
   return value === "openai" || value === "anthropic" ? value : "anthropic";
 }
+
+// A `<select>` option value can only carry a string, so a (provider, model) pair is encoded as
+// one. Both sides go through these helpers so the separator convention lives in exactly one place.
+const PAIR_SEPARATOR = "::";
+
+/** Encode a (provider, model) pair into a single option-value string. */
+export function encodeProviderModel(provider: ProviderId, model: string): string {
+  return `${provider}${PAIR_SEPARATOR}${model}`;
+}
+
+/** Decode an option-value string back into a (provider, model) pair, or null if malformed. */
+export function decodeProviderModel(value: string): { provider: ProviderId; model: string } | null {
+  const separator = value.indexOf(PAIR_SEPARATOR);
+  if (separator === -1) {
+    return null;
+  }
+  return {
+    provider: toProviderId(value.slice(0, separator)),
+    model: value.slice(separator + PAIR_SEPARATOR.length),
+  };
+}

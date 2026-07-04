@@ -73,40 +73,43 @@ export function useApiKey(
     };
   }, [kv]);
 
+  // The sibling field is read from the setKeys updater's `prev`, not a closed-over `keys`, so the
+  // persistence decision always sees the latest state — including an earlier setRemember/setApiKey
+  // in the same batch — and the callbacks keep a stable identity (deps: [kv]) instead of being
+  // re-created on every keystroke. The storage writes are idempotent, so running inside the updater
+  // (and any StrictMode double-invoke) is safe.
   const setApiKey = useCallback(
     (provider: ProviderId, key: string) => {
-      const remember = keys[provider].remember;
-      if (remember) {
-        if (key.trim()) {
-          void setStoredApiKey(kv, provider, key);
-        } else {
-          void clearStoredApiKey(kv, provider);
+      setKeys((prev) => {
+        const { remember } = prev[provider];
+        if (remember) {
+          if (key.trim()) {
+            void setStoredApiKey(kv, provider, key);
+          } else {
+            void clearStoredApiKey(kv, provider);
+          }
         }
-      }
-      setKeys((prev) => ({
-        ...prev,
-        [provider]: { apiKey: key, remember: prev[provider].remember },
-      }));
+        return { ...prev, [provider]: { apiKey: key, remember } };
+      });
     },
-    [kv, keys],
+    [kv],
   );
 
   const setRemember = useCallback(
     (provider: ProviderId, next: boolean) => {
-      const { apiKey } = keys[provider];
-      if (next) {
-        if (apiKey.trim()) {
-          void setStoredApiKey(kv, provider, apiKey);
+      setKeys((prev) => {
+        const { apiKey } = prev[provider];
+        if (next) {
+          if (apiKey.trim()) {
+            void setStoredApiKey(kv, provider, apiKey);
+          }
+        } else {
+          void clearStoredApiKey(kv, provider);
         }
-      } else {
-        void clearStoredApiKey(kv, provider);
-      }
-      setKeys((prev) => ({
-        ...prev,
-        [provider]: { apiKey: prev[provider].apiKey, remember: next },
-      }));
+        return { ...prev, [provider]: { apiKey, remember: next } };
+      });
     },
-    [kv, keys],
+    [kv],
   );
 
   const keyFor = useCallback((provider: ProviderId) => keys[provider], [keys]);

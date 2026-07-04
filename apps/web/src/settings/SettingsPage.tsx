@@ -3,7 +3,12 @@ import { useState, type ReactNode } from "react";
 
 import { setModelPreference, useModelPreference } from "../ai/modelPreference.js";
 import { useProviderPreference } from "../ai/providerPreference.js";
-import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "../ai/providers.js";
+import {
+  PROVIDERS,
+  PROVIDER_IDS,
+  decodeProviderModel,
+  encodeProviderModel,
+} from "../ai/providers.js";
 import { useAllModels } from "../ai/useModels.js";
 import { useTargetPreference } from "../ai/targetPreference.js";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
@@ -130,28 +135,26 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
   // active provider is keyless (e.g. after removing its key), where they silently no-op.
   const activeHasKey = keyFor(provider).apiKey.trim().length > 0;
 
-  // The dropdown value uniquely identifies a (provider, model) pair — ids don't collide across
-  // providers today, but a composite value keeps the mapping back to a provider unambiguous.
-  const currentValue = `${provider}::${model}`;
+  // The dropdown value encodes the (provider, model) pair — a single option-value string routed
+  // through the registry's encode/decode helpers so the separator convention lives in one place.
+  const currentValue = encodeProviderModel(provider, model);
   const listed = models.some(
-    (candidate) => `${candidate.provider}::${candidate.id}` === currentValue,
+    (candidate) => encodeProviderModel(candidate.provider, candidate.id) === currentValue,
   );
   // Keep the saved model selectable even if no catalog/live list carries it.
   const allModels = listed ? models : [{ id: model, displayName: model, provider }, ...models];
   const selectedModel = allModels.find(
-    (candidate) => `${candidate.provider}::${candidate.id}` === currentValue,
+    (candidate) => encodeProviderModel(candidate.provider, candidate.id) === currentValue,
   );
 
   const chooseModel = (value: string) => {
-    const separator = value.indexOf("::");
-    if (separator === -1) {
+    const decoded = decodeProviderModel(value);
+    if (!decoded) {
       return;
     }
-    const chosenProvider = value.slice(0, separator) as ProviderId;
-    const chosenModel = value.slice(separator + 2);
     // Set the chosen provider's model, then make that provider active so the copilot uses it.
-    setModelPreference(chosenProvider, chosenModel);
-    setProvider(chosenProvider);
+    setModelPreference(decoded.provider, decoded.model);
+    setProvider(decoded.provider);
   };
 
   return (
@@ -268,11 +271,14 @@ function ApiKeysSection({ onAddKey }: { onAddKey: () => void }) {
               }
               return (
                 <optgroup key={id} label={PROVIDERS[id].label}>
-                  {options.map((option) => (
-                    <option key={`${id}::${option.id}`} value={`${id}::${option.id}`}>
-                      {option.displayName}
-                    </option>
-                  ))}
+                  {options.map((option) => {
+                    const value = encodeProviderModel(id, option.id);
+                    return (
+                      <option key={value} value={value}>
+                        {option.displayName}
+                      </option>
+                    );
+                  })}
                 </optgroup>
               );
             })}
