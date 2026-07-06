@@ -41,6 +41,10 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   // True while the credential is being live-checked against the provider (keyStatus: validating).
   const [validating, setValidating] = useState(false);
+  // Set when the live check failed only because the provider was unreachable (offline, outage).
+  // That says nothing about the key itself, so the next Save stores it unverified rather than
+  // locking the user out of their own credential. Reset on any edit or provider switch.
+  const [offerUnverified, setOfferUnverified] = useState(false);
 
   // Remembered keys hydrate from IndexedDB asynchronously after mount, so `draft` may be seeded
   // empty on the first render. Adopt the stored key once it lands (or when switching to a provider
@@ -55,6 +59,14 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
     setSelected(next);
     setDraft(seedCredential(keyFor(next).apiKey, PROVIDERS[next]));
     setError(null);
+    setOfferUnverified(false);
+  };
+
+  const persistAndClose = () => {
+    setApiKey(selected, trimmed);
+    // Make the just-entered provider the active one so the copilot uses it immediately.
+    setProvider(selected);
+    onClose();
   };
 
   const handleSave = async () => {
@@ -66,6 +78,12 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
       setError(invalid);
       return;
     }
+    // The provider was unreachable on the previous attempt and nothing changed since —
+    // this click is the user's explicit "save it anyway".
+    if (offerUnverified) {
+      persistAndClose();
+      return;
+    }
     // Format looks right — now really check it against the provider before saving, so a
     // revoked/mistyped key fails here instead of on the first copilot message.
     setError(null);
@@ -73,13 +91,17 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
     const check = await validateCredentialLive(selected, trimmed);
     setValidating(false);
     if (!check.ok) {
-      setError(check.error);
+      if (check.reason === "unreachable") {
+        setOfferUnverified(true);
+        setError(
+          `${check.error} You can save it unverified and use it once the ${credential.secret ? "provider" : "server"} is reachable.`,
+        );
+      } else {
+        setError(check.error);
+      }
       return;
     }
-    setApiKey(selected, trimmed);
-    // Make the just-entered provider the active one so the copilot uses it immediately.
-    setProvider(selected);
-    onClose();
+    persistAndClose();
   };
 
   return (
@@ -156,6 +178,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
                 disabled={validating}
                 onChange={(event) => {
                   setDraft(event.target.value);
+                  setOfferUnverified(false);
                   if (error) {
                     setError(null);
                   }
@@ -221,7 +244,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
               onClick={() => void handleSave()}
               disabled={!trimmed || validating}
             >
-              {validating ? "Checking…" : "Save & continue"}
+              {validating ? "Checking…" : offerUnverified ? "Save anyway" : "Save & continue"}
             </button>
             <button type="button" className="byok__btn byok__btn--ghost" onClick={onClose}>
               Skip for now

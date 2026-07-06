@@ -39,6 +39,7 @@ describe("validateCredentialLive", () => {
     const result = await validateCredentialLive("openai", "sk-revoked");
     expect(result.ok).toBe(false);
     if (!result.ok) {
+      expect(result.reason).toBe("rejected");
       expect(result.error).toMatch(/rejected this key/i);
     }
   });
@@ -48,6 +49,7 @@ describe("validateCredentialLive", () => {
     const result = await validateCredentialLive("anthropic", "sk-ant-test");
     expect(result.ok).toBe(false);
     if (!result.ok) {
+      expect(result.reason).toBe("unreachable");
       expect(result.error).toMatch(/couldn't reach the provider/i);
     }
   });
@@ -66,6 +68,8 @@ describe("validateCredentialLive", () => {
     const result = await validateCredentialLive("anthropic", "sk-ant-test");
     expect(result.ok).toBe(false);
     if (!result.ok) {
+      // A provider outage says nothing about the key — callers may offer to save unverified.
+      expect(result.reason).toBe("unreachable");
       expect(result.error).not.toMatch(/rejected this key/i);
     }
   });

@@ -2,7 +2,19 @@ import { DEFAULT_TARGET } from "@schema-studio/core";
 
 import { PROVIDERS, type ProviderId } from "./providers.js";
 
-export type CredentialCheck = { ok: true } | { ok: false; error: string };
+export type CredentialCheck =
+  | { ok: true }
+  | {
+      ok: false;
+      /**
+       * Why the check failed: `rejected` means the provider answered and refused the
+       * credential; `unreachable` means it never answered (offline, outage, rate limit) —
+       * callers may let the user save an unverified credential in that case, since a
+       * transient outage says nothing about the key itself.
+       */
+      reason: "rejected" | "unreachable";
+      error: string;
+    };
 
 /** Providers embed the HTTP status in thrown messages as "(401)" — see listModels impls. */
 const AUTH_STATUS = /\((401|403)\)/;
@@ -33,6 +45,7 @@ export async function validateCredentialLive(
     if (AUTH_STATUS.test(message)) {
       return {
         ok: false,
+        reason: "rejected",
         error:
           id === "local"
             ? "The server rejected the request — check its auth settings."
@@ -41,6 +54,7 @@ export async function validateCredentialLive(
     }
     return {
       ok: false,
+      reason: "unreachable",
       error:
         id === "local"
           ? "Couldn't reach the server — is it running and allowing this origin (CORS)?"
