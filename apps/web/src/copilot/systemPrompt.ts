@@ -3,6 +3,7 @@ import {
   DEFAULT_TARGET,
   describeTargetForPrompt,
   detectCompositeKeys,
+  detectFunctionalDependencies,
   detectJoinKeys,
   detectPrimaryKeys,
   detectSemanticTypes,
@@ -95,6 +96,7 @@ const MAX_PK_FINDINGS = 12;
 const MAX_VALUE_SET_FINDINGS = 10;
 const MAX_SEMANTIC_FINDINGS = 12;
 const MAX_COMPOSITE_KEY_FINDINGS = 6;
+const MAX_FUNCTIONAL_DEPENDENCY_FINDINGS = 6;
 
 /**
  * Deterministic, content-aware findings from the core detectors (SS-9). Feeding these into the
@@ -144,17 +146,27 @@ function summarizeDetectorFindings(sources: Source[]) {
       reason: candidate.reason,
     }));
 
+  const functionalDependencies = detectFunctionalDependencies(sources)
+    .slice(0, MAX_FUNCTIONAL_DEPENDENCY_FINDINGS)
+    .map((candidate) => ({
+      determinant: `${candidate.sourceName}.${candidate.determinant}`,
+      determines: candidate.dependents,
+      groups: candidate.groups,
+      rows: candidate.rows,
+    }));
+
   if (
     joins.length === 0 &&
     primaryKeys.length === 0 &&
     valueSets.length === 0 &&
     semantics.length === 0 &&
-    compositeKeys.length === 0
+    compositeKeys.length === 0 &&
+    functionalDependencies.length === 0
   ) {
     return null;
   }
 
-  return { joins, primaryKeys, valueSets, semantics, compositeKeys };
+  return { joins, primaryKeys, valueSets, semantics, compositeKeys, functionalDependencies };
 }
 
 const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal ids):
@@ -292,7 +304,10 @@ export function buildDynamicContext(schema: Schema, sources: Source[]): string {
           "relationship cardinality; `normalize` lists steps needed before the columns will join;",
           "`primaryKeys` are columns that are unique and non-null in the data; `compositeKeys`",
           "are column pairs that are only unique together (sampled evidence — the natural key of",
-          "a line-item/junction grain); `valueSets` are",
+          "a line-item/junction grain); `functionalDependencies` are columns whose value fixes other",
+          "columns' values (sampled evidence — the determinant plus its `determines` columns are an",
+          "extraction candidate for a table of their own, keyed by the determinant, with `groups`",
+          "rows); `valueSets` are",
           "closed low-cardinality value sets (weigh enum vs lookup table per the design doctrine —",
           "`hint` is an ordering hint, not a verdict); `semantics` are columns whose values match a",
           "known shape (emails, coordinates, timestamps…) — consider richer target types for them:",

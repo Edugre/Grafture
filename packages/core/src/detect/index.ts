@@ -493,6 +493,148 @@ export function detectCompositeKeys(
   return candidates;
 }
 
+export type FunctionalDependencyCandidate = {
+  sourceId: string;
+  sourceName: string;
+  /** The column whose value fixes every dependent's value. */
+  determinant: string;
+  /** Columns fully determined by the determinant, in source column order. */
+  dependents: string[];
+  /** Sampled row tuples the verdict is based on. */
+  rows: number;
+  /** Distinct determinant values in the sample — the would-be extracted table's row count. */
+  groups: number;
+  /** Human-readable justification. */
+  reason: string;
+};
+
+export type FunctionalDependencyOptions = {
+  /** Minimum sampled rows before dependencies are trustworthy. Default 20. */
+  minRows?: number;
+  /** Maximum candidates reported per source. Default 3. */
+  maxPerSource?: number;
+};
+
+const MAX_FDS_PER_SOURCE = 3;
+
+/**
+ * Detect functional dependencies from the sampled row tuples: a column A such that every
+ * distinct value of A co-occurs with exactly one value of B (and C, …) across the sample —
+ * e.g. `customer_id` determining `customer_name` and `customer_email` in an orders export.
+ * This is the hard evidence for a normalization split: the determinant plus its dependents
+ * are an extraction candidate for a table of their own, keyed by the determinant.
+ *
+ * Trivial dependencies are excluded: the determinant must repeat (a unique column determines
+ * everything) — both in the sample and, when full-window stats exist, in the scan window —
+ * and a dependent must vary (a constant column is determined by anything). Rows where the
+ * determinant is blank are skipped rather than grouped. Like the composite-key detector,
+ * sample-window evidence is weaker than a full scan, so candidates are ranked (most
+ * dependents first, then the most-repetitive determinant) and capped per source; sources
+ * without `sampleRows` yield none.
+ */
+export function detectFunctionalDependencies(
+  sources: Source[],
+  options?: FunctionalDependencyOptions,
+): FunctionalDependencyCandidate[] {
+  const minRows = options?.minRows ?? MIN_TUPLE_ROWS;
+  const maxPerSource = options?.maxPerSource ?? MAX_FDS_PER_SOURCE;
+
+  const candidates: FunctionalDependencyCandidate[] = [];
+
+  for (const source of sources) {
+    const rows = source.sampleRows;
+    if (!rows || rows.length < minRows) {
+      continue;
+    }
+
+    const columns = source.fields.map((field, index) => {
+      const values = rows.map((row) => row[index] ?? "");
+      const sampleStats = collectStats(values);
+      const duplicatedInWindow = field.stats ? keyRole(field) === "duplicated" : true;
+      return {
+        name: field.name,
+        values,
+        // A determinant must actually group rows: non-blank, repeating in the sample, and not
+        // near-unique over the full scan window (same reasoning as the composite-key gate).
+        canDetermine:
+          sampleStats.blank === 0 &&
+          sampleStats.distinct < sampleStats.nonEmpty &&
+          duplicatedInWindow,
+        // A dependent must vary — a constant column is trivially determined by anything.
+        canDepend: sampleStats.distinct > 1,
+        distinctRatio: sampleStats.distinct / rows.length,
+      };
+    });
+
+    const sourceCandidates: Array<FunctionalDependencyCandidate & { score: number }> = [];
+
+    for (const determinant of columns) {
+      if (!determinant.canDetermine) {
+        continue;
+      }
+
+      const dependents: string[] = [];
+      for (const dependent of columns) {
+        if (dependent === determinant || !dependent.canDepend) {
+          continue;
+        }
+
+        const valueByGroup = new Map<string, string>();
+        let holds = true;
+        for (let row = 0; row < rows.length; row += 1) {
+          const key = determinant.values[row] ?? "";
+          const value = dependent.values[row] ?? "";
+          const seen = valueByGroup.get(key);
+          if (seen === undefined) {
+            valueByGroup.set(key, value);
+          } else if (seen !== value) {
+            holds = false;
+            break;
+          }
+        }
+        if (holds) {
+          dependents.push(dependent.name);
+        }
+      }
+
+      if (dependents.length === 0) {
+        continue;
+      }
+
+      const groups = new Set(determinant.values).size;
+      sourceCandidates.push({
+        sourceId: source.id,
+        sourceName: source.name,
+        determinant: determinant.name,
+        dependents,
+        rows: rows.length,
+        groups,
+        reason: `${determinant.name} determines ${dependents.join(", ")} across ${rows.length} sampled rows (${groups} distinct values) — extraction candidate`,
+        // More dependents = a stronger extraction; ties broken toward the most-repetitive
+        // determinant (near-unique determinants are usually coincidental).
+        score: -dependents.length + determinant.distinctRatio,
+      });
+    }
+
+    sourceCandidates.sort(
+      (a, b) => a.score - b.score || a.determinant.localeCompare(b.determinant),
+    );
+    for (const scored of sourceCandidates.slice(0, maxPerSource)) {
+      candidates.push({
+        sourceId: scored.sourceId,
+        sourceName: scored.sourceName,
+        determinant: scored.determinant,
+        dependents: scored.dependents,
+        rows: scored.rows,
+        groups: scored.groups,
+        reason: scored.reason,
+      });
+    }
+  }
+
+  return candidates;
+}
+
 export type SemanticType =
   | "email"
   | "url"

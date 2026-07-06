@@ -16,6 +16,8 @@ export type {
   FieldRef,
   FormatIssue,
   FormatMismatch,
+  FunctionalDependencyCandidate,
+  FunctionalDependencyOptions,
   Grain,
   JoinKeyCandidate,
   PrimaryKeyCandidate,
@@ -30,6 +32,7 @@ export type {
 export {
   detectCompositeKeys,
   detectFormatMismatch,
+  detectFunctionalDependencies,
   detectJoinKeys,
   detectPrimaryKeys,
   detectSemanticTypes,
