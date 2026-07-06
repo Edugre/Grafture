@@ -1,5 +1,5 @@
 import type { ApplyResult, Cardinality, Field, Schema, Source, Table } from "@schema-studio/core";
-import { applyActions, emptySchema } from "@schema-studio/core";
+import { SchemaSchema, applyActions, emptySchema } from "@schema-studio/core";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
@@ -542,8 +542,22 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           if (!proposed) {
             return;
           }
+          // The draft was built through applyActions, but re-check the contract before the
+          // wholesale swap — an invalid proposal is surfaced and discarded, never installed.
+          const parsed = SchemaSchema.safeParse(proposed);
+          if (!parsed.success) {
+            set((state) => {
+              state.draft = null;
+              state.chat.push({
+                id: state._makeId(),
+                role: "error",
+                text: "The drafted schema failed validation and was discarded.",
+              });
+            });
+            return;
+          }
           commitSnapshot((state) => {
-            state.schema = structuredClone(proposed);
+            state.schema = parsed.data;
             state.draft = null;
           });
         },

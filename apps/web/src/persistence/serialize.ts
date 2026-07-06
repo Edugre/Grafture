@@ -37,6 +37,28 @@ export function serializeProjectFile(project: ExportableProject): string {
 
 export type ParseProjectResult = { ok: true; file: ProjectFile } | { ok: false; error: string };
 
+export type ValidateRecordResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Validate a persisted record's contents before they replace the live store. Records read back
+ * from IndexedDB bypass `parseProjectFile` (that guards the file-import path only), so project
+ * activation re-checks the schema and sources here — a corrupted record is rejected with a
+ * reason, never loaded partially.
+ */
+export function validateProjectRecord(
+  record: Pick<ProjectRecord, "schema" | "sources">,
+): ValidateRecordResult {
+  if (!SchemaSchema.safeParse(record.schema).success) {
+    return { ok: false, error: "its stored schema is invalid" };
+  }
+  for (const source of record.sources) {
+    if (!SourceSchema.safeParse(source).success) {
+      return { ok: false, error: "one of its stored sources is invalid" };
+    }
+  }
+  return { ok: true };
+}
+
 /**
  * Validate untrusted JSON as a project file. The schema and every source are checked against
  * core's zod models — an invalid import is rejected with a reason, never partially loaded.

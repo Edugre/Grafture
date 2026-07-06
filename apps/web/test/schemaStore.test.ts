@@ -481,6 +481,21 @@ describe("schemaStore", () => {
       expect(store.getState().schema.tables).toHaveLength(0);
     });
 
+    it("acceptDraft rejects an invalid draft, surfaces it in chat, and leaves the schema alone", () => {
+      const store = createSchemaStore({ makeId: makeTestIds() });
+      const bad = draftSchema();
+      // Break the contract: a field missing type/pk/fk must not survive the swap.
+      (bad.tables[0] as unknown as { fields: unknown[] }).fields = [{ id: "f-1", name: "id" }];
+
+      store.getState().setDraft(bad);
+      store.getState().acceptDraft();
+
+      expect(store.getState().schema.tables).toHaveLength(0);
+      expect(store.getState().draft).toBeNull();
+      expect(store.getState().canUndo()).toBe(false);
+      expect(store.getState().chat.at(-1)?.role).toBe("error");
+    });
+
     it("acceptDraft is a no-op when there is no pending draft", () => {
       const store = createSchemaStore({ makeId: makeTestIds() });
       store.getState().acceptDraft();
