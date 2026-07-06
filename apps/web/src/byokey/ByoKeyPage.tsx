@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { useProviderPreference } from "../ai/providerPreference.js";
 import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "../ai/providers.js";
+import { validateCredentialLive } from "../ai/validateCredential.js";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
 import {
   CheckIcon,
@@ -38,6 +39,8 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState(() => seedCredential(storedKey, meta));
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // True while the credential is being live-checked against the provider (keyStatus: validating).
+  const [validating, setValidating] = useState(false);
 
   // Remembered keys hydrate from IndexedDB asynchronously after mount, so `draft` may be seeded
   // empty on the first render. Adopt the stored key once it lands (or when switching to a provider
@@ -54,8 +57,8 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
     setError(null);
   };
 
-  const handleSave = () => {
-    if (!trimmed) {
+  const handleSave = async () => {
+    if (!trimmed || validating) {
       return;
     }
     const invalid = credential.validate(trimmed);
@@ -63,7 +66,16 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
       setError(invalid);
       return;
     }
+    // Format looks right — now really check it against the provider before saving, so a
+    // revoked/mistyped key fails here instead of on the first copilot message.
     setError(null);
+    setValidating(true);
+    const check = await validateCredentialLive(selected, trimmed);
+    setValidating(false);
+    if (!check.ok) {
+      setError(check.error);
+      return;
+    }
     setApiKey(selected, trimmed);
     // Make the just-entered provider the active one so the copilot uses it immediately.
     setProvider(selected);
@@ -105,6 +117,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
                     type="button"
                     className={`byok__segment${isSelected ? " is-selected" : ""}`}
                     aria-pressed={isSelected}
+                    disabled={validating}
                     onClick={() => chooseProvider(item.id)}
                   >
                     {isSelected ? <CheckIcon size={15} /> : null}
@@ -140,6 +153,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
                 value={draft}
                 autoComplete="off"
                 spellCheck={false}
+                disabled={validating}
                 onChange={(event) => {
                   setDraft(event.target.value);
                   if (error) {
@@ -148,7 +162,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
-                    handleSave();
+                    void handleSave();
                   }
                 }}
               />
@@ -166,7 +180,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
             </div>
 
             <p className={`byok__helper${error ? " byok__helper--error" : ""}`}>
-              {error ?? credential.help}
+              {error ?? (validating ? `Checking your ${credential.noun}…` : credential.help)}
             </p>
 
             {credential.secret ? null : (
@@ -204,10 +218,10 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               className="byok__btn byok__btn--primary"
-              onClick={handleSave}
-              disabled={!trimmed}
+              onClick={() => void handleSave()}
+              disabled={!trimmed || validating}
             >
-              Save &amp; continue
+              {validating ? "Checking…" : "Save & continue"}
             </button>
             <button type="button" className="byok__btn byok__btn--ghost" onClick={onClose}>
               Skip for now
