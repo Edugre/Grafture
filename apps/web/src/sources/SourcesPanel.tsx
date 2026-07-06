@@ -20,6 +20,7 @@ function SourceCard({
   name,
   kind,
   fieldCount,
+  rowCount,
   expanded,
   onToggle,
   onBuildTable,
@@ -30,13 +31,21 @@ function SourceCard({
   name: string;
   kind: string;
   fieldCount: number;
+  rowCount: number | undefined;
   expanded: boolean;
   onToggle: () => void;
   onBuildTable: () => void;
   onRemove: () => void;
   children: ReactNode;
 }) {
-  const meta = `${kind.toUpperCase()} · ${fieldCount} fields`;
+  const meta = [
+    kind.toUpperCase(),
+    `${fieldCount} fields`,
+    // Sources parsed before rowCount existed simply omit the segment.
+    ...(rowCount !== undefined
+      ? [`${rowCount.toLocaleString()} ${rowCount === 1 ? "row" : "rows"}`]
+      : []),
+  ].join(" · ");
 
   return (
     <article
@@ -369,6 +378,7 @@ export function SourcesPanel({
               name={source.name}
               kind={source.kind}
               fieldCount={source.fields.length}
+              rowCount={source.rowCount}
               expanded={expandedSourceId === source.id}
               onToggle={() => toggleSource(source.id)}
               onBuildTable={() => handleBuildTable(source.id)}

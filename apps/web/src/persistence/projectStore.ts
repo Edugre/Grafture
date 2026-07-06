@@ -20,6 +20,7 @@ export function toSummary(record: ProjectRecord): ProjectSummary {
     fileNames: record.sources.map((source) => source.name),
     tableCount: record.schema.tables.length,
     relationshipCount: record.schema.relationships.length,
+    rowCount: record.sources.reduce((total, source) => total + (source.rowCount ?? 0), 0),
   };
 }
 

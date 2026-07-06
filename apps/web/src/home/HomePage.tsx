@@ -407,6 +407,16 @@ function ProjectCard({
         <span>
           {project.fileNames.length} {project.fileNames.length === 1 ? "file" : "files"}
         </span>
+        {project.rowCount > 0 ? (
+          <>
+            <span className="home-card__dot" aria-hidden>
+              ·
+            </span>
+            <span>
+              {project.rowCount.toLocaleString()} {project.rowCount === 1 ? "row" : "rows"}
+            </span>
+          </>
+        ) : null}
         <span className="home-card__dot" aria-hidden>
           ·
         </span>

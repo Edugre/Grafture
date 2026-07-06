@@ -5,6 +5,7 @@ import { MemoryKeyValueStore } from "../src/persistence/kv.js";
 import {
   deleteProjectRecord,
   getActiveProjectId,
+  listProjectSummaries,
   listProjects,
   loadProjectRecord,
   saveProjectRecord,
@@ -80,6 +81,22 @@ describe("projectStore", () => {
     expect(list.map((meta) => meta.id)).toEqual(["new", "mid", "old"]);
     // Metadata only — no heavy body.
     expect(list[0]).not.toHaveProperty("schema");
+  });
+
+  it("sums source row counts into the summary, treating legacy sources as unknown (0)", async () => {
+    const kv = new MemoryKeyValueStore();
+    await saveProjectRecord(
+      kv,
+      record("a", {
+        sources: [
+          { ...sampleSource(), id: "s1", rowCount: 120 },
+          { ...sampleSource(), id: "s2", name: "legacy.csv" }, // parsed before rowCount existed
+        ],
+      }),
+    );
+
+    const [summary] = await listProjectSummaries(kv);
+    expect(summary?.rowCount).toBe(120);
   });
 
   it("deletes a project", async () => {
