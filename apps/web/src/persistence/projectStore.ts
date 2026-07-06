@@ -15,11 +15,20 @@ export function toMeta(record: ProjectRecord): ProjectMeta {
 }
 
 export function toSummary(record: ProjectRecord): ProjectSummary {
+  // A total is only honest when every source has a known count; summing legacy (pre-capture)
+  // sources as 0 would display a confident undercount.
+  const knownCounts = record.sources
+    .map((source) => source.rowCount)
+    .filter((count): count is number => count !== undefined);
+
   return {
     ...toMeta(record),
     fileNames: record.sources.map((source) => source.name),
     tableCount: record.schema.tables.length,
     relationshipCount: record.schema.relationships.length,
+    ...(knownCounts.length === record.sources.length
+      ? { rowCount: knownCounts.reduce((total, count) => total + count, 0) }
+      : {}),
   };
 }
 

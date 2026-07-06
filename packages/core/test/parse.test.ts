@@ -247,16 +247,63 @@ describe("null-token handling in stats", () => {
 
 describe("collectStats", () => {
   it("counts non-empty, distinct, and blank values", () => {
-    expect(collectStats(["a", "b", "a", "", "c"])).toEqual({ nonEmpty: 4, distinct: 3, blank: 1 });
+    expect(collectStats(["a", "b", "a", "", "c"])).toEqual({
+      nonEmpty: 4,
+      distinct: 3,
+      blank: 1,
+      topValues: [{ value: "a", count: 2 }],
+    });
   });
 
   it("reports a unique, non-blank column (a PK candidate) as distinct === nonEmpty", () => {
     const stats = collectStats(["1", "2", "3", "4"]);
-    expect(stats).toEqual({ nonEmpty: 4, distinct: 4, blank: 0 });
+    // A fully-unique column carries no repeating values, so topValues is omitted.
+    expect(stats).toEqual({ nonEmpty: 4, distinct: 4, blank: 0, min: 1, max: 4 });
   });
 
   it("handles an all-empty column", () => {
     expect(collectStats(["", "", ""])).toEqual({ nonEmpty: 0, distinct: 0, blank: 3 });
+  });
+
+  it("captures a numeric range when every non-empty value is a plain number", () => {
+    const stats = collectStats(["-12.5", "40.7128", "90"]);
+    expect(stats.min).toBe(-12.5);
+    expect(stats.max).toBe(90);
+  });
+
+  it("omits the numeric range for a non-numeric or mixed column", () => {
+    expect(collectStats(["active", "closed", "active"]).min).toBeUndefined();
+    // A partial range over the numeric subset would be evidence about values it never saw.
+    expect(collectStats(["-12.5", "40.7128", "not-a-number"]).min).toBeUndefined();
+  });
+
+  it("omits the numeric range for zero-padded identifier columns", () => {
+    // Number("02139") === 2139 — a stripped-padding range misleads for zips/padded ids.
+    const stats = collectStats(["02139", "94103"]);
+    expect(stats.min).toBeUndefined();
+    expect(stats.max).toBeUndefined();
+  });
+
+  it("omits the numeric range when values exceed safe-integer precision", () => {
+    const stats = collectStats(["12345678901234567890", "98765432109876543210"]);
+    expect(stats.min).toBeUndefined();
+    expect(stats.max).toBeUndefined();
+  });
+
+  it("ranks repeating values by frequency, capped, ties by first appearance", () => {
+    const values = [
+      ...Array.from({ length: 5 }, () => "active"),
+      ...Array.from({ length: 3 }, () => "closed"),
+      "pending",
+      "pending",
+      "one-off",
+    ];
+    const stats = collectStats(values);
+    expect(stats.topValues).toEqual([
+      { value: "active", count: 5 },
+      { value: "closed", count: 3 },
+      { value: "pending", count: 2 },
+    ]);
   });
 });
 
@@ -275,8 +322,13 @@ describe("parseCsv", () => {
   it("attaches per-field stats distinguishing a unique key from a repeated column", () => {
     const source = parseCsv("id,status\n1,active\n2,active\n3,closed\n", "stats.csv", opts);
 
-    expect(source.fields[0]?.stats).toEqual({ nonEmpty: 3, distinct: 3, blank: 0 });
-    expect(source.fields[1]?.stats).toEqual({ nonEmpty: 3, distinct: 2, blank: 0 });
+    expect(source.fields[0]?.stats).toMatchObject({ nonEmpty: 3, distinct: 3, blank: 0 });
+    expect(source.fields[1]?.stats).toMatchObject({
+      nonEmpty: 3,
+      distinct: 2,
+      blank: 0,
+      topValues: [{ value: "active", count: 2 }],
+    });
   });
 
   it("dedupes duplicate headers deterministically", () => {

@@ -13,7 +13,7 @@ import {
   saveProjectRecord,
   setActiveProjectId,
 } from "./projectStore.js";
-import { parseProjectFile, serializeProjectFile } from "./serialize.js";
+import { parseProjectFile, serializeProjectFile, validateProjectRecord } from "./serialize.js";
 import type { KeyValueStore, ProjectMeta, ProjectRecord, ProjectSummary } from "./types.js";
 
 const AUTOSAVE_DELAY = 500;
@@ -122,9 +122,18 @@ export function useProjects(
     [kv, refreshList],
   );
 
-  const activate = useCallback((record: ProjectRecord) => {
+  // Validate before the wholesale store swap: records read from IndexedDB skip the
+  // import-path checks, and `loadProject` installs them as-is. Returns whether the
+  // project was actually activated.
+  const activate = useCallback((record: ProjectRecord): boolean => {
+    const valid = validateProjectRecord(record);
+    if (!valid.ok) {
+      setError(`Can't open "${record.name}": ${valid.error}.`);
+      return false;
+    }
     useSchemaStore.getState().loadProject(record.schema, record.sources, record.chat);
     setActiveIdState(record.id);
+    return true;
   }, []);
 
   // Bootstrap: restore the last active project, or create one from whatever is on the canvas.
@@ -141,8 +150,11 @@ export function useProjects(
       // No auto-created default project: when there's nothing to restore, the Home screen shows
       // just the "derive" card. The editor is only reached by opening or creating a project, both
       // of which set an active project, so the store never needs a placeholder here.
-      if (record) {
-        activate(record);
+      if (record && !activate(record)) {
+        // A corrupt record failed validation; clear the persisted pointer so the same
+        // error doesn't re-fire on every launch. The record itself stays in the grid,
+        // where it can still be deleted (or exported for inspection).
+        await setActiveProjectId(kv, undefined);
       }
       await refreshList();
       setReady(true);
@@ -229,8 +241,10 @@ export function useProjects(
           setError("Project not found.");
           return;
         }
+        if (!activate(record)) {
+          return;
+        }
         await setActiveProjectId(kv, id);
-        activate(record);
         await refreshList();
       })().catch(fail);
     },

@@ -28,6 +28,12 @@ export type ProjectSummary = ProjectMeta & {
   tableCount: number;
   /** Applied relationships (joins) in the schema — drives the card's status badge. */
   relationshipCount: number;
+  /**
+   * Total data rows across the project's source files. Present only when EVERY source
+   * carries a known per-file count — a project containing sources parsed before `rowCount`
+   * capture has no honest total, so the card omits the segment rather than undercounting.
+   */
+  rowCount?: number;
 };
 
 /**

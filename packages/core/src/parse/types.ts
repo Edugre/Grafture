@@ -13,6 +13,13 @@ export type SourceKind = z.infer<typeof SourceKindSchema>;
  * Counts are over up to ~1000 rows sampled evenly across the file, so `distinct` is a lower
  * bound for very large files — the *ratio* stays a reliable signal.
  */
+/** One repeating value and how often it occurred in the scan window. */
+export const ValueFrequencySchema = z.object({
+  value: z.string(),
+  count: z.number(),
+});
+export type ValueFrequency = z.infer<typeof ValueFrequencySchema>;
+
 export const FieldStatsSchema = z.object({
   /** Non-empty values scanned. */
   nonEmpty: z.number(),
@@ -20,6 +27,21 @@ export const FieldStatsSchema = z.object({
   distinct: z.number(),
   /** Empty/missing values scanned. */
   blank: z.number(),
+  /**
+   * Numeric range over the scanned values. Present only when EVERY non-empty value is a
+   * plain, safe number without leading zeros — identifier-like columns (zero-padded zips,
+   * account numbers past safe-integer precision) and mixed columns carry no range, so this
+   * evidence is never lossy or misleading. Range evidence lets consumers judge plausibility
+   * (a [-90, 90] column can be a latitude; a [0, 120] one is more likely an age).
+   */
+  min: z.number().optional(),
+  max: z.number().optional(),
+  /**
+   * The most frequent *repeating* values (count ≥ 2), most frequent first, capped at
+   * MAX_TOP_VALUES. Skew/enum evidence: distinct counts alone can't show that one status
+   * value covers 95% of rows. Omitted when every scanned value is unique.
+   */
+  topValues: z.array(ValueFrequencySchema).optional(),
 });
 export type FieldStats = z.infer<typeof FieldStatsSchema>;
 

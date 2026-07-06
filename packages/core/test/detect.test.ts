@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { FieldStats, Source, SourceField } from "../src/parse/types.js";
 import {
   detectFormatMismatch,
+  detectFunctionalDependencies,
   detectJoinKeys,
   detectPrimaryKeys,
   detectCompositeKeys,
@@ -511,5 +512,146 @@ describe("detectCompositeKeys", () => {
       orderLineRows().slice(0, 6),
     );
     expect(detectCompositeKeys([tiny])).toEqual([]);
+  });
+});
+
+describe("detectFunctionalDependencies", () => {
+  /** Build a source whose fields and stats are derived from explicit row tuples. */
+  function tupleSource(name: string, fieldNames: string[], rows: string[][]): Source {
+    const fields = fieldNames.map((fieldName, index) => {
+      const values = rows.map((row) => row[index] ?? "");
+      const distinct = new Set(values.filter((value) => value !== "")).size;
+      const nonEmpty = values.filter((value) => value !== "").length;
+      return {
+        name: fieldName,
+        type: "text" as const,
+        samples: values.slice(0, 5),
+        stats: { nonEmpty, distinct, blank: values.length - nonEmpty },
+      };
+    });
+    return { id: name, name, kind: "csv", fields, sampleRows: rows };
+  }
+
+  /**
+   * A flattened orders export: 8 customers × 3 orders. customer_id fixes name and email
+   * (the extraction candidate); order_id is unique; amount varies within a customer.
+   */
+  function ordersRows(): string[][] {
+    const rows: string[][] = [];
+    let order = 0;
+    for (let customer = 1; customer <= 8; customer += 1) {
+      for (let n = 1; n <= 3; n += 1) {
+        order += 1;
+        rows.push([
+          `O${order}`,
+          `C${customer}`,
+          `Customer ${customer}`,
+          `c${customer}@x.com`,
+          String(order * 10),
+        ]);
+      }
+    }
+    return rows;
+  }
+
+  const ORDER_FIELDS = ["order_id", "customer_id", "customer_name", "customer_email", "amount"];
+
+  it("finds the customer columns determined by customer_id in a flattened orders export", () => {
+    const candidates = detectFunctionalDependencies([
+      tupleSource("orders.csv", ORDER_FIELDS, ordersRows()),
+    ]);
+
+    const byCustomerId = candidates.find((candidate) => candidate.determinant === "customer_id");
+    expect(byCustomerId).toMatchObject({
+      sourceName: "orders.csv",
+      dependents: ["customer_name", "customer_email"],
+      rows: 24,
+      groups: 8,
+    });
+    expect(byCustomerId?.reason).toContain("extraction candidate");
+  });
+
+  it("never uses a unique column as determinant, and never reports a constant as dependent", () => {
+    const rows = ordersRows().map((row) => [...row, "always-the-same"]);
+    const candidates = detectFunctionalDependencies([
+      tupleSource("orders.csv", [...ORDER_FIELDS, "constant"], rows),
+    ]);
+
+    expect(candidates.some((candidate) => candidate.determinant === "order_id")).toBe(false);
+    expect(candidates.some((candidate) => candidate.determinant === "constant")).toBe(false);
+    expect(candidates.every((candidate) => !candidate.dependents.includes("constant"))).toBe(true);
+  });
+
+  it("rejects a determinant that is near-unique over the full scan window", () => {
+    // email repeats within the 24 sampled tuples but the full-window stats say it is
+    // effectively unique — grouping by it would be coincidental, not structural.
+    const rows = ordersRows();
+    const source = tupleSource("orders.csv", ORDER_FIELDS, rows);
+    const email = source.fields[3]!;
+    email.stats = { nonEmpty: 1000, distinct: 1000, blank: 0 };
+
+    const candidates = detectFunctionalDependencies([source]);
+    expect(candidates.some((candidate) => candidate.determinant === "customer_email")).toBe(false);
+    // The structural dependency is still found from the other determinants.
+    expect(candidates.some((candidate) => candidate.determinant === "customer_id")).toBe(true);
+  });
+
+  it("skips columns with blanks as determinants", () => {
+    const rows = ordersRows().map((row, index) =>
+      index === 5 ? [row[0]!, "", row[2]!, row[3]!, row[4]!] : row,
+    );
+    const candidates = detectFunctionalDependencies([
+      tupleSource("orders.csv", ORDER_FIELDS, rows),
+    ]);
+    expect(candidates.some((candidate) => candidate.determinant === "customer_id")).toBe(false);
+  });
+
+  it("caps candidates per source and orders the strongest extraction first", () => {
+    const candidates = detectFunctionalDependencies(
+      [tupleSource("orders.csv", ORDER_FIELDS, ordersRows())],
+      { maxPerSource: 1 },
+    );
+    expect(candidates).toHaveLength(1);
+    // customer_id/name/email form a bijection; each determines the other two. The cap keeps
+    // the alphabetically-first of the equally-scored determinants — deterministic output.
+    expect(candidates[0]?.dependents).toHaveLength(2);
+  });
+
+  it("yields nothing without sampleRows or below the row threshold", () => {
+    const noTuples = tupleSource("orders.csv", ORDER_FIELDS, ordersRows());
+    delete (noTuples as { sampleRows?: string[][] }).sampleRows;
+    expect(detectFunctionalDependencies([noTuples])).toEqual([]);
+
+    const tiny = tupleSource("orders.csv", ORDER_FIELDS, ordersRows().slice(0, 6));
+    expect(detectFunctionalDependencies([tiny])).toEqual([]);
+  });
+
+  it("tolerates occasional blank dependent cells without dropping the dependency", () => {
+    // One sampled row is missing the email for a customer whose email appears elsewhere —
+    // dirty data, not a conflicting value; customer_id → customer_email must still hold.
+    const rows = ordersRows().map((row, index) =>
+      index === 4 ? [row[0]!, row[1]!, row[2]!, "", row[4]!] : row,
+    );
+    const candidates = detectFunctionalDependencies([
+      tupleSource("orders.csv", ORDER_FIELDS, rows),
+    ]);
+
+    const byCustomerId = candidates.find((candidate) => candidate.determinant === "customer_id");
+    expect(byCustomerId?.dependents).toContain("customer_email");
+  });
+
+  it("never reports a mostly-blank column as a dependent, even when its rare values agree", () => {
+    // A sparse notes-like column: one consistent value per customer, blank everywhere else.
+    // Skipping blanks makes it trivially "hold" — the coverage gate must reject it.
+    const rows = ordersRows().map((row, index) => {
+      const customer = Math.floor(index / 3) + 1;
+      const note = index % 3 === 0 ? `note-${customer}` : "";
+      return [...row, note];
+    });
+    const candidates = detectFunctionalDependencies([
+      tupleSource("orders.csv", [...ORDER_FIELDS, "note"], rows),
+    ]);
+
+    expect(candidates.every((candidate) => !candidate.dependents.includes("note"))).toBe(true);
   });
 });

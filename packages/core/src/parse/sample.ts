@@ -5,6 +5,26 @@ export const MAX_INFERENCE_VALUES = 200;
 export const MAX_SAMPLES = 5;
 /** Cap on retained row tuples (`Source.sampleRows`) — enough for multi-column uniqueness checks. */
 export const MAX_ROW_TUPLES = 200;
+/** Cap on retained per-field top-value frequencies (`FieldStats.topValues`). */
+export const MAX_TOP_VALUES = 8;
+
+/** A plain numeric literal — the shape min/max range stats are computed over. */
+const NUMERIC_VALUE = /^-?\d+(\.\d+)?$/;
+/** Leading zeros mark codes/identifiers (zero-padded zips, padded ids), not quantities. */
+const LEADING_ZERO = /^-?0\d/;
+
+/**
+ * The number a value contributes to range stats, or null when it must not: not a plain
+ * numeric literal, zero-padded (Number("02139") would silently strip the padding), or
+ * beyond safe-integer precision (18+-digit account numbers round in IEEE-754 doubles).
+ */
+function asRangeNumber(value: string): number | null {
+  if (!NUMERIC_VALUE.test(value) || LEADING_ZERO.test(value)) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Math.abs(parsed) <= Number.MAX_SAFE_INTEGER ? parsed : null;
+}
 
 /**
  * Pick up to `limit` rows spread evenly across the whole file, preserving order. A head slice
@@ -50,22 +70,51 @@ function isNonEmpty(value: string | null | undefined): value is string {
  * samples.
  */
 export function collectStats(values: string[]): FieldStats {
-  const distinctValues = new Set<string>();
+  // Insertion order is preserved, so equal counts later sort by first appearance.
+  const counts = new Map<string, number>();
   let nonEmpty = 0;
   let blank = 0;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  // The range is only honest when EVERY non-empty value contributes to it: a partial range
+  // over the numeric subset of a mixed or identifier-like column reads as evidence about
+  // values it never saw.
+  let allNumeric = true;
   const limit = Math.min(values.length, MAX_SCAN_ROWS);
 
   for (let i = 0; i < limit; i++) {
     const value = values[i];
-    if (isNonEmpty(value)) {
-      nonEmpty += 1;
-      distinctValues.add(value);
-    } else {
+    if (!isNonEmpty(value)) {
       blank += 1;
+      continue;
+    }
+    nonEmpty += 1;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+
+    const parsed = asRangeNumber(value.trim());
+    if (parsed === null) {
+      allNumeric = false;
+    } else {
+      min = Math.min(min, parsed);
+      max = Math.max(max, parsed);
     }
   }
 
-  return { nonEmpty, distinct: distinctValues.size, blank };
+  // Only values that actually repeat carry skew/enum information; a fully-unique column
+  // (ids) would just leak arbitrary values into every persisted stats block.
+  const topValues = [...counts.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_TOP_VALUES)
+    .map(([value, count]) => ({ value, count }));
+
+  return {
+    nonEmpty,
+    distinct: counts.size,
+    blank,
+    ...(nonEmpty > 0 && allNumeric ? { min, max } : {}),
+    ...(topValues.length > 0 ? { topValues } : {}),
+  };
 }
 
 /**

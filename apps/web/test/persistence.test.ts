@@ -5,6 +5,7 @@ import { MemoryKeyValueStore } from "../src/persistence/kv.js";
 import {
   deleteProjectRecord,
   getActiveProjectId,
+  listProjectSummaries,
   listProjects,
   loadProjectRecord,
   saveProjectRecord,
@@ -14,6 +15,7 @@ import {
   parseProjectFile,
   serializeProjectFile,
   toProjectFile,
+  validateProjectRecord,
 } from "../src/persistence/serialize.js";
 import { PROJECT_FILE_KIND, type ProjectRecord } from "../src/persistence/types.js";
 
@@ -81,6 +83,35 @@ describe("projectStore", () => {
     expect(list[0]).not.toHaveProperty("schema");
   });
 
+  it("sums source row counts into the summary only when every source has one", async () => {
+    const kv = new MemoryKeyValueStore();
+    await saveProjectRecord(
+      kv,
+      record("all-known", {
+        sources: [
+          { ...sampleSource(), id: "s1", rowCount: 120 },
+          { ...sampleSource(), id: "s2", name: "b.csv", rowCount: 30 },
+        ],
+        updatedAt: 20,
+      }),
+    );
+    await saveProjectRecord(
+      kv,
+      record("mixed", {
+        sources: [
+          { ...sampleSource(), id: "s1", rowCount: 120 },
+          { ...sampleSource(), id: "s2", name: "legacy.csv" }, // parsed before rowCount existed
+        ],
+        updatedAt: 10,
+      }),
+    );
+
+    const [allKnown, mixed] = await listProjectSummaries(kv);
+    expect(allKnown?.rowCount).toBe(150);
+    // A total over a legacy source would be a confident undercount — omit it instead.
+    expect(mixed?.rowCount).toBeUndefined();
+  });
+
   it("deletes a project", async () => {
     const kv = new MemoryKeyValueStore();
     await saveProjectRecord(kv, record("a"));
@@ -97,6 +128,40 @@ describe("projectStore", () => {
     expect(await getActiveProjectId(kv)).toBeUndefined();
     await setActiveProjectId(kv, "a");
     expect(await getActiveProjectId(kv)).toBe("a");
+  });
+});
+
+describe("validateProjectRecord (activate-path guard)", () => {
+  it("accepts a well-formed record", () => {
+    expect(validateProjectRecord(record("a"))).toEqual({ ok: true });
+  });
+
+  it("rejects a record whose stored schema is invalid", () => {
+    const bad = record("a", {
+      schema: { tables: [{ id: "x" }], relationships: [] } as unknown as Schema,
+    });
+    expect(validateProjectRecord(bad)).toEqual({
+      ok: false,
+      error: "its stored schema is invalid",
+    });
+  });
+
+  it("rejects a record with an invalid stored source", () => {
+    const bad = record("a", { sources: [{ id: "s1", name: "x" } as unknown as Source] });
+    expect(validateProjectRecord(bad)).toEqual({
+      ok: false,
+      error: "one of its stored sources is invalid",
+    });
+  });
+
+  it("rejects a record with corrupt stored chat — activation and import enforce one contract", () => {
+    const bad = record("a", {
+      chat: [{ id: "m1", role: "wizard", text: "hi" } as unknown as ProjectRecord["chat"][number]],
+    });
+    expect(validateProjectRecord(bad)).toEqual({
+      ok: false,
+      error: "its stored chat history is invalid",
+    });
   });
 });
 

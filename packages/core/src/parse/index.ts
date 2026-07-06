@@ -10,6 +10,7 @@ export {
   MAX_ROW_TUPLES,
   MAX_SAMPLES,
   MAX_SCAN_ROWS,
+  MAX_TOP_VALUES,
   collectInferenceValues,
   collectSamples,
   collectStats,
@@ -22,11 +23,13 @@ export {
   SourceFieldSchema,
   SourceKindSchema,
   SourceSchema,
+  ValueFrequencySchema,
   type FieldStats,
   type InferredType,
   type Source,
   type SourceField,
   type SourceKind,
+  type ValueFrequency,
 } from "./types.js";
 export { defaultMakeId, dedupeNames, type ParseOptions } from "./util.js";
 export { parseCsv } from "./csv.js";

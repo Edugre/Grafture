@@ -15,7 +15,21 @@ const sources: Source[] = [
         type: "text",
         samples: ["shipped", "pending"],
         distinctValues: ["shipped", "pending", "cancelled"],
-        stats: { nonEmpty: 320, distinct: 3, blank: 0 },
+        stats: {
+          nonEmpty: 320,
+          distinct: 3,
+          blank: 0,
+          topValues: [
+            { value: "shipped", count: 250 },
+            { value: "pending", count: 60 },
+          ],
+        },
+      },
+      {
+        name: "amount",
+        type: "numeric",
+        samples: ["10.5", "99.99"],
+        stats: { nonEmpty: 320, distinct: 300, blank: 0, min: 0.5, max: 999.99 },
       },
       {
         name: "note",
@@ -34,6 +48,12 @@ describe("runInspectSource", () => {
     expect(result).toContain("rows in file: 320");
     expect(result).toContain("320 non-empty, 3 distinct, 0 blank");
     expect(result).toContain("cancelled");
+    expect(result).toContain('most frequent values: "shipped" \u00d7250, "pending" \u00d760');
+  });
+
+  it("reports the numeric range when the stats carry one", () => {
+    const result = runInspectSource(sources, { source: "orders.csv", field: "amount" });
+    expect(result).toContain("numeric range: 0.5 to 999.99");
   });
 
   it("falls back to samples and flags missing stats for older sources", () => {

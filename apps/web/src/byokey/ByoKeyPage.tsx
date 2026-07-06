@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { useProviderPreference } from "../ai/providerPreference.js";
 import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "../ai/providers.js";
+import { validateCredentialLive } from "../ai/validateCredential.js";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
 import {
   CheckIcon,
@@ -38,6 +39,12 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState(() => seedCredential(storedKey, meta));
   const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // True while the credential is being live-checked against the provider (keyStatus: validating).
+  const [validating, setValidating] = useState(false);
+  // Set when the live check failed only because the provider was unreachable (offline, outage).
+  // That says nothing about the key itself, so the next Save stores it unverified rather than
+  // locking the user out of their own credential. Reset on any edit or provider switch.
+  const [offerUnverified, setOfferUnverified] = useState(false);
 
   // Remembered keys hydrate from IndexedDB asynchronously after mount, so `draft` may be seeded
   // empty on the first render. Adopt the stored key once it lands (or when switching to a provider
@@ -52,10 +59,18 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
     setSelected(next);
     setDraft(seedCredential(keyFor(next).apiKey, PROVIDERS[next]));
     setError(null);
+    setOfferUnverified(false);
   };
 
-  const handleSave = () => {
-    if (!trimmed) {
+  const persistAndClose = () => {
+    setApiKey(selected, trimmed);
+    // Make the just-entered provider the active one so the copilot uses it immediately.
+    setProvider(selected);
+    onClose();
+  };
+
+  const handleSave = async () => {
+    if (!trimmed || validating) {
       return;
     }
     const invalid = credential.validate(trimmed);
@@ -63,11 +78,30 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
       setError(invalid);
       return;
     }
+    // The provider was unreachable on the previous attempt and nothing changed since —
+    // this click is the user's explicit "save it anyway".
+    if (offerUnverified) {
+      persistAndClose();
+      return;
+    }
+    // Format looks right — now really check it against the provider before saving, so a
+    // revoked/mistyped key fails here instead of on the first copilot message.
     setError(null);
-    setApiKey(selected, trimmed);
-    // Make the just-entered provider the active one so the copilot uses it immediately.
-    setProvider(selected);
-    onClose();
+    setValidating(true);
+    const check = await validateCredentialLive(selected, trimmed);
+    setValidating(false);
+    if (!check.ok) {
+      if (check.reason === "unreachable") {
+        setOfferUnverified(true);
+        setError(
+          `${check.error} You can save it unverified and use it once the ${credential.secret ? "provider" : "server"} is reachable.`,
+        );
+      } else {
+        setError(check.error);
+      }
+      return;
+    }
+    persistAndClose();
   };
 
   return (
@@ -105,6 +139,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
                     type="button"
                     className={`byok__segment${isSelected ? " is-selected" : ""}`}
                     aria-pressed={isSelected}
+                    disabled={validating}
                     onClick={() => chooseProvider(item.id)}
                   >
                     {isSelected ? <CheckIcon size={15} /> : null}
@@ -140,15 +175,17 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
                 value={draft}
                 autoComplete="off"
                 spellCheck={false}
+                disabled={validating}
                 onChange={(event) => {
                   setDraft(event.target.value);
+                  setOfferUnverified(false);
                   if (error) {
                     setError(null);
                   }
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
-                    handleSave();
+                    void handleSave();
                   }
                 }}
               />
@@ -166,7 +203,7 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
             </div>
 
             <p className={`byok__helper${error ? " byok__helper--error" : ""}`}>
-              {error ?? credential.help}
+              {error ?? (validating ? `Checking your ${credential.noun}…` : credential.help)}
             </p>
 
             {credential.secret ? null : (
@@ -204,10 +241,10 @@ export function ByoKeyPage({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               className="byok__btn byok__btn--primary"
-              onClick={handleSave}
-              disabled={!trimmed}
+              onClick={() => void handleSave()}
+              disabled={!trimmed || validating}
             >
-              Save &amp; continue
+              {validating ? "Checking…" : offerUnverified ? "Save anyway" : "Save & continue"}
             </button>
             <button type="button" className="byok__btn byok__btn--ghost" onClick={onClose}>
               Skip for now

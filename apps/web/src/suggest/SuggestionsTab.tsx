@@ -169,7 +169,12 @@ export function SuggestionsTab({
                 type="button"
                 className="copilot-suggest-btn copilot-suggest-btn--primary"
                 onClick={() => {
-                  acceptDraft();
+                  const result = acceptDraft();
+                  if (!result.ok) {
+                    // Also written to chat, but that tab may be hidden — report it here,
+                    // where the Accept button the user just clicked lives.
+                    setMessage({ kind: "error", text: result.error });
+                  }
                   onActivate(null);
                 }}
               >

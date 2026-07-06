@@ -61,6 +61,16 @@ export function runInspectSource(sources: Source[], input: unknown): string {
     ...(field.stats
       ? [
           `scanned values: ${field.stats.nonEmpty} non-empty, ${field.stats.distinct} distinct, ${field.stats.blank} blank`,
+          ...(field.stats.min !== undefined && field.stats.max !== undefined
+            ? [`numeric range: ${field.stats.min} to ${field.stats.max}`]
+            : []),
+          ...(field.stats.topValues && field.stats.topValues.length > 0
+            ? [
+                `most frequent values: ${field.stats.topValues
+                  .map((entry) => `${JSON.stringify(entry.value)} ×${entry.count}`)
+                  .join(", ")}`,
+              ]
+            : []),
         ]
       : ["(no stats captured for this source)"]),
     "",
