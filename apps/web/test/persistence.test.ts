@@ -83,20 +83,33 @@ describe("projectStore", () => {
     expect(list[0]).not.toHaveProperty("schema");
   });
 
-  it("sums source row counts into the summary, treating legacy sources as unknown (0)", async () => {
+  it("sums source row counts into the summary only when every source has one", async () => {
     const kv = new MemoryKeyValueStore();
     await saveProjectRecord(
       kv,
-      record("a", {
+      record("all-known", {
+        sources: [
+          { ...sampleSource(), id: "s1", rowCount: 120 },
+          { ...sampleSource(), id: "s2", name: "b.csv", rowCount: 30 },
+        ],
+        updatedAt: 20,
+      }),
+    );
+    await saveProjectRecord(
+      kv,
+      record("mixed", {
         sources: [
           { ...sampleSource(), id: "s1", rowCount: 120 },
           { ...sampleSource(), id: "s2", name: "legacy.csv" }, // parsed before rowCount existed
         ],
+        updatedAt: 10,
       }),
     );
 
-    const [summary] = await listProjectSummaries(kv);
-    expect(summary?.rowCount).toBe(120);
+    const [allKnown, mixed] = await listProjectSummaries(kv);
+    expect(allKnown?.rowCount).toBe(150);
+    // A total over a legacy source would be a confident undercount — omit it instead.
+    expect(mixed?.rowCount).toBeUndefined();
   });
 
   it("deletes a project", async () => {
@@ -138,6 +151,16 @@ describe("validateProjectRecord (activate-path guard)", () => {
     expect(validateProjectRecord(bad)).toEqual({
       ok: false,
       error: "one of its stored sources is invalid",
+    });
+  });
+
+  it("rejects a record with corrupt stored chat — activation and import enforce one contract", () => {
+    const bad = record("a", {
+      chat: [{ id: "m1", role: "wizard", text: "hi" } as unknown as ProjectRecord["chat"][number]],
+    });
+    expect(validateProjectRecord(bad)).toEqual({
+      ok: false,
+      error: "its stored chat history is invalid",
     });
   });
 });

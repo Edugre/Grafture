@@ -150,8 +150,11 @@ export function useProjects(
       // No auto-created default project: when there's nothing to restore, the Home screen shows
       // just the "derive" card. The editor is only reached by opening or creating a project, both
       // of which set an active project, so the store never needs a placeholder here.
-      if (record) {
-        activate(record);
+      if (record && !activate(record)) {
+        // A corrupt record failed validation; clear the persisted pointer so the same
+        // error doesn't re-fire on every launch. The record itself stays in the grid,
+        // where it can still be deleted (or exported for inspection).
+        await setActiveProjectId(kv, undefined);
       }
       await refreshList();
       setReady(true);

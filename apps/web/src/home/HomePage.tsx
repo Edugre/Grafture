@@ -407,7 +407,7 @@ function ProjectCard({
         <span>
           {project.fileNames.length} {project.fileNames.length === 1 ? "file" : "files"}
         </span>
-        {project.rowCount > 0 ? (
+        {project.rowCount !== undefined && project.rowCount > 0 ? (
           <>
             <span className="home-card__dot" aria-hidden>
               ·
