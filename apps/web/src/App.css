@@ -173,6 +173,17 @@
   box-shadow: var(--shadow-node);
 }
 
+/* Shown when an accepted draft failed validation — the bar's error variant. */
+.canvas-draft-bar--error {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+.canvas-draft-bar--error .canvas-draft-bar__label {
+  color: var(--danger-text);
+  white-space: normal;
+}
+
 .canvas-draft-bar__label {
   display: inline-flex;
   align-items: center;

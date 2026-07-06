@@ -20,6 +20,8 @@ import {
 
 export type RunActionsResult = Pick<ApplyResult, "applied" | "rejected">;
 
+export type AcceptDraftResult = { ok: true } | { ok: false; error: string };
+
 export type SchemaStore = {
   schema: Schema;
   sources: Source[];
@@ -77,8 +79,12 @@ export type SchemaStore = {
 
   /** Stash (or clear) the AI-proposed draft schema shown as a ghost overlay. No history entry. */
   setDraft: (schema: Schema | null) => void;
-  /** Apply the pending draft as the live schema in one undoable step, then clear it. */
-  acceptDraft: () => void;
+  /**
+   * Apply the pending draft as the live schema in one undoable step, then clear it. Returns
+   * whether the draft passed validation so the invoking surface can report a failure where
+   * the user is actually looking (the chat error alone can sit in a hidden tab).
+   */
+  acceptDraft: () => AcceptDraftResult;
   /** Drop the pending draft without touching the schema. */
   discardDraft: () => void;
 
@@ -540,26 +546,24 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         acceptDraft: () => {
           const proposed = get().draft;
           if (!proposed) {
-            return;
+            return { ok: true };
           }
           // The draft was built through applyActions, but re-check the contract before the
           // wholesale swap — an invalid proposal is surfaced and discarded, never installed.
           const parsed = SchemaSchema.safeParse(proposed);
           if (!parsed.success) {
+            const error = "The drafted schema failed validation and was discarded.";
             set((state) => {
               state.draft = null;
-              state.chat.push({
-                id: state._makeId(),
-                role: "error",
-                text: "The drafted schema failed validation and was discarded.",
-              });
+              state.chat.push({ id: state._makeId(), role: "error", text: error });
             });
-            return;
+            return { ok: false, error };
           }
           commitSnapshot((state) => {
             state.schema = parsed.data;
             state.draft = null;
           });
+          return { ok: true };
         },
 
         discardDraft: () => {

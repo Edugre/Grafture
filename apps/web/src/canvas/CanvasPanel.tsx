@@ -108,6 +108,16 @@ export function CanvasPanel({
   // Interactivity lock: when on, nodes/edges can't be dragged, selected, or connected.
   const [locked, setLocked] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Surfaced here because the chat error acceptDraft also writes can sit in a hidden tab —
+  // the user who clicked Accept on the canvas must see why the draft vanished.
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  // A fresh draft supersedes any stale failure message.
+  useEffect(() => {
+    if (draftTableCount > 0) {
+      setDraftError(null);
+    }
+  }, [draftTableCount]);
 
   // Keep the fullscreen icon in sync whether the user toggles via the button or Esc.
   useEffect(() => {
@@ -301,10 +311,18 @@ export function CanvasPanel({
               <button
                 type="button"
                 className="canvas-draft-bar__btn canvas-draft-bar__btn--primary"
-                onClick={acceptDraft}
+                onClick={() => {
+                  const result = acceptDraft();
+                  setDraftError(result.ok ? null : result.error);
+                }}
               >
                 Accept
               </button>
+            </div>
+          ) : null}
+          {draftError ? (
+            <div className="canvas-draft-bar canvas-draft-bar--error" role="alert">
+              <span className="canvas-draft-bar__label">{draftError}</span>
             </div>
           ) : null}
         </div>
