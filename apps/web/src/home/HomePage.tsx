@@ -1,3 +1,4 @@
+import { fromSql, ParseError } from "@schema-studio/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useProjectsContext } from "../persistence/index.js";
@@ -10,7 +11,9 @@ import {
   PlusIcon,
   SearchIcon,
   TrashIcon,
+  UploadIcon,
   UserIcon,
+  XIcon,
 } from "../ui/icons.js";
 import {
   buildInitialSchemaPrompt,
@@ -26,6 +29,18 @@ type FilterMode = "recent" | "all";
 
 /** How many file chips to show before collapsing the rest into a "+N" chip. */
 const MAX_CHIPS = 2;
+
+/** How many skipped-statement warnings to spell out in the import notice before summarizing. */
+const MAX_SHOWN_WARNINGS = 3;
+
+/** A default project name from an imported file: drop any path and extension. */
+function fileBaseName(fileName: string): string {
+  const base = fileName.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "");
+  return base.trim() || "Imported schema";
+}
+
+/** A dismissible banner shown after a SQL import — either an error or a "skipped statements" note. */
+type Notice = { tone: "info" | "error"; text: string };
 
 /**
  * Home / Projects — the app's landing screen (handoff: design_handoff_home). Lists the user's
@@ -56,6 +71,8 @@ export function HomePage({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const sqlInputRef = useRef<HTMLInputElement>(null);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -91,6 +108,61 @@ export function HomePage({
     void createProject({ name: input.name, sources: input.sources }).then(() =>
       onEnterEditor(kickoff),
     );
+  };
+
+  // Import an existing schema from a .sql file: parse locally (nothing is uploaded), create the
+  // project, and enter the editor. When statements were skipped, stay on Home and surface them —
+  // the new project is already in the grid, ready to open — so the warnings actually get read.
+  const importSql = async (file: File) => {
+    setNotice(null);
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setNotice({ tone: "error", text: `Couldn't read ${file.name}.` });
+      return;
+    }
+
+    let result: ReturnType<typeof fromSql>;
+    try {
+      result = fromSql(text);
+    } catch (failure) {
+      const message =
+        failure instanceof ParseError || failure instanceof Error
+          ? failure.message
+          : "Failed to parse SQL.";
+      setNotice({ tone: "error", text: `${file.name}: ${message}` });
+      return;
+    }
+
+    const name = fileBaseName(file.name);
+    await createProject({ name, schema: result.schema });
+
+    if (result.warnings.length > 0) {
+      const shown = result.warnings.slice(0, MAX_SHOWN_WARNINGS).join(" ");
+      const extra =
+        result.warnings.length > MAX_SHOWN_WARNINGS
+          ? ` (+${result.warnings.length - MAX_SHOWN_WARNINGS} more)`
+          : "";
+      const tableCount = result.schema.tables.length;
+      setNotice({
+        tone: "info",
+        text: `Imported “${name}” with ${tableCount} ${
+          tableCount === 1 ? "table" : "tables"
+        }. Some statements were skipped: ${shown}${extra}`,
+      });
+      return;
+    }
+
+    onEnterEditor();
+  };
+
+  const onPickSql = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      void importSql(file);
+    }
+    event.target.value = ""; // allow re-selecting the same file
   };
 
   const startRename = (id: string) => {
@@ -138,16 +210,49 @@ export function HomePage({
               Pick a schema to keep working, or derive a new one from raw files.
             </p>
           </div>
-          <button
-            type="button"
-            className="home-newbtn"
-            onClick={() => setModalOpen(true)}
-            disabled={!ready}
-          >
-            <PlusIcon size={16} />
-            New project
-          </button>
+          <div className="home-header__actions">
+            <button
+              type="button"
+              className="home-importbtn"
+              onClick={() => sqlInputRef.current?.click()}
+              disabled={!ready}
+              title="Import an existing schema from a .sql file"
+            >
+              <UploadIcon size={15} />
+              Import SQL
+            </button>
+            <button
+              type="button"
+              className="home-newbtn"
+              onClick={() => setModalOpen(true)}
+              disabled={!ready}
+            >
+              <PlusIcon size={16} />
+              New project
+            </button>
+          </div>
+          <input
+            ref={sqlInputRef}
+            type="file"
+            accept=".sql,text/plain"
+            className="home-fileinput"
+            onChange={onPickSql}
+          />
         </div>
+
+        {notice ? (
+          <div className={`home-notice${notice.tone === "error" ? " home-notice--error" : ""}`}>
+            <span className="home-notice__text">{notice.text}</span>
+            <button
+              type="button"
+              className="home-notice__dismiss"
+              onClick={() => setNotice(null)}
+              aria-label="Dismiss"
+            >
+              <XIcon size={14} />
+            </button>
+          </div>
+        ) : null}
 
         <div className="home-filters">
           <div className="home-search">

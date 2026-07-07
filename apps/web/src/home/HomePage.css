@@ -110,6 +110,13 @@
   color: var(--text-muted);
 }
 
+.home-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
 .home-newbtn {
   display: flex;
   align-items: center;
@@ -134,6 +141,76 @@
   opacity: 0.6;
   cursor: default;
   filter: none;
+}
+
+/* Secondary "Import SQL" action — ghost styling next to the primary New project button. */
+.home-importbtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.home-importbtn:hover {
+  border-color: var(--text-muted);
+}
+
+.home-importbtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Off-screen file input triggered by the Import SQL button. */
+.home-fileinput {
+  display: none;
+}
+
+/* ---- Import notice ---- */
+.home-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.home-notice--error {
+  border-color: var(--danger, #d94040);
+  color: var(--danger, #d94040);
+}
+
+.home-notice__text {
+  flex: 1 1 auto;
+}
+
+.home-notice__dismiss {
+  flex: 0 0 auto;
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.home-notice__dismiss:hover {
+  opacity: 1;
 }
 
 /* ---- Search / filter ---- */

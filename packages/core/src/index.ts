@@ -41,6 +41,8 @@ export {
 } from "./detect/index.js";
 export type { SqlDialect } from "./export/index.js";
 export { toDbml, toPrisma, toSql } from "./export/index.js";
+export type { FromSqlOptions, FromSqlResult } from "./import/index.js";
+export { fromSql } from "./import/index.js";
 export type {
   TargetExtension,
   TargetId,
