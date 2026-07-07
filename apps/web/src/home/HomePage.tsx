@@ -44,12 +44,14 @@ type Notice = { tone: "info" | "error"; text: string };
 
 /**
  * Home / Projects — the app's landing screen (handoff: design_handoff_home). Lists the user's
- * local projects as a searchable/filterable grid, with a dashed tile to derive a new one from
- * raw files. Project data comes from the shared projects context; selecting or creating a project
- * routes into the editor via `onEnterEditor`.
+ * local projects as a searchable/filterable grid, with a dashed tile to create a new one (from
+ * raw files, or empty). Project data comes from the shared projects context; selecting or creating
+ * a project routes into the editor via `onEnterEditor`.
  *
- * "New project" / the derive tile open the New Project modal (handoff:
+ * "New project" / the create tile open the New Project modal (handoff:
  * design_handoff_new_project_modal); each card has a kebab menu to rename (inline) or delete.
+ * When the experimental AI-drafting preference is on, the tile's copy frames creation as deriving
+ * a schema from files.
  *
  * Cards render only truthful, already-persisted metadata: file-name chips, table count, file
  * count, relative edited time, and a badge from the applied relationship count.
@@ -96,13 +98,15 @@ export function HomePage({
 
   const derive = (input: DeriveInput) => {
     setModalOpen(false);
-    // When auto-draft is on, send a framed prompt and let the Copilot draft a ghost schema.
-    // Otherwise preserve today's behavior: seed the raw description into the input to send manually.
-    const kickoff: CopilotKickoff | undefined = autoDraft
-      ? { message: buildInitialSchemaPrompt(input), autoDraft: true }
-      : input.description
-        ? { message: input.description, autoDraft: false }
-        : undefined;
+    // When auto-draft is on AND there are files to draft from, send a framed prompt and let the
+    // Copilot draft a ghost schema. With no files there's nothing to derive, so fall back to
+    // today's behavior: seed the raw description into the input to send manually (or nothing).
+    const kickoff: CopilotKickoff | undefined =
+      autoDraft && input.sources.length > 0
+        ? { message: buildInitialSchemaPrompt(input), autoDraft: true }
+        : input.description
+          ? { message: input.description, autoDraft: false }
+          : undefined;
     // Await the new project so its sources are in the store before the editor (and any auto-draft)
     // reads them, then enter.
     void createProject({ name: input.name, sources: input.sources }).then(() =>
@@ -207,7 +211,9 @@ export function HomePage({
           <div>
             <h1 className="home-header__title">Projects</h1>
             <p className="home-header__subtitle">
-              Pick a schema to keep working, or derive a new one from raw files.
+              {autoDraft
+                ? "Pick a schema to keep working, or derive a new one from raw files."
+                : "Pick a project to keep working, or start a new one."}
             </p>
           </div>
           <div className="home-header__actions">
@@ -317,13 +323,25 @@ export function HomePage({
             <span className="home-derive__icon" aria-hidden>
               <PlusIcon size={18} />
             </span>
-            <span className="home-derive__title">Derive from files</span>
-            <span className="home-derive__subtitle">Drop CSV, XLSX or JSON to start</span>
+            <span className="home-derive__title">
+              {autoDraft ? "Derive from files" : "New project"}
+            </span>
+            <span className="home-derive__subtitle">
+              {autoDraft
+                ? "Drop CSV, XLSX or JSON to start"
+                : "Add CSV, XLSX or JSON, or start empty"}
+            </span>
           </button>
         </div>
       </div>
 
-      {modalOpen ? <NewProjectModal onClose={() => setModalOpen(false)} onDerive={derive} /> : null}
+      {modalOpen ? (
+        <NewProjectModal
+          onClose={() => setModalOpen(false)}
+          onDerive={derive}
+          autoDraft={autoDraft}
+        />
+      ) : null}
 
       {confirmDeleteProject ? (
         <ConfirmDialog

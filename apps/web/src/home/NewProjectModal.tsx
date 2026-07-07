@@ -43,16 +43,23 @@ function metaLine(file: PreparedFile): string {
 
 /**
  * New Project modal (handoff: design_handoff_new_project_modal). Drop/browse raw files, name the
- * project, and describe the data + goals, then "Derive schema" creates the project with the parsed
- * sources and enters the editor. Files are parsed locally (nothing is uploaded); the description is
- * carried into the Copilot so the user can ask it to infer the schema.
+ * project, and describe the data + goals, then create the project with the parsed sources and enter
+ * the editor. Files are parsed locally (nothing is uploaded); the description is carried into the
+ * Copilot as context. Files are optional — a project can be created empty and files added later.
+ *
+ * When the experimental "draft an initial schema with AI" preference is on (`autoDraft`), the copy
+ * frames creation as deriving a schema; when off, it stays neutral and makes no schema-deriving
+ * promises.
  */
 export function NewProjectModal({
   onClose,
   onDerive,
+  autoDraft,
 }: {
   onClose: () => void;
   onDerive: (input: DeriveInput) => void;
+  /** The experimental AI schema-drafting preference; gates the "derive schema" framing. */
+  autoDraft: boolean;
 }) {
   const [files, setFiles] = useState<PreparedFile[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -157,9 +164,6 @@ export function NewProjectModal({
   };
 
   const derive = () => {
-    if (!hasFiles) {
-      return;
-    }
     onDerive({
       name: title.trim(),
       description: description.trim(),
@@ -201,7 +205,9 @@ export function NewProjectModal({
               New project
             </h2>
             <p className="npm-header__subtitle">
-              Drop your raw files and give Schema Studio context to infer the schema.
+              {autoDraft
+                ? "Drop your raw files and give Schema Studio context to infer the schema."
+                : "Add source files to start from, or create an empty project — you can add files later."}
             </p>
           </div>
           <button type="button" className="npm-close" onClick={onClose} aria-label="Close">
@@ -288,7 +294,9 @@ export function NewProjectModal({
               <label className="npm-label" htmlFor="npm-desc">
                 Description &amp; goals
               </label>
-              <span className="npm-hint">Helps infer joins &amp; types</span>
+              <span className="npm-hint">
+                {autoDraft ? "Helps infer joins & types" : "Shared with the Copilot as context"}
+              </span>
             </div>
             <textarea
               id="npm-desc"
@@ -320,14 +328,11 @@ export function NewProjectModal({
             <button type="button" className="npm-btn npm-btn--ghost" onClick={onClose}>
               Cancel
             </button>
-            <button
-              type="button"
-              className="npm-btn npm-btn--primary"
-              onClick={derive}
-              disabled={!hasFiles}
-            >
+            <button type="button" className="npm-btn npm-btn--primary" onClick={derive}>
               <FilePlusIcon size={15} />
-              Derive schema
+              {/* "Derive schema" only when there are files to derive from; an empty project is
+                  always just "Create project", even with AI drafting on. */}
+              {autoDraft && hasFiles ? "Derive schema" : "Create project"}
             </button>
           </div>
         </footer>
