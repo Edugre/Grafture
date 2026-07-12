@@ -19,6 +19,7 @@ import {
 import { COPILOT_RESPONSE_TOOL, parseToolUseResponse } from "../copilot/responseTool.js";
 import { PREVIEW_EXPORT_TOOL, runExportPreview } from "../copilot/exportPreviewTool.js";
 import { INSPECT_SOURCE_TOOL, runInspectSource } from "../copilot/inspectSourceTool.js";
+import { PROBE_JOIN_TOOL, runProbeJoin } from "../copilot/probeJoinTool.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 import { DEFAULT_MODEL, parseModelsPage } from "./models.js";
 
@@ -32,8 +33,15 @@ const ANTHROPIC_VERSION = "2023-06-01";
 const MESSAGE_TIMEOUT_MS = 120_000;
 const MODELS_TIMEOUT_MS = 15_000;
 
-/** Cap on preview_export round-trips within a single propose() before we force a finalization. */
-const MAX_PREVIEW_ITERATIONS = 3;
+/** Cap on investigation round-trips within a single propose() before we force a finalization. */
+const MAX_PREVIEW_ITERATIONS = 6;
+/**
+ * On a fresh derivation (no history, sources present) `submit_schema_response` is withheld for
+ * this many inner rounds, so the model spends them on probe/inspect/preview evidence-gathering
+ * instead of finalizing from the prompt digest alone. Correction turns keep submit from round
+ * one — they already investigated.
+ */
+const INVESTIGATION_ROUNDS = 2;
 
 type AnthropicContentBlock = {
   type: string;
@@ -81,23 +89,30 @@ export class AnthropicBrowserProvider implements AiProvider {
       },
       { type: "text", text: buildDynamicContext(schema, sources) },
     ];
-    const tools = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, COPILOT_RESPONSE_TOOL];
+    const investigationTools = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, PROBE_JOIN_TOOL];
     let messages: ProviderMessage[] = [...history, { role: "user", content: message }];
+    // Fresh derivations get an evidence-gathering phase before submit is even offered;
+    // follow-up/correction turns (history present) or source-less questions do not.
+    const withheldRounds = history.length === 0 && sources.length > 0 ? INVESTIGATION_ROUNDS : 0;
 
     // Agentic tool loop: the model may call preview_export (see the migration its design would
-    // generate) or inspect_source (see more of a column's values) — both read-only, in-memory —
-    // then finalize with submit_schema_response. `tool_choice: any` forces a tool call every
-    // step, so the loop never dead-ends on a stray sentence.
+    // generate), inspect_source (see more of a column's values), or probe_join (verify a join
+    // hypothesis) — all read-only, in-memory — then finalize with submit_schema_response.
+    // `tool_choice: any` forces a tool call every step, so the loop never dead-ends on a stray
+    // sentence. The tool list is built per round: submit is withheld while investigating.
     for (let iteration = 0; iteration < MAX_PREVIEW_ITERATIONS; iteration += 1) {
+      const tools =
+        iteration < withheldRounds
+          ? investigationTools
+          : [...investigationTools, COPILOT_RESPONSE_TOOL];
       const data = await this.request(systemBlocks, messages, tools, { type: "any" });
 
       if (data.content.some((block) => isToolUse(block, COPILOT_RESPONSE_TOOL.name))) {
         return this.finalizeResponse(data);
       }
 
-      const calls = data.content.filter(
-        (block) =>
-          isToolUse(block, PREVIEW_EXPORT_TOOL.name) || isToolUse(block, INSPECT_SOURCE_TOOL.name),
+      const calls = data.content.filter((block) =>
+        investigationTools.some((tool) => isToolUse(block, tool.name)),
       );
       if (calls.length === 0) {
         // No recognized tool — parse whatever came back (text fallback) or surface it as blocked.
@@ -112,7 +127,9 @@ export class AnthropicBrowserProvider implements AiProvider {
         content:
           call.name === PREVIEW_EXPORT_TOOL.name
             ? runExportPreview(schema, call.input)
-            : runInspectSource(sources, call.input),
+            : call.name === PROBE_JOIN_TOOL.name
+              ? runProbeJoin(sources, call.input)
+              : runInspectSource(sources, call.input),
       }));
       messages = [
         ...messages,

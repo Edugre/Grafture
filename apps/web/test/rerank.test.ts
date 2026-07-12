@@ -20,6 +20,8 @@ function fkItem(id: string, overlapPercent = 50, warning: string | null = null):
       rawOverlap: 0.4,
       normalizedOverlap: overlapPercent / 100,
       sharedValues: 3,
+      containmentLeft: overlapPercent / 100,
+      containmentRight: overlapPercent / 100,
       requiresNormalization: warning !== null,
       formatMismatch: null,
       grain: "1:N",

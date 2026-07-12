@@ -655,3 +655,139 @@ describe("detectFunctionalDependencies", () => {
     expect(candidates.every((candidate) => !candidate.dependents.includes("note"))).toBe(true);
   });
 });
+
+/* PR-2 (GAP B): a real FK is a subset relationship — high one-way containment, low symmetric
+ * Jaccard. The containment path admits it; a distinctness floor keeps enums out. */
+describe("detectJoinKeys containment path", () => {
+  it("surfaces an FK-shaped pair (child ⊆ large parent) that Jaccard alone rejects", () => {
+    // 20 child keys fully contained in a 100-key parent: Jaccard 20/100 = 0.2 < 0.3, but
+    // containment(child) = 1.0 — the exact shape of a 1:N FK into a large dimension.
+    const parentIds = Array.from({ length: 100 }, (_, i) => `id_${i}`);
+    const childIds = parentIds.slice(0, 20);
+    const child = source("c", "child.csv", [
+      { name: "parent_ref", type: "text", samples: childIds.slice(0, 5), distinctValues: childIds },
+    ]);
+    const parent = source("p", "parent.csv", [
+      { name: "id", type: "text", samples: parentIds.slice(0, 5), distinctValues: parentIds },
+    ]);
+
+    const candidates = detectJoinKeys([child, parent]);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.containmentLeft).toBe(1);
+    expect(candidates[0]?.containmentRight).toBeCloseTo(0.2);
+    expect(candidates[0]?.normalizedOverlap).toBeCloseTo(0.2);
+  });
+
+  it("does NOT surface a small enum fully contained in a big column (distinctness floor)", () => {
+    // A 3-value enum has containment 1.0 and 3 shared values — the floor must block it.
+    const enumValues = ["active", "closed", "pending"];
+    const bigColumn = [...enumValues, ...Array.from({ length: 100 }, (_, i) => `word_${i}`)];
+    const a = source("a", "a.csv", [
+      { name: "status", type: "text", samples: enumValues, distinctValues: enumValues },
+    ]);
+    const b = source("b", "b.csv", [
+      { name: "notes", type: "text", samples: bigColumn.slice(0, 5), distinctValues: bigColumn },
+    ]);
+
+    expect(detectJoinKeys([a, b])).toEqual([]);
+  });
+
+  it("rejects the threshold pair on BOTH gates", () => {
+    // {1,2,3,4} vs {1,99,98,97}: sharedValues=1 < 2 (Jaccard path) AND max containment
+    // 0.25 < 0.4 (containment path) — verify explicitly, not via minShared alone.
+    const a = source("a", "a.csv", [field("x", "int", ["1", "2", "3", "4"])]);
+    const b = source("b", "b.csv", [field("y", "int", ["1", "99", "98", "97"])]);
+
+    expect(detectJoinKeys([a, b])).toEqual([]);
+  });
+
+  it("ranks a containment-admitted FK by its containment, not its diluted Jaccard", () => {
+    const parentIds = Array.from({ length: 100 }, (_, i) => `id_${i}`);
+    const childIds = parentIds.slice(0, 20);
+    const noise = ["n1", "n2", "n3", "n4", ...Array.from({ length: 6 }, (_, i) => `m${i}`)];
+    const partialNoise = ["n1", "n2", "n3", "n4", ...Array.from({ length: 6 }, (_, i) => `x${i}`)];
+    const left = source("l", "left.csv", [
+      { name: "parent_ref", type: "text", samples: childIds.slice(0, 5), distinctValues: childIds },
+      { name: "tag", type: "text", samples: noise.slice(0, 5), distinctValues: noise },
+    ]);
+    const right = source("r", "right.csv", [
+      { name: "id", type: "text", samples: parentIds.slice(0, 5), distinctValues: parentIds },
+      {
+        name: "tag",
+        type: "text",
+        samples: partialNoise.slice(0, 5),
+        distinctValues: partialNoise,
+      },
+    ]);
+
+    const candidates = detectJoinKeys([left, right], { minOverlap: 0.25 });
+
+    // tag↔tag has Jaccard 4/16 = 0.25 (admitted) but strength 0.4; the FK pair's strength is
+    // its containment 1.0 — it must sort first despite Jaccard 0.2.
+    expect(candidates.map((c) => `${c.left.field}->${c.right.field}`)).toEqual([
+      "parent_ref->id",
+      "tag->tag",
+    ]);
+  });
+
+  it("prefers the wide joinValues set over the capped distinctValues window", () => {
+    // distinctValues pretends the columns are disjoint; joinValues shows full containment.
+    const wide = Array.from({ length: 50 }, (_, i) => `k${i}`);
+    const a = source("a", "a.csv", [
+      {
+        name: "ref",
+        type: "text",
+        samples: wide.slice(0, 5),
+        distinctValues: ["zz1", "zz2", "zz3"],
+        joinValues: wide,
+      },
+    ]);
+    const b = source("b", "b.csv", [
+      { name: "key", type: "text", samples: wide.slice(0, 5), distinctValues: wide },
+    ]);
+
+    const [candidate] = detectJoinKeys([a, b]);
+    expect(candidate?.sharedValues).toBe(50);
+    expect(candidate?.containmentLeft).toBe(1);
+  });
+});
+
+/* PR-0 boundary fixture (§6 boundary_mini): the only test that fails if the wide discovery
+ * pass regresses to the 1000-value scan window. */
+describe("sampling boundary (boundary_mini)", () => {
+  // 1500 keys; the child holds keys 0..599 (containment 600/600 = 1.0 ≥ τ over the full
+  // column). An even 1000-of-1500 sample of the parent keeps ~2/3 of the child's keys —
+  // engineered so the capped window still *finds* the pair but a stronger criterion holds
+  // only uncapped: full containment of the child.
+  const parentKeys = Array.from({ length: 1500 }, (_, i) => `key_${String(i).padStart(4, "0")}`);
+  const childKeys = parentKeys.slice(0, 600);
+
+  const csvFor = (header: string, values: string[]): string => [header, ...values].join("\n");
+
+  it("misses full containment at the 1000-value cap but sees it after the wide pass", async () => {
+    const { parseCsv } = await import("../src/index.js");
+    const parent = parseCsv(csvFor("id", parentKeys), "parent.csv");
+    const child = parseCsv(csvFor("parent_ref", childKeys), "child.csv");
+
+    // (a) Red baseline for the pre-PR-0 behavior: the capped windows alone understate the
+    // relationship — the child's true 100% containment is NOT observable at the cap.
+    const dropWide = (entry: Source): Source => ({
+      ...entry,
+      fields: entry.fields.map((fieldEntry) => {
+        const copy = { ...fieldEntry };
+        delete copy.joinValues;
+        return copy;
+      }),
+    });
+    const cappedChild = dropWide(child);
+    const cappedParent = dropWide(parent);
+    const [cappedCandidate] = detectJoinKeys([cappedChild, cappedParent]);
+    expect(cappedCandidate?.containmentLeft ?? 0).toBeLessThan(1);
+
+    // (b) With the wide pass the full-file figure is exact: every child key is contained.
+    const [candidate] = detectJoinKeys([child, parent]);
+    expect(candidate?.containmentLeft).toBe(1);
+    expect(candidate?.sharedValues).toBe(600);
+  });
+});

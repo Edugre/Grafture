@@ -111,7 +111,7 @@ export function SourcesPanel({
   const sources = useSchemaStore((state) => state.sources);
   const schema = useSchemaStore((state) => state.schema);
   const selection = useSchemaStore((state) => state.selection);
-  const addSource = useSchemaStore((state) => state.addSource);
+  const addSources = useSchemaStore((state) => state.addSources);
   const removeSource = useSchemaStore((state) => state.removeSource);
   const runActions = useSchemaStore((state) => state.runActions);
   const addField = useSchemaStore((state) => state.addField);
@@ -140,8 +140,8 @@ export function SourcesPanel({
 
       for (const file of list) {
         try {
-          const source = await readAndParseFile(file);
-          addSource(source);
+          const sources = await readAndParseFile(file);
+          addSources(sources);
           added += 1;
         } catch (error) {
           const text =
@@ -168,7 +168,7 @@ export function SourcesPanel({
 
       setBusy(false);
     },
-    [addSource],
+    [addSources],
   );
 
   const openFilePicker = () => {
@@ -181,7 +181,7 @@ export function SourcesPanel({
       return;
     }
 
-    const result = buildTableFromSource(runActions, schema, source);
+    const result = buildTableFromSource(runActions, schema, source, sources);
 
     if (result.rejected.length > 0) {
       setMessage({ kind: "error", text: rejectionSummary(result.rejected) });

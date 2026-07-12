@@ -22,6 +22,8 @@ export type {
   JoinKeyCandidate,
   PrimaryKeyCandidate,
   PrimaryKeyOptions,
+  ProbeJoinRef,
+  ProbeJoinResult,
   SemanticType,
   SemanticTypeFinding,
   SemanticTypeOptions,
@@ -38,6 +40,7 @@ export {
   detectSemanticTypes,
   detectValueSets,
   inferGrain,
+  probeJoin,
 } from "./detect/index.js";
 export type { SqlDialect } from "./export/index.js";
 export { toDbml, toPrisma, toSql } from "./export/index.js";
@@ -80,6 +83,7 @@ export {
   FieldStatsSchema,
   InferredTypeSchema,
   MAX_INFERENCE_VALUES,
+  MAX_JOIN_VALUES,
   MAX_SAMPLES,
   MAX_SCAN_ROWS,
   MAX_TOP_VALUES,
@@ -91,6 +95,7 @@ export {
   ValueFrequencySchema,
   TYPE_INFERENCE_THRESHOLD,
   collectInferenceValues,
+  collectJoinValues,
   collectSamples,
   collectStats,
   inferType,

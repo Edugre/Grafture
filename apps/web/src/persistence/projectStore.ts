@@ -1,3 +1,5 @@
+import type { Source } from "@grafture/core";
+
 import type { KeyValueStore, ProjectMeta, ProjectRecord, ProjectSummary } from "./types.js";
 
 const PROJECT_PREFIX = "project:";
@@ -58,8 +60,29 @@ export async function loadProjectRecord(
   return kv.get<ProjectRecord>(projectKey(id));
 }
 
+/**
+ * Strip the wide join-discovery sets before a source is written to disk. `joinValues` can hold
+ * up to MAX_JOIN_VALUES strings per column (a multi-megabyte blow-up per project), and the save
+ * path `structuredClone`s the raw record with no zod pass — so the strip must happen explicitly
+ * here, on a CLONE: the caller hands us the live in-memory sources, and a debounced autosave
+ * fires mid-session, so a bare `delete` would strip the wide sets from the running store.
+ */
+function stripJoinValues(sources: Source[]): Source[] {
+  return sources.map((source) => ({
+    ...source,
+    fields: source.fields.map((field) => {
+      if (field.joinValues === undefined) {
+        return field;
+      }
+      const copy = { ...field };
+      delete copy.joinValues;
+      return copy;
+    }),
+  }));
+}
+
 export async function saveProjectRecord(kv: KeyValueStore, record: ProjectRecord): Promise<void> {
-  await kv.set(projectKey(record.id), record);
+  await kv.set(projectKey(record.id), { ...record, sources: stripJoinValues(record.sources) });
 }
 
 export async function deleteProjectRecord(kv: KeyValueStore, id: string): Promise<void> {

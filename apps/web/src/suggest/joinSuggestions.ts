@@ -123,11 +123,18 @@ function planRelationship(grain: Grain): { cardinality: Cardinality; flip: boole
   }
 }
 
+/** The inferred type of a source column, for junction FK columns; defaults to "text". */
+function sourceFieldType(source: Source, fieldName: string): string {
+  return source.fields.find((field) => fieldNamesEqual(field.name, fieldName))?.type ?? "text";
+}
+
 /**
  * Build the validated action batch that realizes a suggestion: build either table from its
- * source if it doesn't exist yet, then add the relationship between the two columns. The
- * actions reference table/field *names*, exactly as `applyActions` expects, so the whole
- * batch is validated and undoable as one step.
+ * source if it doesn't exist yet, then add the relationship between the two columns. An `N:M`
+ * grain is scaffolded properly — a junction table holding both keys (composite PK, one 1:N
+ * relationship per side) — rather than a direct N:M edge neither side can hold. The actions
+ * reference table/field *names*, exactly as `applyActions` expects, so the whole batch is
+ * validated and undoable as one step.
  */
 export function buildApplyPlan(
   sources: Source[],
@@ -174,6 +181,55 @@ export function buildApplyPlan(
 
   const leftTable = resolve(leftSource, candidate.left.field);
   const rightTable = resolve(rightSource, candidate.right.field);
+
+  if (candidate.grain === "N:M") {
+    // Neither side can hold the other's key — scaffold the junction: one table carrying both
+    // keys, a composite PK (one set_pk per key column), and a 1:N relationship per side.
+    const base = `${leftTable}_${rightTable}`;
+    let junction = base;
+    let index = 2;
+    while (reserved.has(junction.toLowerCase())) {
+      junction = `${base}_${index}`;
+      index += 1;
+    }
+    reserved.set(junction.toLowerCase(), junction);
+
+    const [leftKey, rightKey] = fieldNamesEqual(candidate.left.field, candidate.right.field)
+      ? [candidate.left.field, `${candidate.right.field}_2`]
+      : [candidate.left.field, candidate.right.field];
+
+    actions.push({
+      op: "add_table",
+      name: junction,
+      fields: [
+        { name: leftKey, type: sourceFieldType(leftSource, candidate.left.field), fk: true },
+        { name: rightKey, type: sourceFieldType(rightSource, candidate.right.field), fk: true },
+      ],
+    });
+    builtTables.push(junction);
+    actions.push(
+      { op: "set_pk", table: junction, field: leftKey, pk: true },
+      { op: "set_pk", table: junction, field: rightKey, pk: true },
+      {
+        op: "add_relationship",
+        from_table: leftTable,
+        from_field: candidate.left.field,
+        to_table: junction,
+        to_field: leftKey,
+        cardinality: "1:N",
+      },
+      {
+        op: "add_relationship",
+        from_table: rightTable,
+        from_field: candidate.right.field,
+        to_table: junction,
+        to_field: rightKey,
+        cardinality: "1:N",
+      },
+    );
+
+    return { ok: true, actions, builtTables };
+  }
 
   const { cardinality, flip } = planRelationship(candidate.grain);
   const left = { table: leftTable, field: candidate.left.field };

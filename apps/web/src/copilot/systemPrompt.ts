@@ -14,6 +14,7 @@ import {
 import { COPILOT_RESPONSE_TOOL } from "./responseTool.js";
 import { PREVIEW_EXPORT_TOOL } from "./exportPreviewTool.js";
 import { INSPECT_SOURCE_TOOL } from "./inspectSourceTool.js";
+import { PROBE_JOIN_TOOL } from "./probeJoinTool.js";
 
 function summarizeSchema(schema: Schema) {
   const tableById = new Map(schema.tables.map((table) => [table.id, table]));
@@ -60,14 +61,28 @@ function clipValue(value: string): string {
 }
 
 function summarizeSources(sources: Source[]) {
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
+
   return sources.map((source) => {
     const omitted = source.fields.length - MAX_PROMPT_FIELDS_PER_SOURCE;
+    const parentName = source.derivedFrom
+      ? (sourceById.get(source.derivedFrom.parentId)?.name ?? source.derivedFrom.parentId)
+      : undefined;
 
     return {
       name: source.name,
       kind: source.kind,
       // Full file size (not capped at the scan window) so the model can weigh sample coverage.
       ...(source.rowCount !== undefined ? { rows: source.rowCount } : {}),
+      // Lineage channel: this source was unnested from a parent's array field. The surrogate
+      // link below is structural (excluded from the value-overlap detectors) — the model must
+      // model it as a child→parent FK from this lineage, not rediscover it by overlap.
+      ...(source.derivedFrom && parentName !== undefined
+        ? {
+            derived_from: { parent: parentName, arrayField: source.derivedFrom.arrayField },
+            link: `${source.name}._parentId → ${parentName}._rowId`,
+          }
+        : {}),
       fields: source.fields.slice(0, MAX_PROMPT_FIELDS_PER_SOURCE).map((field) => ({
         name: field.name,
         type: field.type,
@@ -111,6 +126,10 @@ function summarizeDetectorFindings(sources: Source[]) {
       left: `${candidate.left.sourceName}.${candidate.left.field}`,
       right: `${candidate.right.sourceName}.${candidate.right.field}`,
       overlap: `${Math.round(candidate.normalizedOverlap * 100)}%`,
+      // Directional subset evidence: containment_left ≈ 100% reads "left ⊆ right ⇒ left is
+      // the FK side" even when symmetric overlap is low (the classic FK-into-dimension shape).
+      containment_left: `${Math.round(candidate.containmentLeft * 100)}%`,
+      containment_right: `${Math.round(candidate.containmentRight * 100)}%`,
       grain: candidate.grain,
       normalize: candidate.formatMismatch ? candidate.formatMismatch.note : null,
     }));
@@ -200,7 +219,14 @@ const DESIGN_DOCTRINE = `How to design the schema — model entities, not files:
     carries its own attributes or needs referential integrity; otherwise keep it inline and say why.
   - A group of columns that repeats as a unit (address blocks, contact info) becomes its own table
     when it has independent identity or is shared across rows.
-  - An N:M relationship needs a junction table; neither side holds the other's key.
+  - An N:M relationship needs a junction table; neither side holds the other's key. When the
+    evidence shows N:M grain, emit the junction yourself: one add_table with the two FK columns,
+    two 1:N add_relationship (one per side), and a set_pk on EACH of the junction's key columns
+    (the composite key) — never a direct N:M edge between the entity tables.
+  - A source listed with "derived_from" was unnested from a parent's array field — it is a real
+    child entity (one row per array element). Model it as its own table and emit the child→parent
+    1:N relationship on the surrogate pair named in its "link" (child _parentId → parent _rowId).
+    That link is structural lineage, not value overlap — do not expect detector findings for it.
   - Do not over-normalize: a bare value set with no attributes does not deserve a table.
 - Prefer the fewest tables that preserve integrity. Justify every table you add in "reply" — if
   you cannot say what distinct entity it models, do not add it.`;
@@ -264,6 +290,15 @@ export function buildStaticInstructions(targetId: TargetId = DEFAULT_TARGET): st
     `When the sample values in <sources> are not enough to decide a type, key, or normalization`,
     `question, call the ${INSPECT_SOURCE_TOOL.name} tool to see a column's stats and more of its`,
     "distinct values before guessing.",
+    "",
+    `When you hypothesize a join the <detector_findings> do not list — or doubt one they do —`,
+    `call the ${PROBE_JOIN_TOOL.name} tool to measure the pair's live overlap, containment, grain,`,
+    "and normalization needs. Verify joins with evidence instead of assuming them from column",
+    "names; near-zero containment is a reason to REJECT a look-alike join and say so.",
+    "",
+    "Investigate before you finalize: for a fresh schema derivation, spend your first tool calls",
+    `on ${PROBE_JOIN_TOOL.name}/${INSPECT_SOURCE_TOOL.name} to confirm keys, joins, and grains, and`,
+    "only then submit your proposal.",
     "",
     `Return your final response by calling the ${COPILOT_RESPONSE_TOOL.name} tool — put your`,
     'explanation in "reply", the schema actions in "actions" (empty for a plain question), and set',

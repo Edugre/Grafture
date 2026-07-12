@@ -112,13 +112,16 @@ describe("OpenAiBrowserProvider.propose", () => {
   });
 
   it("forces a finalization once the preview budget is exhausted", async () => {
-    // Three preview calls (the loop budget), then the forced request returns a submission.
+    // Six preview calls (the loop budget), then the forced request returns a submission.
     const preview = okResponse({
       role: "assistant",
       content: null,
       tool_calls: [toolCall(PREVIEW_EXPORT_TOOL.name, { target: "dbml" })],
     });
     const { fetchMock, bodies } = stubFetch([
+      preview,
+      preview,
+      preview,
       preview,
       preview,
       preview,
@@ -138,9 +141,9 @@ describe("OpenAiBrowserProvider.propose", () => {
     const provider = new OpenAiBrowserProvider("sk-test");
     const result = await provider.propose(EMPTY_SCHEMA, [], "loop forever");
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     // The forced request pins tool_choice to the response tool.
-    expect(bodies[3]?.["tool_choice"]).toEqual({
+    expect(bodies[6]?.["tool_choice"]).toEqual({
       type: "function",
       function: { name: COPILOT_RESPONSE_TOOL.name },
     });
@@ -189,5 +192,89 @@ describe("OpenAiBrowserProvider.propose", () => {
 
     const provider = new OpenAiBrowserProvider("sk-test");
     await expect(provider.propose(EMPTY_SCHEMA, [], "unauthorized")).rejects.toThrow(/401/);
+  });
+});
+
+/* PR-3/PR-4: the investigation phase. On a fresh derivation with sources, submit is withheld
+ * for the first rounds (probe/inspect/preview only), then offered; probe_join is registered. */
+describe("OpenAiBrowserProvider investigation phase", () => {
+  const npiSource = {
+    id: "s1",
+    name: "sites.csv",
+    kind: "csv" as const,
+    fields: [{ name: "npi", type: "text" as const, samples: ["1", "2"] }],
+  };
+
+  const toolNames = (body: Record<string, unknown> | undefined): string[] =>
+    ((body?.["tools"] as Array<{ function: { name: string } }>) ?? []).map(
+      (tool) => tool.function.name,
+    );
+
+  const probe = () =>
+    okResponse({
+      role: "assistant",
+      content: null,
+      tool_calls: [
+        toolCall("probe_join", {
+          left_source: "sites.csv",
+          left_field: "npi",
+          right_source: "sites.csv",
+          right_field: "npi",
+        }),
+      ],
+    });
+  const submit = () =>
+    okResponse({
+      role: "assistant",
+      content: null,
+      tool_calls: [
+        toolCall(COPILOT_RESPONSE_TOOL.name, { reply: "Done.", actions: [], status: "complete" }),
+      ],
+    });
+
+  it("withholds submit_schema_response for the first two rounds of a fresh derivation", async () => {
+    const { bodies } = stubFetch([probe(), probe(), submit()]);
+
+    const provider = new OpenAiBrowserProvider("sk-test");
+    const result = await provider.propose(EMPTY_SCHEMA, [npiSource], "derive the schema");
+
+    expect(toolNames(bodies[0])).not.toContain(COPILOT_RESPONSE_TOOL.name);
+    expect(toolNames(bodies[1])).not.toContain(COPILOT_RESPONSE_TOOL.name);
+    expect(toolNames(bodies[2])).toContain(COPILOT_RESPONSE_TOOL.name);
+    // The investigation tools are offered throughout, including probe_join.
+    expect(toolNames(bodies[0])).toContain("probe_join");
+    expect(result.reply).toBe("Done.");
+  });
+
+  it("answers a probe_join call with live join evidence", async () => {
+    const { bodies } = stubFetch([probe(), probe(), submit()]);
+
+    const provider = new OpenAiBrowserProvider("sk-test");
+    await provider.propose(EMPTY_SCHEMA, [npiSource], "derive the schema");
+
+    const followUp = bodies[1]?.["messages"] as Array<{ role: string; content: string }>;
+    const toolMsg = followUp.find((message) => message.role === "tool");
+    expect(toolMsg?.content).toContain("containment");
+  });
+
+  it("offers submit from round one on a correction turn (history present)", async () => {
+    const { bodies } = stubFetch([submit()]);
+
+    const provider = new OpenAiBrowserProvider("sk-test");
+    await provider.propose(EMPTY_SCHEMA, [npiSource], "fix the rejected action", [
+      { role: "user", content: "derive" },
+      { role: "assistant", content: "done" },
+    ]);
+
+    expect(toolNames(bodies[0])).toContain(COPILOT_RESPONSE_TOOL.name);
+  });
+
+  it("offers submit from round one when there are no sources to investigate", async () => {
+    const { bodies } = stubFetch([submit()]);
+
+    const provider = new OpenAiBrowserProvider("sk-test");
+    await provider.propose(EMPTY_SCHEMA, [], "what does 1:N mean?");
+
+    expect(toolNames(bodies[0])).toContain(COPILOT_RESPONSE_TOOL.name);
   });
 });

@@ -174,3 +174,65 @@ describe("buildRejectionFeedback", () => {
     expect(text).toContain("blocked");
   });
 });
+
+/* PR-5 (GAP E): the copilot path — a stubbed proposal carrying junction scaffolding flows
+ * through the real store's validated apply path and lands as a junction table + two 1:N FKs. */
+describe("N:M junction proposals through the store", () => {
+  it("applies a junction table with composite PK and two 1:N relationships", async () => {
+    const { createSchemaStore } = await import("../src/store/schemaStore.js");
+    let counter = 0;
+    const store = createSchemaStore({ makeId: () => `id-${(counter += 1)}` });
+
+    const junctionActions = [
+      { op: "add_table", name: "students" },
+      { op: "add_field", table: "students", name: "course_code", type: "text" },
+      { op: "add_table", name: "courses" },
+      { op: "add_field", table: "courses", name: "course_code", type: "text" },
+      { op: "add_table", name: "students_courses" },
+      { op: "add_field", table: "students_courses", name: "student_code", type: "text", fk: true },
+      { op: "add_field", table: "students_courses", name: "course_code", type: "text", fk: true },
+      { op: "set_pk", table: "students_courses", field: "student_code", pk: true },
+      { op: "set_pk", table: "students_courses", field: "course_code", pk: true },
+      {
+        op: "add_relationship",
+        from_table: "students",
+        from_field: "course_code",
+        to_table: "students_courses",
+        to_field: "student_code",
+        cardinality: "1:N",
+      },
+      {
+        op: "add_relationship",
+        from_table: "courses",
+        from_field: "course_code",
+        to_table: "students_courses",
+        to_field: "course_code",
+        cardinality: "1:N",
+      },
+    ];
+
+    const propose: ProposeFn = async () => ({
+      reply: "Junction it is.",
+      actions: junctionActions,
+      status: "complete",
+    });
+    const apply: ApplyFn = (actions) => {
+      const result = store.getState().runActions(actions);
+      return { applied: result.applied.map((entry) => entry.op), rejected: result.rejected };
+    };
+
+    const result = await runCopilotLoop({ message: "model the N:M", history: [], propose, apply });
+
+    expect(result.outcome).toBe("complete");
+    const schema = store.getState().schema;
+    const junction = schema.tables.find((table) => table.name === "students_courses");
+    expect(junction).toBeDefined();
+    // Composite key: both junction columns are PK (and FK).
+    expect(junction?.fields.filter((field) => field.pk)).toHaveLength(2);
+    expect(junction?.fields.every((field) => field.fk)).toBe(true);
+    // Two 1:N edges into the junction; no direct N:M edge anywhere.
+    expect(schema.relationships).toHaveLength(2);
+    expect(schema.relationships.every((rel) => rel.cardinality === "1:N")).toBe(true);
+    expect(schema.relationships.every((rel) => rel.toTable === junction?.id)).toBe(true);
+  });
+});

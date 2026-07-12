@@ -33,12 +33,20 @@ export function dedupeNames(names: string[]): string[] {
   });
 }
 
-export function buildSourceField(values: string[], name: string): SourceField {
+export function buildSourceField(
+  values: string[],
+  name: string,
+  joinValues?: string[],
+): SourceField {
+  const distinctValues = collectDistinctValues(values);
   return {
     name,
     type: inferType(collectInferenceValues(values)),
     samples: collectSamples(values),
     stats: collectStats(values),
-    distinctValues: collectDistinctValues(values),
+    distinctValues,
+    // The wide join-discovery set is only worth carrying when it actually saw more distinct
+    // values than the capped scan window did — otherwise it would just duplicate memory.
+    ...(joinValues && joinValues.length > distinctValues.length ? { joinValues } : {}),
   };
 }

@@ -188,15 +188,15 @@ describe("sampleRows retention", () => {
   });
 
   it("captures row tuples from JSON records", () => {
-    const source = parseJson('[{"a":1,"b":"x"},{"a":2,"b":"y"}]', "r.json");
-    expect(source.sampleRows).toEqual([
+    const [source] = parseJson('[{"a":1,"b":"x"},{"a":2,"b":"y"}]', "r.json");
+    expect(source?.sampleRows).toEqual([
       ["1", "x"],
       ["2", "y"],
     ]);
   });
 
   it("captures tuples for a single-sheet workbook but not multi-sheet", () => {
-    const single = parseSource({
+    const [single] = parseSource({
       name: "single.xlsx",
       kind: "xlsx",
       content: workbookBufferFor({
@@ -206,9 +206,9 @@ describe("sampleRows retention", () => {
         ],
       }),
     });
-    expect(single.sampleRows).toEqual([["1", "Ada"]]);
+    expect(single?.sampleRows).toEqual([["1", "Ada"]]);
 
-    const multi = parseSource({
+    const [multi] = parseSource({
       name: "multi.xlsx",
       kind: "xlsx",
       content: workbookBufferFor({
@@ -217,7 +217,7 @@ describe("sampleRows retention", () => {
       }),
     });
     // Columns come from different sheets — no single row matrix exists.
-    expect(multi.sampleRows).toBeUndefined();
+    expect(multi?.sampleRows).toBeUndefined();
   });
 });
 
@@ -430,28 +430,28 @@ describe("parseJson", () => {
   const opts = { makeId: makeTestIds("json") };
 
   it("unions keys across array records in first-seen order", () => {
-    const source = parseJson('[{"b":2,"a":1},{"c":3,"a":9}]', "array.json", opts);
+    const [source] = parseJson('[{"b":2,"a":1},{"c":3,"a":9}]', "array.json", opts);
 
-    expect(source.fields.map((field) => field.name)).toEqual(["b", "a", "c"]);
-    expect(source.rowCount).toBe(2);
+    expect(source?.fields.map((field) => field.name)).toEqual(["b", "a", "c"]);
+    expect(source?.rowCount).toBe(2);
   });
 
   it("flattens nested objects to depth 2", () => {
-    const source = parseJson(
+    const [source] = parseJson(
       '{"name":"Ada","address":{"city":"Paris","geo":{"lat":1}}}',
       "nested.json",
       opts,
     );
 
-    const byName = Object.fromEntries(source.fields.map((field) => [field.name, field]));
+    const byName = Object.fromEntries((source?.fields ?? []).map((field) => [field.name, field]));
     expect(byName.name?.samples).toEqual(["Ada"]);
     expect(byName["address.city"]?.samples).toEqual(["Paris"]);
     expect(byName["address.geo"]?.samples).toEqual(['{"lat":1}']);
   });
 
   it("stores array values as a single stringified field", () => {
-    const source = parseJson('{"tags":["a","b"]}', "arrays.json", opts);
-    expect(source.fields[0]).toEqual({
+    const [source] = parseJson('{"tags":["a","b"]}', "arrays.json", opts);
+    expect(source?.fields[0]).toEqual({
       name: "tags",
       type: "text",
       samples: ['["a","b"]'],
@@ -461,40 +461,40 @@ describe("parseJson", () => {
   });
 
   it("wraps a single top-level object as one record", () => {
-    const source = parseJson('{"id":1,"name":"Ada"}', "object.json", opts);
-    expect(source.fields).toHaveLength(2);
-    expect(source.fields[0]?.samples).toEqual(["1"]);
-    expect(source.rowCount).toBe(1);
+    const [source] = parseJson('{"id":1,"name":"Ada"}', "object.json", opts);
+    expect(source?.fields).toHaveLength(2);
+    expect(source?.fields[0]?.samples).toEqual(["1"]);
+    expect(source?.rowCount).toBe(1);
   });
 
   it("unwraps records from a top-level envelope object", () => {
-    const source = parseJson(
+    const [source] = parseJson(
       '{"data":[{"id":1,"name":"Ada"},{"id":2,"name":"Bob"}]}',
       "envelope.json",
       opts,
     );
 
-    expect(source.fields.map((field) => field.name)).toEqual(["id", "name"]);
-    expect(source.fields[0]?.samples).toEqual(["1", "2"]);
+    expect(source?.fields.map((field) => field.name)).toEqual(["id", "name"]);
+    expect(source?.fields[0]?.samples).toEqual(["1", "2"]);
     // rowCount reflects the unwrapped records, not the envelope object.
-    expect(source.rowCount).toBe(2);
+    expect(source?.rowCount).toBe(2);
   });
 
   it("unwraps the largest record array and ignores envelope metadata", () => {
-    const source = parseJson(
+    const [source] = parseJson(
       '{"count":2,"results":[{"sku":"A1","qty":3},{"sku":"B2","qty":7}]}',
       "results.json",
       opts,
     );
 
-    expect(source.fields.map((field) => field.name)).toEqual(["sku", "qty"]);
+    expect(source?.fields.map((field) => field.name)).toEqual(["sku", "qty"]);
   });
 
   it("does not unwrap arrays of scalars", () => {
-    const source = parseJson('{"name":"cfg","tags":["a","b"]}', "scalars.json", opts);
+    const [source] = parseJson('{"name":"cfg","tags":["a","b"]}', "scalars.json", opts);
 
-    expect(source.fields.map((field) => field.name)).toEqual(["name", "tags"]);
-    expect(source.fields[1]?.samples).toEqual(['["a","b"]']);
+    expect(source?.fields.map((field) => field.name)).toEqual(["name", "tags"]);
+    expect(source?.fields[1]?.samples).toEqual(['["a","b"]']);
   });
 
   it("throws ParseError for malformed JSON", () => {
@@ -502,25 +502,25 @@ describe("parseJson", () => {
   });
 
   it("uses injected makeId for Source id", () => {
-    const source = parseJson("{}", "id.json", { makeId: makeTestIds("json-id") });
-    expect(source.id).toBe("json-id-1");
+    const [source] = parseJson("{}", "id.json", { makeId: makeTestIds("json-id") });
+    expect(source?.id).toBe("json-id-1");
   });
 });
 
 describe("parseSource", () => {
   it("dispatches by kind", () => {
-    const csv = parseSource({
+    const [csv] = parseSource({
       name: "a.csv",
       kind: "csv",
       content: "x\n1\n",
     });
-    expect(csv.kind).toBe("csv");
+    expect(csv?.kind).toBe("csv");
 
-    const json = parseSource({
+    const [json] = parseSource({
       name: "a.json",
       kind: "json",
       content: "{}",
     });
-    expect(json.kind).toBe("json");
+    expect(json?.kind).toBe("json");
   });
 });

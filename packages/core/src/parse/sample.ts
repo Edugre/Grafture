@@ -1,6 +1,15 @@
 import type { FieldStats } from "./types.js";
 
 export const MAX_SCAN_ROWS = 1000;
+/**
+ * Memory ceiling on the wide join-discovery value set (`SourceField.joinValues`). Unlike
+ * `MAX_SCAN_ROWS` — which bounds *display/stats* sampling — this bounds only the distinct
+ * value set the join/containment detectors compare, so overlap between two large files is
+ * measured over the real keys, not a 1000-value sample that badly understates it. Columns
+ * with fewer distinct values than the ceiling are captured in full; only genuinely huge
+ * columns degrade (their containment figures become lower bounds).
+ */
+export const MAX_JOIN_VALUES = 100_000;
 export const MAX_INFERENCE_VALUES = 200;
 export const MAX_SAMPLES = 5;
 /** Cap on retained row tuples (`Source.sampleRows`) — enough for multi-column uniqueness checks. */
@@ -129,6 +138,31 @@ export function collectDistinctValues(values: string[]): string[] {
 
   for (let i = 0; i < limit; i++) {
     const value = values[i];
+    if (!isNonEmpty(value) || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
+}
+
+/**
+ * Every distinct non-empty value across ALL provided values (not just the scan window),
+ * first-seen order, capped only by the MAX_JOIN_VALUES memory ceiling. This is the wide
+ * join-discovery pass: the tuples are discarded, only the distinct set is kept, so a
+ * 90k-row file costs one `Set` per join column rather than retained rows. Not persisted —
+ * the web layer strips `joinValues` before every write.
+ */
+export function collectJoinValues(values: string[], limit: number = MAX_JOIN_VALUES): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    if (result.length >= limit) {
+      break;
+    }
     if (!isNonEmpty(value) || seen.has(value)) {
       continue;
     }

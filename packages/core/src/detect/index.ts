@@ -43,6 +43,15 @@ export type JoinKeyCandidate = {
   normalizedOverlap: number;
   /** Count of sample values shared after normalization. */
   sharedValues: number;
+  /**
+   * Share of the LEFT side's distinct values found on the right, [0, 1]. A real foreign key is
+   * a *subset* relationship — the child's keys are contained in the parent's while the parent
+   * has many more — so high one-way containment with low symmetric Jaccard is exactly the FK
+   * shape. `containmentLeft ≈ 1` reads "left ⊆ right ⇒ left is the FK side".
+   */
+  containmentLeft: number;
+  /** Share of the RIGHT side's distinct values found on the left, [0, 1]. */
+  containmentRight: number;
   /** True when normalization meaningfully increases the overlap. */
   requiresNormalization: boolean;
   formatMismatch: FormatMismatch | null;
@@ -71,12 +80,21 @@ const MIN_STATS_ROWS = 4;
 export type DetectOptions = {
   /** Minimum normalized Jaccard overlap to propose a join. Default 0.3. */
   minOverlap?: number;
-  /** Minimum number of shared normalized values. Default 2. */
+  /** Minimum number of shared normalized values (Jaccard path only). Default 2. */
   minSharedValues?: number;
+  /** Minimum one-way containment for the FK-shaped path. Default 0.4. */
+  minContainment?: number;
 };
 
 const DEFAULT_MIN_OVERLAP = 0.3;
 const DEFAULT_MIN_SHARED = 2;
+/**
+ * Containment gate for the FK-shaped path. Deliberately below 0.5: the flagship real-world
+ * bridge (OPAIS npiNumbers → HRSA site NPI) sits near ~53% full-file containment and sampling
+ * only ever lowers the observed figure, so a 0.5 gate would suppress the exact FK the
+ * containment path exists to surface. `probe_join` is the escape hatch for anything below.
+ */
+const DEFAULT_MIN_CONTAINMENT = 0.4;
 const NORMALIZATION_EPSILON = 0.05;
 
 function stripLeadingZeros(value: string): string {
@@ -100,9 +118,19 @@ function fieldValues(field: SourceField): string[] {
   return field.distinctValues ?? field.samples;
 }
 
+/**
+ * The values join/containment detection compares: the wide join-discovery set when the upload
+ * session captured one (up to MAX_JOIN_VALUES distinct values over the whole file), else the
+ * ≤1000-value scan window. After a reload `joinValues` is gone (stripped from persistence), so
+ * detection degrades to the capped set until the file is re-uploaded.
+ */
+function joinFieldValues(field: SourceField): string[] {
+  return field.joinValues ?? field.distinctValues ?? field.samples;
+}
+
 function valueSet(field: SourceField, normalize: (value: string) => string): Set<string> {
   const set = new Set<string>();
-  for (const sample of fieldValues(field)) {
+  for (const sample of joinFieldValues(field)) {
     const normalized = normalize(sample);
     if (normalized !== "") {
       set.add(normalized);
@@ -253,6 +281,11 @@ export function detectPrimaryKeys(
 
   for (const source of sources) {
     for (const field of source.fields) {
+      // A synthetic surrogate (`_rowId`) is trivially unique and name-ranks above real keys —
+      // it must never be presented as a source's primary-key candidate.
+      if (field.synthetic) {
+        continue;
+      }
       const stats = field.stats;
       if (!stats || stats.nonEmpty < minRows || stats.blank > 0) {
         continue;
@@ -335,7 +368,7 @@ export function detectValueSets(sources: Source[], options?: ValueSetOptions): V
   for (const source of sources) {
     for (const field of source.fields) {
       const stats = field.stats;
-      if (field.type === "bool" || !stats || stats.nonEmpty < minRows) {
+      if (field.synthetic || field.type === "bool" || !stats || stats.nonEmpty < minRows) {
         continue;
       }
       if (stats.distinct > maxDistinct || stats.distinct / stats.nonEmpty > maxRatio) {
@@ -371,6 +404,8 @@ export function detectValueSets(sources: Source[], options?: ValueSetOptions): V
 
 type TupleColumnView = {
   name: string;
+  /** Parser-injected surrogate — never key/FD evidence. */
+  synthetic: boolean;
   /** The column's cell per sampled row, aligned with every other view's `values`. */
   values: string[];
   /** Sample-window stats over `values` (null-token-aware, via the shared helper). */
@@ -394,6 +429,7 @@ function tupleColumnViews(source: Source, rows: string[][]): TupleColumnView[] {
     const stats = collectStats(values);
     return {
       name: field.name,
+      synthetic: field.synthetic === true,
       values,
       stats,
       distinctRatio: stats.distinct / rows.length,
@@ -464,6 +500,7 @@ export function detectCompositeKeys(
     const columns = tupleColumnViews(source, rows).map((column) => ({
       ...column,
       eligible:
+        !column.synthetic &&
         column.stats.blank === 0 &&
         column.stats.distinct < column.stats.nonEmpty &&
         column.windowBlankFree &&
@@ -587,13 +624,16 @@ export function detectFunctionalDependencies(
       // A determinant must actually group rows: non-blank, repeating in the sample, and not
       // near-unique over the full scan window (same reasoning as the composite-key gate).
       canDetermine:
+        !column.synthetic &&
         column.stats.blank === 0 &&
         column.stats.distinct < column.stats.nonEmpty &&
         column.windowDuplicated,
       // A dependent must vary (a constant column is trivially determined by anything) and be
       // populated enough that skipping its blank cells still leaves real evidence.
       canDepend:
-        column.stats.distinct > 1 && column.stats.blank <= rows.length * MAX_DEPENDENT_BLANK_RATIO,
+        !column.synthetic &&
+        column.stats.distinct > 1 &&
+        column.stats.blank <= rows.length * MAX_DEPENDENT_BLANK_RATIO,
     }));
 
     const sourceCandidates: Array<FunctionalDependencyCandidate & { score: number }> = [];
@@ -783,6 +823,9 @@ export function detectSemanticTypes(
 
   for (const source of sources) {
     for (const field of source.fields) {
+      if (field.synthetic) {
+        continue;
+      }
       const values = fieldValues(field).filter((value) => value.trim() !== "");
       if (values.length < minValues) {
         continue;
@@ -815,6 +858,20 @@ export function detectSemanticTypes(
   return findings;
 }
 
+/**
+ * The stronger of a candidate's two signals: for a symmetric join max-containment ≥ Jaccard
+ * anyway, and for the FK shape it is the containment figure — not the diluted Jaccard — that
+ * measures how real the link is. Without this, a containment-admitted FK would sort by its
+ * (low) Jaccard and get evicted from the consumers' top-N slices.
+ */
+function candidateStrength(candidate: JoinKeyCandidate): number {
+  return Math.max(
+    candidate.normalizedOverlap,
+    candidate.containmentLeft,
+    candidate.containmentRight,
+  );
+}
+
 function compareRefs(a: FieldRef, b: FieldRef): number {
   return (
     a.sourceId.localeCompare(b.sourceId) ||
@@ -828,9 +885,110 @@ function compareRefs(a: FieldRef, b: FieldRef): number {
  * fields from *different* sources; a pair is a candidate when its normalized overlap
  * and shared-value count clear the thresholds. Output is sorted deterministically.
  */
+export type ProbeJoinRef = { source: string; field: string };
+
+export type ProbeJoinResult =
+  | {
+      ok: true;
+      /** Distinct normalized values shared by the two columns. */
+      shared: number;
+      /** Distinct normalized values on each side (over the widest captured set). */
+      leftDistinct: number;
+      rightDistinct: number;
+      /** Jaccard overlap of raw (un-normalized) values, [0, 1]. */
+      rawOverlap: number;
+      /** Jaccard overlap after normalization, [0, 1]. */
+      normalizedOverlap: number;
+      /** Share of each side's values found on the other, [0, 1]. High one-way = FK shape. */
+      containmentLeft: number;
+      containmentRight: number;
+      grain: Grain;
+      formatMismatch: FormatMismatch | null;
+      /**
+       * False when a side lost its wide join set (e.g. after a project reload) and the probe
+       * ran over the ≤1000-value scan window — figures are then lower bounds; re-upload the
+       * file for full fidelity.
+       */
+      leftFullFidelity: boolean;
+      rightFullFidelity: boolean;
+    }
+  | { ok: false; error: string };
+
+/** Resolve a probe ref against the loaded sources, reporting valid names on a miss. */
+function resolveProbeRef(
+  sources: Source[],
+  ref: ProbeJoinRef,
+): { field: SourceField; source: Source } | { error: string } {
+  const source = sources.find((candidate) => candidate.name === ref.source);
+  if (!source) {
+    const names = sources.map((candidate) => candidate.name).join(", ");
+    return { error: `no source named "${ref.source}". Available sources: ${names || "(none)"}.` };
+  }
+  const field = source.fields.find((candidate) => candidate.name === ref.field);
+  if (!field) {
+    const names = source.fields.map((candidate) => candidate.name).join(", ");
+    return {
+      error: `no field named "${ref.field}" in ${source.name}. Available fields: ${names || "(none)"}.`,
+    };
+  }
+  return { field, source };
+}
+
+/** Is this field's probe running over the full file, or a capped fallback window? */
+function hasFullFidelity(source: Source, field: SourceField): boolean {
+  if (field.joinValues) {
+    return true;
+  }
+  // Without a wide set, fidelity holds only when the file never exceeded the scan window.
+  return source.rowCount !== undefined && source.rowCount <= (field.distinctValues ?? []).length;
+}
+
+/**
+ * Probe an arbitrary field pair for join evidence, on demand (GF: the copilot's `probe_join`
+ * tool). Unlike `detectJoinKeys` — a thresholded global top-N — this computes live overlap,
+ * containment, grain, and format-mismatch for exactly the pair the caller hypothesizes, with
+ * no admission gate: near-zero figures are the point when rejecting a look-alike join. Pure
+ * and read-only, computed over the widest captured value sets (`joinValues ?? distinctValues`).
+ */
+export function probeJoin(
+  sources: Source[],
+  input: { left: ProbeJoinRef; right: ProbeJoinRef },
+): ProbeJoinResult {
+  const left = resolveProbeRef(sources, input.left);
+  if ("error" in left) {
+    return { ok: false, error: `left: ${left.error}` };
+  }
+  const right = resolveProbeRef(sources, input.right);
+  if ("error" in right) {
+    return { ok: false, error: `right: ${right.error}` };
+  }
+
+  const leftRaw = valueSet(left.field, NORMALIZERS.raw);
+  const rightRaw = valueSet(right.field, NORMALIZERS.raw);
+  const leftFull = valueSet(left.field, NORMALIZERS.full);
+  const rightFull = valueSet(right.field, NORMALIZERS.full);
+  const shared = intersectionSize(leftFull, rightFull);
+
+  return {
+    ok: true,
+    shared,
+    leftDistinct: leftFull.size,
+    rightDistinct: rightFull.size,
+    rawOverlap: jaccard(leftRaw, rightRaw),
+    normalizedOverlap: jaccard(leftFull, rightFull),
+    containmentLeft: leftFull.size === 0 ? 0 : shared / leftFull.size,
+    containmentRight: rightFull.size === 0 ? 0 : shared / rightFull.size,
+    grain: inferGrain(left.field, right.field),
+    formatMismatch: detectFormatMismatch(left.field, right.field),
+    leftFullFidelity: hasFullFidelity(left.source, left.field),
+    rightFullFidelity: hasFullFidelity(right.source, right.field),
+  };
+}
+
 export function detectJoinKeys(sources: Source[], options?: DetectOptions): JoinKeyCandidate[] {
   const minOverlap = options?.minOverlap ?? DEFAULT_MIN_OVERLAP;
   const minShared = options?.minSharedValues ?? DEFAULT_MIN_SHARED;
+  const minContainment = options?.minContainment ?? DEFAULT_MIN_CONTAINMENT;
 
   const candidates: JoinKeyCandidate[] = [];
 
@@ -854,14 +1012,35 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
       }
 
       for (const leftField of leftSource.fields) {
+        if (leftField.synthetic) {
+          continue;
+        }
         for (const rightField of rightSource.fields) {
+          if (rightField.synthetic) {
+            continue;
+          }
           const left = setsFor(leftField);
           const right = setsFor(rightField);
           const rawOverlap = jaccard(left.raw, right.raw);
           const sharedValues = intersectionSize(left.full, right.full);
           const normalizedOverlap = jaccard(left.full, right.full);
+          const containmentLeft = left.full.size === 0 ? 0 : sharedValues / left.full.size;
+          const containmentRight = right.full.size === 0 ? 0 : sharedValues / right.full.size;
 
-          if (normalizedOverlap < minOverlap || sharedValues < minShared) {
+          // Two admission paths. Jaccard catches symmetric overlap; containment catches the
+          // FK *subset* shape (child ⊆ large parent) that symmetric Jaccard averages away.
+          // The containment path needs its own guard — `minShared` does not stop enums: a
+          // 3-value enum fully present in a large column has containment 1.0 and 3 shared
+          // values. Only let it fire when the contained (smaller) side is NOT itself a closed
+          // value set (more distinct values than the value-set cardinality ceiling). Known
+          // trade: a real FK into a ≤12-key dimension must surface via the Jaccard path.
+          const jaccardPass = normalizedOverlap >= minOverlap && sharedValues >= minShared;
+          const containedSideDistinct =
+            containmentLeft >= containmentRight ? left.full.size : right.full.size;
+          const containmentPass =
+            Math.max(containmentLeft, containmentRight) >= minContainment &&
+            containedSideDistinct > DEFAULT_MAX_DISTINCT;
+          if (!jaccardPass && !containmentPass) {
             continue;
           }
 
@@ -881,6 +1060,8 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
             rawOverlap,
             normalizedOverlap,
             sharedValues,
+            containmentLeft,
+            containmentRight,
             requiresNormalization:
               normalizedOverlap - rawOverlap > NORMALIZATION_EPSILON || formatMismatch !== null,
             formatMismatch,
@@ -893,6 +1074,7 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
 
   candidates.sort(
     (a, b) =>
+      candidateStrength(b) - candidateStrength(a) ||
       b.normalizedOverlap - a.normalizedOverlap ||
       b.sharedValues - a.sharedValues ||
       compareRefs(a.left, b.left) ||

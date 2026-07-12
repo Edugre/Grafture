@@ -21,11 +21,23 @@ export function toProjectFile(project: ExportableProject): ProjectFile {
     // cross-column correlation that the per-column digests (samples/distinctValues)
     // deliberately don't carry — a re-identification risk in a file meant to be shared.
     // Local persistence (IndexedDB) keeps them; an imported project merely lacks
-    // composite-key evidence until its sources are re-uploaded.
+    // composite-key evidence until its sources are re-uploaded. The wide `joinValues`
+    // sets are stripped too (up to MAX_JOIN_VALUES strings per column) — join detection
+    // in an imported project degrades to the capped window until files are re-uploaded.
     sources: project.sources.map((source) => {
       const exported = { ...source };
       delete exported.sampleRows;
-      return exported;
+      return {
+        ...exported,
+        fields: exported.fields.map((field) => {
+          if (field.joinValues === undefined) {
+            return field;
+          }
+          const copy = { ...field };
+          delete copy.joinValues;
+          return copy;
+        }),
+      };
     }),
     chat: project.chat,
   };

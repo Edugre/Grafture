@@ -58,6 +58,22 @@ export const SourceFieldSchema = z.object({
    * real files. Optional: older persisted sources fall back to `samples`.
    */
   distinctValues: z.array(z.string()).optional(),
+  /**
+   * The wide join-discovery value set: distinct non-empty values over the WHOLE file (capped
+   * only by the MAX_JOIN_VALUES memory ceiling), collected by a second, wider parser pass.
+   * Join/containment detection prefers this over `distinctValues`, whose ≤1000-value sample
+   * badly understates overlap between large files. In-memory only: the persistence layer
+   * strips it before every write (like `sampleRows` in exports), so after a reload detection
+   * falls back to `distinctValues` until the file is re-uploaded.
+   */
+  joinValues: z.array(z.string()).optional(),
+  /**
+   * Marks a parser-injected surrogate column (`_rowId` on an unnested parent, `_parentId` on
+   * its child rows). Synthetic columns are structural links carried via `Source.derivedFrom`
+   * lineage — every content detector skips them, so a 0..N row index can never outrank a real
+   * semantic key or fake a value-overlap join.
+   */
+  synthetic: z.boolean().optional(),
 });
 export type SourceField = z.infer<typeof SourceFieldSchema>;
 
@@ -80,5 +96,19 @@ export const SourceSchema = z.object({
    * true source size. Optional: older persisted sources predate row-count capture.
    */
   rowCount: z.number().int().nonnegative().optional(),
+  /**
+   * Lineage for a child source unnested from a parent's array-of-objects field (JSON).
+   * The structural child→parent link (`_parentId` → `_rowId`) travels here — explicitly,
+   * not as a detector finding — so consumers (the copilot prompt, apply plans) can emit the
+   * child→parent FK without rediscovering it by value overlap.
+   */
+  derivedFrom: z
+    .object({
+      /** `Source.id` of the parent this child was unnested from. */
+      parentId: z.string(),
+      /** The parent's array field the child rows came from. */
+      arrayField: z.string(),
+    })
+    .optional(),
 });
 export type Source = z.infer<typeof SourceSchema>;

@@ -285,3 +285,57 @@ describe("project file serialization", () => {
     }
   });
 });
+
+/* PR-0: the wide join-discovery sets are in-memory only — a multi-megabyte blow-up per project
+ * if they ever reach disk, and the save path structuredClones with no zod pass, so both write
+ * paths must strip them explicitly. */
+describe("joinValues stripping", () => {
+  function wideSource(): Source {
+    return {
+      id: "s-wide",
+      name: "big.csv",
+      kind: "csv",
+      fields: [
+        {
+          name: "id",
+          type: "int",
+          samples: ["1", "2"],
+          distinctValues: ["1", "2"],
+          joinValues: Array.from({ length: 5000 }, (_, i) => String(i)),
+        },
+      ],
+      rowCount: 5000,
+    };
+  }
+
+  it("IndexedDB save path persists NO joinValues", async () => {
+    const kv = new MemoryKeyValueStore();
+    await saveProjectRecord(kv, record("wide", { sources: [wideSource()] }));
+
+    const loaded = await loadProjectRecord(kv, "wide");
+    expect(loaded?.sources[0]?.fields[0]?.joinValues).toBeUndefined();
+    // The capped digests survive.
+    expect(loaded?.sources[0]?.fields[0]?.distinctValues).toEqual(["1", "2"]);
+  });
+
+  it("saving does not strip the live in-memory sources (autosave fires mid-session)", async () => {
+    const kv = new MemoryKeyValueStore();
+    const live = record("wide", { sources: [wideSource()] });
+    await saveProjectRecord(kv, live);
+
+    expect(live.sources[0]?.fields[0]?.joinValues).toHaveLength(5000);
+  });
+
+  it("file-export path strips joinValues alongside sampleRows", () => {
+    const file = toProjectFile({
+      name: "p",
+      schema: sampleSchema(),
+      sources: [{ ...wideSource(), sampleRows: [["1"]] }],
+      chat: [],
+    });
+
+    expect(file.sources[0]?.fields[0]?.joinValues).toBeUndefined();
+    expect(file.sources[0]?.sampleRows).toBeUndefined();
+    expect(file.sources[0]?.fields[0]?.distinctValues).toEqual(["1", "2"]);
+  });
+});

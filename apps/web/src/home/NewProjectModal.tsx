@@ -6,11 +6,12 @@ import { readAndParseFile } from "../sources/readAndParse.js";
 import { DatabaseIcon, FileIcon, FilePlusIcon, PlusIcon, UploadIcon, XIcon } from "../ui/icons.js";
 import "./NewProjectModal.css";
 
-/** A parsed, ready-to-add source plus the display facts we can show truthfully (no row totals). */
+/** A parsed, ready-to-add file plus the display facts we can show truthfully (no row totals). */
 type PreparedFile = {
   id: string;
   name: string;
-  source: Source;
+  /** Every source the file parsed into — a JSON file can unnest child sources after its parent. */
+  sources: Source[];
   /** Bytes of the original file, for the meta line. */
   size: number;
 };
@@ -37,8 +38,11 @@ function formatSize(bytes: number): string {
 }
 
 function metaLine(file: PreparedFile): string {
-  const columns = file.source.fields.length;
-  return `${columns} ${columns === 1 ? "column" : "columns"} · ${formatSize(file.size)}`;
+  const columns = file.sources[0]?.fields.length ?? 0;
+  const children = file.sources.length - 1;
+  const childNote =
+    children > 0 ? ` · ${children} nested ${children === 1 ? "table" : "tables"}` : "";
+  return `${columns} ${columns === 1 ? "column" : "columns"}${childNote} · ${formatSize(file.size)}`;
 }
 
 /**
@@ -106,8 +110,12 @@ export function NewProjectModal({
     const errors: string[] = [];
     for (const file of list) {
       try {
-        const source = await readAndParseFile(file);
-        prepared.push({ id: source.id, name: file.name, source, size: file.size });
+        const sources = await readAndParseFile(file);
+        const id = sources[0]?.id;
+        if (id === undefined) {
+          continue;
+        }
+        prepared.push({ id, name: file.name, sources, size: file.size });
       } catch (failure) {
         const text =
           failure instanceof ParseError || failure instanceof Error
@@ -167,7 +175,7 @@ export function NewProjectModal({
     onDerive({
       name: title.trim(),
       description: description.trim(),
-      sources: files.map((entry) => entry.source),
+      sources: files.flatMap((entry) => entry.sources),
     });
   };
 

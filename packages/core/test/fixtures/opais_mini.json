@@ -1,0 +1,3797 @@
+[
+  {
+    "ceId": 5000,
+    "name": "Covered Entity 1",
+    "grantNumber": "H80CS00001",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000001",
+        "npiState": "MA"
+      },
+      {
+        "npiNumber": "100000501",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00001"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 1",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5001,
+    "name": "Covered Entity 2",
+    "grantNumber": "H80CS00002",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000002",
+        "npiState": "NY"
+      },
+      {
+        "npiNumber": "100000502",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00002"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5002,
+    "name": "Covered Entity 3",
+    "grantNumber": "H80CS00003",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000003",
+        "npiState": "TX"
+      },
+      {
+        "npiNumber": "100000503",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00003"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 3",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5003,
+    "name": "Covered Entity 4",
+    "grantNumber": "H80CS00004",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000004",
+        "npiState": "CA"
+      },
+      {
+        "npiNumber": "100000504",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00004"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5004,
+    "name": "Covered Entity 5",
+    "grantNumber": "H80CS00005",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000005",
+        "npiState": "FL"
+      },
+      {
+        "npiNumber": "100000505",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00005"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 5",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5005,
+    "name": "Covered Entity 6",
+    "grantNumber": "H80CS00006",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000006",
+        "npiState": "WA"
+      },
+      {
+        "npiNumber": "100000506",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00006"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5006,
+    "name": "Covered Entity 7",
+    "grantNumber": "H80CS00007",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000007",
+        "npiState": "IL"
+      },
+      {
+        "npiNumber": "100000507",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00007"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 7",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5007,
+    "name": "Covered Entity 8",
+    "grantNumber": "H80CS00008",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000008",
+        "npiState": "GA"
+      },
+      {
+        "npiNumber": "100000508",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00008"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5008,
+    "name": "Covered Entity 9",
+    "grantNumber": "H80CS00009",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000009",
+        "npiState": "OH"
+      },
+      {
+        "npiNumber": "100000509",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00009"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 9",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5009,
+    "name": "Covered Entity 10",
+    "grantNumber": "H80CS00010",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000010",
+        "npiState": "PA"
+      },
+      {
+        "npiNumber": "100000510",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00010"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5010,
+    "name": "Covered Entity 11",
+    "grantNumber": "H80CS00011",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000011",
+        "npiState": "MA"
+      },
+      {
+        "npiNumber": "100000511",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00011"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 11",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5011,
+    "name": "Covered Entity 12",
+    "grantNumber": "H80CS00012",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000012",
+        "npiState": "NY"
+      },
+      {
+        "npiNumber": "100000512",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00012"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5012,
+    "name": "Covered Entity 13",
+    "grantNumber": "H80CS00013",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000013",
+        "npiState": "TX"
+      },
+      {
+        "npiNumber": "100000513",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00013"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 13",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5013,
+    "name": "Covered Entity 14",
+    "grantNumber": "H80CS00014",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000014",
+        "npiState": "CA"
+      },
+      {
+        "npiNumber": "100000514",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00014"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5014,
+    "name": "Covered Entity 15",
+    "grantNumber": "H80CS00015",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000015",
+        "npiState": "FL"
+      },
+      {
+        "npiNumber": "100000515",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00015"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 15",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5015,
+    "name": "Covered Entity 16",
+    "grantNumber": "H80CS00016",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000016",
+        "npiState": "WA"
+      },
+      {
+        "npiNumber": "100000516",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00016"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5016,
+    "name": "Covered Entity 17",
+    "grantNumber": "H80CS00017",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000017",
+        "npiState": "IL"
+      },
+      {
+        "npiNumber": "100000517",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00017"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 17",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5017,
+    "name": "Covered Entity 18",
+    "grantNumber": "H80CS00018",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000018",
+        "npiState": "GA"
+      },
+      {
+        "npiNumber": "100000518",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00018"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5018,
+    "name": "Covered Entity 19",
+    "grantNumber": "H80CS00019",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000019",
+        "npiState": "OH"
+      },
+      {
+        "npiNumber": "100000519",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00019"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 19",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5019,
+    "name": "Covered Entity 20",
+    "grantNumber": "H80CS00020",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000020",
+        "npiState": "PA"
+      },
+      {
+        "npiNumber": "100000520",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00020"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5020,
+    "name": "Covered Entity 21",
+    "grantNumber": "H80CS00021",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000021",
+        "npiState": "MA"
+      },
+      {
+        "npiNumber": "100000521",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00021"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 21",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5021,
+    "name": "Covered Entity 22",
+    "grantNumber": "H80CS00022",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000022",
+        "npiState": "NY"
+      },
+      {
+        "npiNumber": "100000522",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00022"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5022,
+    "name": "Covered Entity 23",
+    "grantNumber": "H80CS00023",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000023",
+        "npiState": "TX"
+      },
+      {
+        "npiNumber": "100000523",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00023"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 23",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5023,
+    "name": "Covered Entity 24",
+    "grantNumber": "H80CS00024",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000024",
+        "npiState": "CA"
+      },
+      {
+        "npiNumber": "100000524",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00024"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5024,
+    "name": "Covered Entity 25",
+    "grantNumber": "H80CS00025",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000025",
+        "npiState": "FL"
+      },
+      {
+        "npiNumber": "100000525",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00025"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 25",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5025,
+    "name": "Covered Entity 26",
+    "grantNumber": "H80CS00026",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000026",
+        "npiState": "WA"
+      },
+      {
+        "npiNumber": "100000526",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00026"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5026,
+    "name": "Covered Entity 27",
+    "grantNumber": "H80CS00027",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000027",
+        "npiState": "IL"
+      },
+      {
+        "npiNumber": "100000527",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00027"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 27",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5027,
+    "name": "Covered Entity 28",
+    "grantNumber": "H80CS00028",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000028",
+        "npiState": "GA"
+      },
+      {
+        "npiNumber": "100000528",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00028"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5028,
+    "name": "Covered Entity 29",
+    "grantNumber": "H80CS00029",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000029",
+        "npiState": "OH"
+      },
+      {
+        "npiNumber": "100000529",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00029"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 29",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5029,
+    "name": "Covered Entity 30",
+    "grantNumber": "H80CS00030",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000030",
+        "npiState": "PA"
+      },
+      {
+        "npiNumber": "100000530",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00030"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5030,
+    "name": "Covered Entity 31",
+    "grantNumber": "H80CS00031",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000031",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00031"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 31",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5031,
+    "name": "Covered Entity 32",
+    "grantNumber": "H80CS00032",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000531",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00032"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5032,
+    "name": "Covered Entity 33",
+    "grantNumber": "H80CS00033",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000032",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00033"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 33",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5033,
+    "name": "Covered Entity 34",
+    "grantNumber": "H80CS00034",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000532",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00034"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5034,
+    "name": "Covered Entity 35",
+    "grantNumber": "H80CS00035",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000033",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00035"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 35",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5035,
+    "name": "Covered Entity 36",
+    "grantNumber": "H80CS00036",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000533",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00036"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5036,
+    "name": "Covered Entity 37",
+    "grantNumber": "H80CS00037",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000034",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00037"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 37",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5037,
+    "name": "Covered Entity 38",
+    "grantNumber": "H80CS00038",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000534",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00038"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5038,
+    "name": "Covered Entity 39",
+    "grantNumber": "H80CS00039",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000035",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00039"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 39",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5039,
+    "name": "Covered Entity 40",
+    "grantNumber": "H80CS00040",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000535",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00040"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5040,
+    "name": "Covered Entity 41",
+    "grantNumber": "H80CS00041",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000036",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00041"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 41",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5041,
+    "name": "Covered Entity 42",
+    "grantNumber": "H80CS00042",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000536",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00042"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5042,
+    "name": "Covered Entity 43",
+    "grantNumber": "H80CS00043",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000037",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00043"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 43",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5043,
+    "name": "Covered Entity 44",
+    "grantNumber": "H80CS00044",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000537",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00044"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5044,
+    "name": "Covered Entity 45",
+    "grantNumber": "H80CS00045",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000038",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00045"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 45",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5045,
+    "name": "Covered Entity 46",
+    "grantNumber": "H80CS00046",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000538",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00046"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5046,
+    "name": "Covered Entity 47",
+    "grantNumber": "H80CS00047",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000039",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00047"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 47",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5047,
+    "name": "Covered Entity 48",
+    "grantNumber": "H80CS00048",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000539",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00048"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5048,
+    "name": "Covered Entity 49",
+    "grantNumber": "H80CS00049",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000040",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00049"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 49",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5049,
+    "name": "Covered Entity 50",
+    "grantNumber": "H80CS00050",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000540",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00050"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5050,
+    "name": "Covered Entity 51",
+    "grantNumber": "H80CS00051",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000041",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00051"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 51",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5051,
+    "name": "Covered Entity 52",
+    "grantNumber": "H80CS00052",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000541",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00052"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5052,
+    "name": "Covered Entity 53",
+    "grantNumber": "H80CS00053",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000042",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00053"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 53",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5053,
+    "name": "Covered Entity 54",
+    "grantNumber": "H80CS00054",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000542",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00054"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5054,
+    "name": "Covered Entity 55",
+    "grantNumber": "H80CS00055",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000043",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00055"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 55",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5055,
+    "name": "Covered Entity 56",
+    "grantNumber": "H80CS00056",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000543",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00056"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5056,
+    "name": "Covered Entity 57",
+    "grantNumber": "H80CS00057",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000044",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00057"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 57",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5057,
+    "name": "Covered Entity 58",
+    "grantNumber": "H80CS00058",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000544",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00058"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5058,
+    "name": "Covered Entity 59",
+    "grantNumber": "H80CS00059",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000045",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00059"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 59",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5059,
+    "name": "Covered Entity 60",
+    "grantNumber": "H80CS00060",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000545",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00060"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5060,
+    "name": "Covered Entity 61",
+    "grantNumber": "H80CS00061",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000046",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00061"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 61",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5061,
+    "name": "Covered Entity 62",
+    "grantNumber": "H80CS00062",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000546",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00062"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5062,
+    "name": "Covered Entity 63",
+    "grantNumber": "H80CS00063",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000047",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00063"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 63",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5063,
+    "name": "Covered Entity 64",
+    "grantNumber": "H80CS00064",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000547",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00064"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5064,
+    "name": "Covered Entity 65",
+    "grantNumber": "H80CS00065",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000048",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00065"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 65",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5065,
+    "name": "Covered Entity 66",
+    "grantNumber": "H80CS00066",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000548",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00066"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5066,
+    "name": "Covered Entity 67",
+    "grantNumber": "H80CS00067",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000049",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00067"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 67",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5067,
+    "name": "Covered Entity 68",
+    "grantNumber": "H80CS00068",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000549",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00068"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5068,
+    "name": "Covered Entity 69",
+    "grantNumber": "H80CS00069",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000050",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00069"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 69",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5069,
+    "name": "Covered Entity 70",
+    "grantNumber": "H80CS00070",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000550",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00070"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5070,
+    "name": "Covered Entity 71",
+    "grantNumber": "H80CS00071",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000001",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00071"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 71",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5071,
+    "name": "Covered Entity 72",
+    "grantNumber": "H80CS00072",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000501",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00072"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5072,
+    "name": "Covered Entity 73",
+    "grantNumber": "H80CS00073",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000002",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00073"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 73",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5073,
+    "name": "Covered Entity 74",
+    "grantNumber": "H80CS00074",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000502",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00074"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5074,
+    "name": "Covered Entity 75",
+    "grantNumber": "H80CS00075",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000003",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00075"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 75",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5075,
+    "name": "Covered Entity 76",
+    "grantNumber": "H80CS00076",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000503",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00076"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5076,
+    "name": "Covered Entity 77",
+    "grantNumber": "H80CS00077",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000004",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00077"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 77",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5077,
+    "name": "Covered Entity 78",
+    "grantNumber": "H80CS00078",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000504",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00078"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5078,
+    "name": "Covered Entity 79",
+    "grantNumber": "H80CS00079",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000005",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00079"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 79",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5079,
+    "name": "Covered Entity 80",
+    "grantNumber": "H80CS00080",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000505",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00080"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5080,
+    "name": "Covered Entity 81",
+    "grantNumber": "H80CS00081",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000006",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00081"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 81",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5081,
+    "name": "Covered Entity 82",
+    "grantNumber": "H80CS00082",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000506",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00082"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5082,
+    "name": "Covered Entity 83",
+    "grantNumber": "H80CS00083",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000007",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00083"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 83",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5083,
+    "name": "Covered Entity 84",
+    "grantNumber": "H80CS00084",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000507",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00084"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5084,
+    "name": "Covered Entity 85",
+    "grantNumber": "H80CS00085",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000008",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00085"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 85",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5085,
+    "name": "Covered Entity 86",
+    "grantNumber": "H80CS00086",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000508",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00086"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5086,
+    "name": "Covered Entity 87",
+    "grantNumber": "H80CS00087",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000009",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00087"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 87",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5087,
+    "name": "Covered Entity 88",
+    "grantNumber": "H80CS00088",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000509",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00088"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5088,
+    "name": "Covered Entity 89",
+    "grantNumber": "H80CS00089",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000010",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00089"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 89",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5089,
+    "name": "Covered Entity 90",
+    "grantNumber": "H80CS00090",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000510",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00090"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5090,
+    "name": "Covered Entity 91",
+    "grantNumber": "H80CS00091",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000011",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00091"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 91",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5091,
+    "name": "Covered Entity 92",
+    "grantNumber": "H80CS00092",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000511",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00092"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5092,
+    "name": "Covered Entity 93",
+    "grantNumber": "H80CS00093",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000012",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00093"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 93",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5093,
+    "name": "Covered Entity 94",
+    "grantNumber": "H80CS00094",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000512",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00094"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5094,
+    "name": "Covered Entity 95",
+    "grantNumber": "H80CS00095",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000013",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00095"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 95",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5095,
+    "name": "Covered Entity 96",
+    "grantNumber": "H80CS00096",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000513",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00096"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5096,
+    "name": "Covered Entity 97",
+    "grantNumber": "H80CS00097",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000014",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00097"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 97",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5097,
+    "name": "Covered Entity 98",
+    "grantNumber": "H80CS00098",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000514",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00098"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5098,
+    "name": "Covered Entity 99",
+    "grantNumber": "H80CS00099",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000015",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00099"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 99",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5099,
+    "name": "Covered Entity 100",
+    "grantNumber": "H80CS00100",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000515",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00100"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5100,
+    "name": "Covered Entity 101",
+    "grantNumber": "H80CS00101",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000016",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00101"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 101",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5101,
+    "name": "Covered Entity 102",
+    "grantNumber": "H80CS00102",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000516",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00102"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5102,
+    "name": "Covered Entity 103",
+    "grantNumber": "H80CS00103",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000017",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00103"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 103",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5103,
+    "name": "Covered Entity 104",
+    "grantNumber": "H80CS00104",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000517",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00104"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5104,
+    "name": "Covered Entity 105",
+    "grantNumber": "H80CS00105",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000018",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00105"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 105",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5105,
+    "name": "Covered Entity 106",
+    "grantNumber": "H80CS00106",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000518",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00106"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5106,
+    "name": "Covered Entity 107",
+    "grantNumber": "H80CS00107",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000019",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00107"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 107",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5107,
+    "name": "Covered Entity 108",
+    "grantNumber": "H80CS00108",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000519",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00108"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5108,
+    "name": "Covered Entity 109",
+    "grantNumber": "H80CS00109",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000020",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00109"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 109",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5109,
+    "name": "Covered Entity 110",
+    "grantNumber": "H80CS00110",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000520",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00110"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5110,
+    "name": "Covered Entity 111",
+    "grantNumber": "H80CS00111",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000021",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00111"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 111",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5111,
+    "name": "Covered Entity 112",
+    "grantNumber": "H80CS00112",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000521",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00112"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5112,
+    "name": "Covered Entity 113",
+    "grantNumber": "H80CS00113",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000022",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00113"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 113",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5113,
+    "name": "Covered Entity 114",
+    "grantNumber": "H80CS00114",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000522",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00114"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5114,
+    "name": "Covered Entity 115",
+    "grantNumber": "H80CS00115",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000023",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00115"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 115",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5115,
+    "name": "Covered Entity 116",
+    "grantNumber": "H80CS00116",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000523",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00116"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5116,
+    "name": "Covered Entity 117",
+    "grantNumber": "H80CS00117",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000024",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00117"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 117",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5117,
+    "name": "Covered Entity 118",
+    "grantNumber": "H80CS00118",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000524",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00118"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5118,
+    "name": "Covered Entity 119",
+    "grantNumber": "H80CS00119",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000025",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00119"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 119",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5119,
+    "name": "Covered Entity 120",
+    "grantNumber": "H80CS00120",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000525",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00120"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5120,
+    "name": "Covered Entity 121",
+    "grantNumber": "H80CSX0001",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000026",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00121"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 121",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5121,
+    "name": "Covered Entity 122",
+    "grantNumber": "H80CSX0002",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000526",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00122"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5122,
+    "name": "Covered Entity 123",
+    "grantNumber": "H80CSX0003",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000027",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00123"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 123",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5123,
+    "name": "Covered Entity 124",
+    "grantNumber": "H80CSX0004",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000527",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00124"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5124,
+    "name": "Covered Entity 125",
+    "grantNumber": "H80CSX0005",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000028",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00125"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 125",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5125,
+    "name": "Covered Entity 126",
+    "grantNumber": "H80CSX0006",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000528",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00126"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5126,
+    "name": "Covered Entity 127",
+    "grantNumber": "H80CSX0007",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000029",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00127"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 127",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5127,
+    "name": "Covered Entity 128",
+    "grantNumber": "H80CSX0008",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000529",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00128"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5128,
+    "name": "Covered Entity 129",
+    "grantNumber": "H80CSX0009",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000030",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00129"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 129",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5129,
+    "name": "Covered Entity 130",
+    "grantNumber": "H80CSX0010",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000530",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00130"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5130,
+    "name": "Covered Entity 131",
+    "grantNumber": "H80CSX0011",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 10",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000031",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00131"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 131",
+        "city": "City 10"
+      }
+    ]
+  },
+  {
+    "ceId": 5131,
+    "name": "Covered Entity 132",
+    "grantNumber": "H80CSX0012",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 11",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000531",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00132"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5132,
+    "name": "Covered Entity 133",
+    "grantNumber": "H80CSX0013",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 12",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000032",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00133"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 133",
+        "city": "City 12"
+      }
+    ]
+  },
+  {
+    "ceId": 5133,
+    "name": "Covered Entity 134",
+    "grantNumber": "H80CSX0014",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 13",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000532",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00134"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5134,
+    "name": "Covered Entity 135",
+    "grantNumber": "H80CSX0015",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 14",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000033",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00135"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 135",
+        "city": "City 14"
+      }
+    ]
+  },
+  {
+    "ceId": 5135,
+    "name": "Covered Entity 136",
+    "grantNumber": "H80CSX0016",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 15",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000533",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00136"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5136,
+    "name": "Covered Entity 137",
+    "grantNumber": "H80CSX0017",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 16",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000034",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00137"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 137",
+        "city": "City 16"
+      }
+    ]
+  },
+  {
+    "ceId": 5137,
+    "name": "Covered Entity 138",
+    "grantNumber": "H80CSX0018",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 17",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000534",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00138"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5138,
+    "name": "Covered Entity 139",
+    "grantNumber": "H80CSX0019",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 18",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000035",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00139"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 139",
+        "city": "City 18"
+      }
+    ]
+  },
+  {
+    "ceId": 5139,
+    "name": "Covered Entity 140",
+    "grantNumber": "H80CSX0020",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 19",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000535",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00140"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5140,
+    "name": "Covered Entity 141",
+    "grantNumber": "H80CSX0021",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 0",
+      "state": "MA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000036",
+        "npiState": "MA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00141"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 141",
+        "city": "City 0"
+      }
+    ]
+  },
+  {
+    "ceId": 5141,
+    "name": "Covered Entity 142",
+    "grantNumber": "H80CSX0022",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 1",
+      "state": "NY"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000536",
+        "npiState": "NY"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00142"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5142,
+    "name": "Covered Entity 143",
+    "grantNumber": "H80CSX0023",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 2",
+      "state": "TX"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000037",
+        "npiState": "TX"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00143"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 143",
+        "city": "City 2"
+      }
+    ]
+  },
+  {
+    "ceId": 5143,
+    "name": "Covered Entity 144",
+    "grantNumber": "H80CSX0024",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 3",
+      "state": "CA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000537",
+        "npiState": "CA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00144"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5144,
+    "name": "Covered Entity 145",
+    "grantNumber": "H80CSX0025",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 4",
+      "state": "FL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000038",
+        "npiState": "FL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00145"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 145",
+        "city": "City 4"
+      }
+    ]
+  },
+  {
+    "ceId": 5145,
+    "name": "Covered Entity 146",
+    "grantNumber": "H80CSX0026",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 5",
+      "state": "WA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000538",
+        "npiState": "WA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00146"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5146,
+    "name": "Covered Entity 147",
+    "grantNumber": "H80CSX0027",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 6",
+      "state": "IL"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000039",
+        "npiState": "IL"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00147"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 147",
+        "city": "City 6"
+      }
+    ]
+  },
+  {
+    "ceId": 5147,
+    "name": "Covered Entity 148",
+    "grantNumber": "H80CSX0028",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 7",
+      "state": "GA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000539",
+        "npiState": "GA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00148"
+      }
+    ],
+    "contractPharmacies": []
+  },
+  {
+    "ceId": 5148,
+    "name": "Covered Entity 149",
+    "grantNumber": "H80CSX0029",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 8",
+      "state": "OH"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000040",
+        "npiState": "OH"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00149"
+      }
+    ],
+    "contractPharmacies": [
+      {
+        "pharmacyName": "Pharmacy 149",
+        "city": "City 8"
+      }
+    ]
+  },
+  {
+    "ceId": 5149,
+    "name": "Covered Entity 150",
+    "grantNumber": "H80CSX0030",
+    "participating": true,
+    "streetAddress": {
+      "city": "City 9",
+      "state": "PA"
+    },
+    "npiNumbers": [
+      {
+        "npiNumber": "100000540",
+        "npiState": "PA"
+      }
+    ],
+    "medicaidNumbers": [
+      {
+        "medicaidNumber": "MA-00150"
+      }
+    ],
+    "contractPharmacies": []
+  }
+]

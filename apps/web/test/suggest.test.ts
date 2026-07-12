@@ -330,3 +330,69 @@ describe("buildSetTypePlan", () => {
     });
   });
 });
+
+/* PR-5 (GAP E): an N:M grain must be scaffolded as a junction table (composite PK, one 1:N
+ * per side), never a direct N:M edge. */
+describe("buildApplyPlan N:M junction scaffolding", () => {
+  // Both sides repeat: students take many courses, courses have many students.
+  const students = statSource("s-st", "students.csv", "course_code", ["C1", "C2", "C3"], {
+    nonEmpty: 9,
+    distinct: 3,
+    blank: 0,
+  });
+  const courses = statSource("s-co", "courses.csv", "course_code", ["C1", "C2", "C3"], {
+    nonEmpty: 8,
+    distinct: 3,
+    blank: 0,
+  });
+
+  it("emits a junction table with composite PK and two 1:N relationships", () => {
+    const candidate = onlyCandidate([students, courses]);
+    expect(candidate.grain).toBe("N:M");
+
+    const plan = buildApplyPlan([students, courses], emptySchema(), candidate);
+    if (!plan.ok) {
+      throw new Error(plan.error);
+    }
+
+    // Both entity tables plus the junction get built.
+    expect(plan.builtTables).toEqual(["students", "courses", "students_courses"]);
+
+    const ops = plan.actions as Array<Record<string, unknown>>;
+    const junctionAdd = ops.find(
+      (action) => action["op"] === "add_table" && action["name"] === "students_courses",
+    );
+    // Same field name on both sides — the junction de-collides its two key columns.
+    expect(junctionAdd?.["fields"]).toEqual([
+      { name: "course_code", type: "int", fk: true },
+      { name: "course_code_2", type: "int", fk: true },
+    ]);
+
+    const setPks = ops.filter(
+      (action) => action["op"] === "set_pk" && action["table"] === "students_courses",
+    );
+    expect(setPks.map((action) => action["field"])).toEqual(["course_code", "course_code_2"]);
+
+    const relationships = ops.filter((action) => action["op"] === "add_relationship");
+    expect(relationships).toEqual([
+      {
+        op: "add_relationship",
+        from_table: "students",
+        from_field: "course_code",
+        to_table: "students_courses",
+        to_field: "course_code",
+        cardinality: "1:N",
+      },
+      {
+        op: "add_relationship",
+        from_table: "courses",
+        from_field: "course_code",
+        to_table: "students_courses",
+        to_field: "course_code_2",
+        cardinality: "1:N",
+      },
+    ]);
+    // No direct N:M edge between the entity tables.
+    expect(relationships.some((action) => action["cardinality"] === "N:M")).toBe(false);
+  });
+});
