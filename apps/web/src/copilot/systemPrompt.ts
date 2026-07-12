@@ -60,14 +60,28 @@ function clipValue(value: string): string {
 }
 
 function summarizeSources(sources: Source[]) {
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
+
   return sources.map((source) => {
     const omitted = source.fields.length - MAX_PROMPT_FIELDS_PER_SOURCE;
+    const parentName = source.derivedFrom
+      ? (sourceById.get(source.derivedFrom.parentId)?.name ?? source.derivedFrom.parentId)
+      : undefined;
 
     return {
       name: source.name,
       kind: source.kind,
       // Full file size (not capped at the scan window) so the model can weigh sample coverage.
       ...(source.rowCount !== undefined ? { rows: source.rowCount } : {}),
+      // Lineage channel: this source was unnested from a parent's array field. The surrogate
+      // link below is structural (excluded from the value-overlap detectors) — the model must
+      // model it as a child→parent FK from this lineage, not rediscover it by overlap.
+      ...(source.derivedFrom && parentName !== undefined
+        ? {
+            derived_from: { parent: parentName, arrayField: source.derivedFrom.arrayField },
+            link: `${source.name}._parentId → ${parentName}._rowId`,
+          }
+        : {}),
       fields: source.fields.slice(0, MAX_PROMPT_FIELDS_PER_SOURCE).map((field) => ({
         name: field.name,
         type: field.type,

@@ -48,6 +48,10 @@ import type { Source } from "./types.js";
 /** @deprecated Use Source */
 export type ParsedSource = Source;
 
+/**
+ * Parse one file into its sources. CSV/XLSX always yield a single-element array; JSON yields
+ * the parent record set first, then one child source per top-level array-of-objects field.
+ */
 export function parseSource(
   input: {
     name: string;
@@ -55,13 +59,13 @@ export function parseSource(
     content: string | ArrayBuffer | Uint8Array;
   },
   opts?: ParseOptions,
-): Source {
+): Source[] {
   switch (input.kind) {
     case "csv":
       if (typeof input.content !== "string") {
         throw new Error("CSV content must be a string");
       }
-      return parseCsv(input.content, input.name, opts);
+      return [parseCsv(input.content, input.name, opts)];
     case "json":
       if (typeof input.content !== "string") {
         throw new Error("JSON content must be a string");
@@ -71,6 +75,6 @@ export function parseSource(
       if (typeof input.content === "string") {
         throw new Error("XLSX content must be an ArrayBuffer or Uint8Array");
       }
-      return parseXlsx(input.content, input.name, opts);
+      return [parseXlsx(input.content, input.name, opts)];
   }
 }

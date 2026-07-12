@@ -263,6 +263,11 @@ export function detectPrimaryKeys(
 
   for (const source of sources) {
     for (const field of source.fields) {
+      // A synthetic surrogate (`_rowId`) is trivially unique and name-ranks above real keys —
+      // it must never be presented as a source's primary-key candidate.
+      if (field.synthetic) {
+        continue;
+      }
       const stats = field.stats;
       if (!stats || stats.nonEmpty < minRows || stats.blank > 0) {
         continue;
@@ -345,7 +350,7 @@ export function detectValueSets(sources: Source[], options?: ValueSetOptions): V
   for (const source of sources) {
     for (const field of source.fields) {
       const stats = field.stats;
-      if (field.type === "bool" || !stats || stats.nonEmpty < minRows) {
+      if (field.synthetic || field.type === "bool" || !stats || stats.nonEmpty < minRows) {
         continue;
       }
       if (stats.distinct > maxDistinct || stats.distinct / stats.nonEmpty > maxRatio) {
@@ -381,6 +386,8 @@ export function detectValueSets(sources: Source[], options?: ValueSetOptions): V
 
 type TupleColumnView = {
   name: string;
+  /** Parser-injected surrogate — never key/FD evidence. */
+  synthetic: boolean;
   /** The column's cell per sampled row, aligned with every other view's `values`. */
   values: string[];
   /** Sample-window stats over `values` (null-token-aware, via the shared helper). */
@@ -404,6 +411,7 @@ function tupleColumnViews(source: Source, rows: string[][]): TupleColumnView[] {
     const stats = collectStats(values);
     return {
       name: field.name,
+      synthetic: field.synthetic === true,
       values,
       stats,
       distinctRatio: stats.distinct / rows.length,
@@ -474,6 +482,7 @@ export function detectCompositeKeys(
     const columns = tupleColumnViews(source, rows).map((column) => ({
       ...column,
       eligible:
+        !column.synthetic &&
         column.stats.blank === 0 &&
         column.stats.distinct < column.stats.nonEmpty &&
         column.windowBlankFree &&
@@ -597,13 +606,16 @@ export function detectFunctionalDependencies(
       // A determinant must actually group rows: non-blank, repeating in the sample, and not
       // near-unique over the full scan window (same reasoning as the composite-key gate).
       canDetermine:
+        !column.synthetic &&
         column.stats.blank === 0 &&
         column.stats.distinct < column.stats.nonEmpty &&
         column.windowDuplicated,
       // A dependent must vary (a constant column is trivially determined by anything) and be
       // populated enough that skipping its blank cells still leaves real evidence.
       canDepend:
-        column.stats.distinct > 1 && column.stats.blank <= rows.length * MAX_DEPENDENT_BLANK_RATIO,
+        !column.synthetic &&
+        column.stats.distinct > 1 &&
+        column.stats.blank <= rows.length * MAX_DEPENDENT_BLANK_RATIO,
     }));
 
     const sourceCandidates: Array<FunctionalDependencyCandidate & { score: number }> = [];
@@ -793,6 +805,9 @@ export function detectSemanticTypes(
 
   for (const source of sources) {
     for (const field of source.fields) {
+      if (field.synthetic) {
+        continue;
+      }
       const values = fieldValues(field).filter((value) => value.trim() !== "");
       if (values.length < minValues) {
         continue;
@@ -864,7 +879,13 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
       }
 
       for (const leftField of leftSource.fields) {
+        if (leftField.synthetic) {
+          continue;
+        }
         for (const rightField of rightSource.fields) {
+          if (rightField.synthetic) {
+            continue;
+          }
           const left = setsFor(leftField);
           const right = setsFor(rightField);
           const rawOverlap = jaccard(left.raw, right.raw);

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_JOIN_VALUES, MAX_SCAN_ROWS, collectJoinValues, parseCsv } from "../src/index.js";
+import {
+  MAX_JOIN_VALUES,
+  MAX_SCAN_ROWS,
+  collectJoinValues,
+  parseCsv,
+  parseJson,
+} from "../src/index.js";
 
 /**
  * PR-0 (GAP 0): the 1000-row scan cap bounds display samples and stats, but join *discovery*
@@ -26,6 +32,14 @@ describe("wide join-discovery pass (joinValues)", () => {
   it("omits joinValues when the scan window already saw every row", () => {
     const source = parseCsv(bigCsv(500), "small.csv");
     expect(source.fields[0]?.joinValues).toBeUndefined();
+  });
+
+  it("captures wide join values for JSON scalar columns", () => {
+    const records = Array.from({ length: 3000 }, (_, i) => ({ code: `c${i}` }));
+    const [source] = parseJson(JSON.stringify(records), "big.json");
+
+    expect(source?.fields[0]?.joinValues?.length).toBe(3000);
+    expect(source?.fields[0]?.distinctValues?.length).toBeLessThanOrEqual(MAX_SCAN_ROWS);
   });
 
   it("collectJoinValues dedupes, skips null tokens, and respects the ceiling", () => {

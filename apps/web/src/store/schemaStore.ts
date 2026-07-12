@@ -70,6 +70,8 @@ export type SchemaStore = {
   resizeTable: (tableId: string, width: number) => void;
 
   addSource: (source: Source) => void;
+  /** Add several sources (e.g. a JSON parent + its unnested children) as ONE undo step. */
+  addSources: (sources: Source[]) => void;
   removeSource: (sourceId: string) => void;
 
   appendChatMessages: (messages: ChatMessage[]) => void;
@@ -492,6 +494,17 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         addSource: (source) => {
           commitSnapshot((draft) => {
             draft.sources.push(source);
+          });
+        },
+
+        addSources: (sources) => {
+          if (sources.length === 0) {
+            return;
+          }
+          // One snapshot for the whole batch: a JSON file that unnests into N+1 sources must
+          // be one undo step, not N+1.
+          commitSnapshot((draft) => {
+            draft.sources.push(...sources);
           });
         },
 
