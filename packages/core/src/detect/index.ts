@@ -1003,7 +1003,7 @@ export function classifyRelationship(input: ClassifyRelationshipInput): Relation
     if (input.bothSidesKeyEntity) {
       return {
         verdict: "shared_parent",
-        reason: `both columns key the same entity (each determines its own file's attributes for it) and ${pct}% of the ${fkSide} side's keys resolve — neither file is the parent: extract that entity as its own table keyed by the shared column, then give each source a 1:N FK into it. Do NOT draw a direct edge between the two sources.${normalizeNote}`,
+        reason: `both columns key the same entity (each determines its own file's attributes for it) and ${pct}% of the ${fkSide} side's keys resolve — neither file is the parent: extract that entity as its own table keyed by the shared column, or reuse the existing table if one already models it, then give each source a 1:N FK into it. Do NOT draw a direct edge between the two sources, and do NOT add a second table for an entity already on the canvas.${normalizeNote}`,
       };
     }
     return {
@@ -1052,11 +1052,24 @@ function fieldKey(sourceId: string, field: string): string {
  * with no blanks, which is exactly when `keyRole` already returns "unique" — adding them would be
  * a no-op that costs a full `detectPrimaryKeys` pass.
  *
- * A determinant must also be *high-cardinality*. `detectFunctionalDependencies` has no
- * distinctness floor, so `state` (30 values, determining `state_name`) qualifies as a determinant
- * — but it is a lookup/enum, not an entity whose key should flip a join's grain. Reuse the
- * value-set cardinality ceiling: below it, the column is a closed value set, and an incidental
- * enum match must not be promoted to an FK.
+ * A determinant must also look like an *entity key* rather than a lookup/enum, because
+ * `detectFunctionalDependencies` has no distinctness floor: a `state` column determining
+ * `state_name` is a perfectly good determinant, but promoting it makes an incidental state-code
+ * match between two address blocks read as a relationship between the files.
+ *
+ * An absolute cardinality floor cannot express that distinction — a US-state column has ~50
+ * distinct values, as many as a small entity table. The signal is the determinant's *repeat
+ * ratio* within its own scan window (`groups / rows`; `nonEmpty === rows` because `canDetermine`
+ * requires zero blanks). An entity key is near-unique per row and only repeats because the file
+ * is denormalized; an enum repeats because its value space is closed. Measured on the real
+ * 18,855-row HRSA export, sampled at `MAX_ROW_TUPLES`:
+ *
+ *   Health Center Number  167 groups / 200 rows = 0.835   ← entity key
+ *   Site State Abbreviation 46 groups / 200 rows = 0.230   ← enum
+ *
+ * `DEFAULT_MAX_RATIO` (the ceiling `detectValueSets` already uses to call a column a closed value
+ * set) separates them. The absolute floor is kept as a guard for small windows, where a couple of
+ * repeats can push a tiny value set over the ratio.
  *
  * `functionalDependencies` may be passed in by a caller that already computed them —
  * `detectFunctionalDependencies` is the most expensive detector (O(columns² × sampled rows)).
@@ -1068,7 +1081,8 @@ function entityKeyFields(
   const keys = new Set<string>();
   const fds = functionalDependencies ?? detectFunctionalDependencies(sources);
   for (const candidate of fds) {
-    if (candidate.groups > DEFAULT_MAX_DISTINCT) {
+    const repeatRatio = candidate.rows === 0 ? 0 : candidate.groups / candidate.rows;
+    if (candidate.groups > DEFAULT_MAX_DISTINCT && repeatRatio > DEFAULT_MAX_RATIO) {
       keys.add(fieldKey(candidate.sourceId, candidate.determinant));
     }
   }

@@ -257,6 +257,11 @@ const DESIGN_DOCTRINE = `How to design the schema — model entities, not files:
   the other's parent — they share one entity (verdict "shared_parent"). Extract it as its own
   table keyed by that column and give each source a 1:N FK into it. A direct edge between the
   two sources would be wrong in either direction.
+- A shared_parent entity is often ALREADY on the canvas — a normalization split of one source
+  commonly extracts it before the cross-source link is considered. Check first: if a table
+  already models that entity (same key column, same identity), reuse it and add the missing 1:N
+  FK. Do not add a second table for it — two tables with the same grain and identity is the
+  duplicate-entity mistake, whichever step created them.
 - Warn about normalization proportionally: the findings quantify each normalizer's marginal
   gain (e.g. "+39 matches"). A small gain against thousands of shared values is a footnote, not
   a blocker — do not report a coverage gap as a formatting problem.

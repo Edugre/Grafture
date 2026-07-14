@@ -837,36 +837,43 @@ describe("schema-aware grain", () => {
   });
 
   // 16 orgs: an entity key must clear the value-set cardinality ceiling (12), so an 8-value
-  // determinant would (correctly) read as an enum rather than an entity.
-  const orgIds = Array.from({ length: 16 }, (_, i) => `H8${i}`);
+  // An entity key is near-unique per row and repeats only because the file is denormalized. The
+  // fixture mirrors the REAL cardinality the detector sees on the 18,855-row HRSA export, where
+  // `Health Center Number` is 167 groups / 200 sampled rows = 0.835: here, 32 orgs across 40 rows
+  // (8 of them appearing twice) = 0.8. An earlier 16-orgs-over-48-rows fixture sat at 0.33 —
+  // below a US-state column's real ratio — and so could not tell an entity key from an enum.
+  const orgIds = Array.from({ length: 32 }, (_, i) => `H8${i}`);
+  const ORG_ROWS = 40;
 
-  /** The denormalized HRSA CSV: the org key repeats once per site and determines the org columns. */
+  /** The denormalized HRSA CSV: the org key repeats across sites and determines the org columns. */
   function hrsaSource(): Source {
     const rows: string[][] = [];
     for (const [i, orgId] of orgIds.entries()) {
-      for (let site = 0; site < 3; site += 1) {
-        rows.push([orgId, `Org ${i}`]);
-      }
+      rows.push([orgId, `Org ${i}`]);
+    }
+    // Eight orgs carry a second site, so the determinant repeats without becoming an enum.
+    for (let i = 0; i < ORG_ROWS - orgIds.length; i += 1) {
+      rows.push([orgIds[i] as string, `Org ${i}`]);
     }
     return {
       id: "h",
       name: "hrsa.csv",
       kind: "csv",
-      rowCount: 48,
+      rowCount: ORG_ROWS,
       fields: [
         {
           name: "Health Center Number",
           type: "text",
           samples: orgIds.slice(0, 5),
           distinctValues: orgIds,
-          stats: { nonEmpty: 48, distinct: 16, blank: 0 },
+          stats: { nonEmpty: ORG_ROWS, distinct: orgIds.length, blank: 0 },
         },
         {
           name: "Grantee Org Name",
           type: "text",
           samples: ["Org 0"],
           distinctValues: orgIds.map((_, i) => `Org ${i}`),
-          stats: { nonEmpty: 48, distinct: 16, blank: 0 },
+          stats: { nonEmpty: ORG_ROWS, distinct: orgIds.length, blank: 0 },
         },
       ],
       sampleRows: rows,
@@ -883,7 +890,7 @@ describe("schema-aware grain", () => {
         type: "text",
         samples: orgIds.slice(0, 5),
         distinctValues: orgIds,
-        stats: { nonEmpty: 40, distinct: 16, blank: 0 },
+        stats: { nonEmpty: 80, distinct: orgIds.length, blank: 0 },
       },
     ]);
 
@@ -903,29 +910,30 @@ describe("schema-aware grain", () => {
     // repeat — they key the SAME entity. Promoting both would fabricate a 1:1.
     const opaisRows: string[][] = [];
     for (const [i, orgId] of orgIds.entries()) {
-      for (let entity = 0; entity < 3; entity += 1) {
-        opaisRows.push([orgId, `Grant ${i}`]);
-      }
+      opaisRows.push([orgId, `Grant ${i}`]);
+    }
+    for (let i = 0; i < ORG_ROWS - orgIds.length; i += 1) {
+      opaisRows.push([orgIds[i] as string, `Grant ${i}`]);
     }
     const opais: Source = {
       id: "o",
       name: "opais.json",
       kind: "json",
-      rowCount: 48,
+      rowCount: ORG_ROWS,
       fields: [
         {
           name: "grantNumber",
           type: "text",
           samples: orgIds.slice(0, 5),
           distinctValues: orgIds,
-          stats: { nonEmpty: 48, distinct: 16, blank: 0 },
+          stats: { nonEmpty: ORG_ROWS, distinct: orgIds.length, blank: 0 },
         },
         {
           name: "grantName",
           type: "text",
           samples: ["Grant 0"],
           distinctValues: orgIds.map((_, i) => `Grant ${i}`),
-          stats: { nonEmpty: 48, distinct: 16, blank: 0 },
+          stats: { nonEmpty: ORG_ROWS, distinct: orgIds.length, blank: 0 },
         },
       ],
       sampleRows: opaisRows,
@@ -938,6 +946,57 @@ describe("schema-aware grain", () => {
     expect(candidate?.grain).toBe("N:M");
     expect(candidate?.verdict).toBe("shared_parent");
     expect(candidate?.verdictReason).toContain("key the same entity");
+  });
+
+  it("does not treat a REAL ~50-value state column as an entity key (geographic enum)", () => {
+    // The case an absolute cardinality floor cannot catch: a US-state column has ~50 distinct
+    // values — as many as a small entity table — and determines state_name/region, so it is a
+    // genuine FD determinant. On the real HRSA export `Site State Abbreviation` is 46 groups over
+    // 200 sampled rows (ratio 0.23), and both HRSA and OPAIS carry such address blocks. Promoting
+    // them makes an incidental state-code match read as a relationship between the two files.
+    const states = Array.from({ length: 50 }, (_, i) => `S${i}`);
+    /** 50 states across 200 rows = ratio 0.25, matching the real column. */
+    function addressBlock(id: string, name: string, dependent: string): Source {
+      const rows: string[][] = [];
+      for (let i = 0; i < 200; i += 1) {
+        const code = states[i % states.length] as string;
+        rows.push([code, `${code} ${dependent}`]);
+      }
+      return {
+        id,
+        name,
+        kind: "csv",
+        rowCount: 200,
+        fields: [
+          {
+            name: "state",
+            type: "text",
+            samples: states.slice(0, 5),
+            distinctValues: states,
+            stats: { nonEmpty: 200, distinct: 50, blank: 0 },
+          },
+          {
+            name: dependent,
+            type: "text",
+            samples: [`S0 ${dependent}`],
+            distinctValues: states.map((code) => `${code} ${dependent}`),
+            stats: { nonEmpty: 200, distinct: 50, blank: 0 },
+          },
+        ],
+        sampleRows: rows,
+      };
+    }
+
+    const candidate = detectJoinKeys([
+      addressBlock("l", "hrsa_sites.csv", "state_name"),
+      addressBlock("r", "opais_entities.json", "region"),
+    ]).find((entry) => entry.left.field === "state" && entry.right.field === "state");
+
+    // Both sides are determinants with identical key spaces. Before the repeat-ratio gate both
+    // were promoted to entity keys, so this pair read as a spurious "extract a shared state
+    // entity". It is an enum match: neither side keys an entity.
+    expect(candidate?.verdict).not.toBe("shared_parent");
+    expect(candidate?.grain).toBe("N:M");
   });
 
   it("does not treat a low-cardinality determinant as an entity key (enum floor)", () => {
@@ -1108,6 +1167,11 @@ describe("classifyRelationship", () => {
 
     expect(result.verdict).toBe("shared_parent");
     expect(result.reason).toContain("extract that entity");
+    // The entity is often ALREADY on the canvas — a normalization split of one source commonly
+    // extracts it before the cross-source link is considered. `classifyRelationship` is pure and
+    // per-pair, so it cannot check canvas state: the reuse guard has to live in the instruction.
+    expect(result.reason).toContain("reuse the existing table");
+    expect(result.reason).toContain("do NOT add a second table");
   });
 });
 
