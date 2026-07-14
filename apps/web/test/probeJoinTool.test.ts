@@ -1,4 +1,4 @@
-import type { Source } from "@grafture/core";
+import type { Schema, Source } from "@grafture/core";
 import { describe, expect, it } from "vitest";
 
 import { PROBE_JOIN_TOOL, runProbeJoin } from "../src/copilot/probeJoinTool.js";
@@ -13,11 +13,12 @@ const sources: Source[] = [
         name: "npi",
         type: "text",
         samples: ["001", "002"],
-        distinctValues: ["001", "002", "003"],
-        stats: { nonEmpty: 3, distinct: 3, blank: 0 },
+        // Four rows: below MIN_STATS_ROWS the grain is "unknown" and no FK can be certified.
+        distinctValues: ["001", "002", "003", "004"],
+        stats: { nonEmpty: 4, distinct: 4, blank: 0 },
       },
     ],
-    rowCount: 3,
+    rowCount: 4,
   },
   {
     id: "p",
@@ -54,10 +55,72 @@ describe("probe_join tool", () => {
       right_field: "npi_number",
     });
 
-    // "001".."003" ⊆ "1".."6" after leading-zero stripping: containment 100% on the left.
-    expect(out).toContain("shared values (normalized): 3");
+    // "001".."004" ⊆ "1".."6" after leading-zero stripping: containment 100% on the left.
+    expect(out).toContain("shared values (normalized): 4");
     expect(out).toContain("100% of left values appear on the right");
     expect(out).toContain("strip leading zeros");
+    // PR-7: the classifier's modeling decision travels with the raw figures.
+    expect(out).toContain("verdict: enforced_fk");
+  });
+
+  it("judges grain against a canvas PK when the schema is passed (GAP F)", () => {
+    // Both flat columns repeat → stats-only grain is N:M; the canvas says the left column
+    // is a modeled table's PK, so the probe resolves it to the "one" side.
+    const repeated = ["H1", "H1", "H2", "H2", "H3", "H3"];
+    const flatSources: Source[] = [
+      {
+        id: "h",
+        name: "hrsa.csv",
+        kind: "csv",
+        fields: [
+          {
+            name: "Health Center Number",
+            type: "text",
+            samples: repeated.slice(0, 5),
+            distinctValues: ["H1", "H2", "H3"],
+            stats: { nonEmpty: 6, distinct: 3, blank: 0 },
+          },
+        ],
+      },
+      {
+        id: "o",
+        name: "opais.json",
+        kind: "json",
+        fields: [
+          {
+            name: "grantNumber",
+            type: "text",
+            samples: repeated.slice(0, 5),
+            distinctValues: ["H1", "H2", "H3"],
+            stats: { nonEmpty: 8, distinct: 3, blank: 0 },
+          },
+        ],
+      },
+    ];
+    const schema: Schema = {
+      tables: [
+        {
+          id: "t1",
+          name: "organization",
+          x: 0,
+          y: 0,
+          fields: [{ id: "f1", name: "health_center_number", type: "text", pk: true, fk: false }],
+        },
+      ],
+      relationships: [],
+    };
+    const input = {
+      left_source: "hrsa.csv",
+      left_field: "Health Center Number",
+      right_source: "opais.json",
+      right_field: "grantNumber",
+    };
+
+    expect(runProbeJoin(flatSources, input)).toContain("inferred grain: N:M");
+
+    const withSchema = runProbeJoin(flatSources, input, schema);
+    expect(withSchema).toContain("inferred grain: 1:N");
+    expect(withSchema).toContain("keys a modeled entity");
   });
 
   it("returns a self-correction error naming the valid sources", () => {

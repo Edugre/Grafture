@@ -326,7 +326,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
       return runInspectSource(sources, args);
     }
     if (call.function.name === PROBE_JOIN_TOOL.name) {
-      return runProbeJoin(sources, args);
+      return runProbeJoin(sources, args, schema);
     }
     return `error: unknown tool "${call.function.name}".`;
   }

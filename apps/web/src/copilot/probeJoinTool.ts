@@ -1,4 +1,4 @@
-import type { Source } from "@grafture/core";
+import type { Schema, Source } from "@grafture/core";
 import { probeJoin } from "@grafture/core";
 
 /**
@@ -12,7 +12,7 @@ import { probeJoin } from "@grafture/core";
 export const PROBE_JOIN_TOOL = {
   name: "probe_join",
   description:
-    "Probe a hypothesized join between two source columns: returns their live shared-value count, Jaccard overlap, directional containment (high one-way containment = FK shape: the contained side is the FK side), inferred grain, and any normalization needed (e.g. strip leading zeros) before they match. Use it to VERIFY a join you suspect from names or semantics, or to REJECT a look-alike join, before emitting relationship actions. Read-only. Figures are computed over the widest value sets captured at upload; if a source was reloaded from a saved project the probe notes reduced fidelity (re-upload the file for full-file figures).",
+    "Probe a hypothesized join between two source columns: returns their live shared-value count, Jaccard overlap, directional containment (high one-way containment = FK shape: the contained side is the FK side), inferred grain, a relationship verdict (enforced_fk | nullable_fk | junction | shared_parent | not_valid_fk | no_link) with its justification, and any normalization needed (e.g. strip leading zeros) before they match. Grain is judged against the modeled entity: a column that keys a proposed table (a PK on the canvas, or a detected key of a normalization split) counts as the 'one' side even when the flat file repeats it — unless the other side is genuinely unique, which makes it the parent. When BOTH columns key an entity and both repeat, they key the same entity: the verdict is shared_parent (extract that entity; FK both sources into it). Use it to VERIFY a join you suspect from names or semantics, or to REJECT a look-alike join, before emitting relationship actions — it is most valuable on pairs the detector findings do NOT already list, since for a listed pair it recomputes the same figures. Read-only. Figures are computed over the widest value sets captured at upload; if a source was reloaded from a saved project the probe notes reduced fidelity (re-upload the file for full-file figures).",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -42,17 +42,22 @@ const asPercent = (ratio: number): string => `${Math.round(ratio * 100)}%`;
 /**
  * Run a `probe_join` tool call against the live sources. Pure and read-only. Returns an error
  * string (not a throw) so the tool result can be handed straight back to the model, including
- * the valid names so it can self-correct a typo on the next call.
+ * the valid names so it can self-correct a typo on the next call. The canvas schema (when
+ * passed) makes the grain schema-aware: a probed column already marked pk resolves to "one".
  */
-export function runProbeJoin(sources: Source[], input: unknown): string {
+export function runProbeJoin(sources: Source[], input: unknown, schema?: Schema): string {
   const record =
     typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
   const str = (key: string): string => (typeof record[key] === "string" ? record[key] : "");
 
-  const result = probeJoin(sources, {
-    left: { source: str("left_source"), field: str("left_field") },
-    right: { source: str("right_source"), field: str("right_field") },
-  });
+  const result = probeJoin(
+    sources,
+    {
+      left: { source: str("left_source"), field: str("left_field") },
+      right: { source: str("right_source"), field: str("right_field") },
+    },
+    schema ? { schema } : undefined,
+  );
 
   if (!result.ok) {
     return `probe_join error: ${result.error}`;
@@ -67,7 +72,17 @@ export function runProbeJoin(sources: Source[], input: unknown): string {
     `distinct values: left ${result.leftDistinct}, right ${result.rightDistinct}`,
     `jaccard overlap: raw ${asPercent(result.rawOverlap)}, normalized ${asPercent(result.normalizedOverlap)}`,
     `containment: ${asPercent(result.containmentLeft)} of left values appear on the right; ${asPercent(result.containmentRight)} of right values appear on the left`,
-    `inferred grain: ${result.grain}`,
+    `inferred grain: ${result.grain}${
+      result.leftIsEntityKey || result.rightIsEntityKey
+        ? ` (${[
+            ...(result.leftIsEntityKey ? [leftLabel] : []),
+            ...(result.rightIsEntityKey ? [rightLabel] : []),
+          ].join(
+            " and ",
+          )} keys a modeled entity — grain is judged against that entity, not flat-file repeats)`
+        : ""
+    }`,
+    `verdict: ${result.verdict} — ${result.verdictReason}`,
     result.formatMismatch
       ? `normalization needed before joining: ${result.formatMismatch.note}`
       : "no normalization needed",

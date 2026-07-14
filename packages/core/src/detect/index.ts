@@ -1,3 +1,4 @@
+import type { Schema } from "../model.js";
 import type { FieldStats, Source, SourceField } from "../parse/types.js";
 import { collectStats, isNullToken, MAX_SCAN_ROWS } from "../parse/sample.js";
 
@@ -22,7 +23,13 @@ export type FormatIssue = "whitespace" | "case_mismatch" | "leading_zeros" | "nu
 export type FormatMismatch = {
   /** Which normalizations are needed before the two columns will match. */
   issues: FormatIssue[];
-  /** Human-readable summary, e.g. "strip leading zeros before joining". */
+  /**
+   * Marginal shared-value gain per normalizer step, so a consumer can warn *proportionally*:
+   * "+3 of 14,000 matches" is a coverage gap, not a formatting problem. Type-only issues
+   * (`numeric_vs_text`) carry no count.
+   */
+  gains: Partial<Record<FormatIssue, number>>;
+  /** Human-readable summary, e.g. "strip leading zeros (+39 matches)". */
   note: string;
 };
 
@@ -55,8 +62,18 @@ export type JoinKeyCandidate = {
   /** True when normalization meaningfully increases the overlap. */
   requiresNormalization: boolean;
   formatMismatch: FormatMismatch | null;
-  /** Relationship grain inferred from per-side value uniqueness. */
+  /**
+   * How key-like the FK (more-contained) side is: its distinct values as a share of its own
+   * table's rows, [0, 1]. Near 1 for a real key, near 0 for an enum whose values are shared only
+   * because its value space is closed. This is what ranks candidates — see `candidateStrength`.
+   */
+  fkSideKeyness: number;
+  /** Relationship grain, judged against the modeled entity when a side keys one (GAP F). */
   grain: Grain;
+  /** Modeling decision derived from containment/grain/blanks — see `classifyRelationship`. */
+  verdict: RelationshipVerdict;
+  /** Human-readable justification for the verdict. */
+  verdictReason: string;
 };
 
 export type PrimaryKeyCandidate = {
@@ -189,14 +206,18 @@ export function detectFormatMismatch(left: SourceField, right: SourceField): For
   }
 
   const issues: FormatIssue[] = [];
+  const gains: Partial<Record<FormatIssue, number>> = {};
   if (trimmed > raw) {
     issues.push("whitespace");
+    gains.whitespace = trimmed - raw;
   }
   if (lowered > trimmed) {
     issues.push("case_mismatch");
+    gains.case_mismatch = lowered - trimmed;
   }
   if (full > lowered) {
     issues.push("leading_zeros");
+    gains.leading_zeros = full - lowered;
   }
   if (isNumericType(left) !== isNumericType(right)) {
     issues.push("numeric_vs_text");
@@ -208,7 +229,15 @@ export function detectFormatMismatch(left: SourceField, right: SourceField): For
 
   return {
     issues,
-    note: issues.map((issue) => ISSUE_NOTES[issue]).join("; "),
+    gains,
+    note: issues
+      .map((issue) => {
+        const gained = gains[issue];
+        return gained === undefined
+          ? ISSUE_NOTES[issue]
+          : `${ISSUE_NOTES[issue]} (+${gained} match${gained === 1 ? "" : "es"})`;
+      })
+      .join("; "),
   };
 }
 
@@ -228,12 +257,49 @@ function keyRole(field: SourceField): KeyRole {
 }
 
 /**
- * Infer the grain of a join between two columns from each side's uniqueness. A unique side is
- * the "one"; a side with duplicates is the "many".
+ * Overrides for grain inference (GAP F): grain must be judged against the *modeled entity*, not
+ * the flat source column. In a denormalized export an org key repeats once per site, so its raw
+ * stats read "duplicated" and every join against it mislabels as N:M — even though after the
+ * org/site split the column is a unique PK and the real grain is 1:N. A side flagged here is
+ * treated as the "one" side regardless of how often its value repeats in the flat file.
  */
-export function inferGrain(left: SourceField, right: SourceField): Grain {
-  const leftRole = keyRole(left);
-  const rightRole = keyRole(right);
+export type GrainKeyContext = {
+  /** Treat the left column as a modeled-entity key (detected PK, FD determinant, or canvas PK). */
+  leftIsEntityKey?: boolean;
+  /** Treat the right column as a modeled-entity key. */
+  rightIsEntityKey?: boolean;
+};
+
+/**
+ * Infer the grain of a join between two columns from each side's uniqueness. A unique side is
+ * the "one"; a side with duplicates is the "many". `keyContext` marks columns that key a modeled
+ * entity — they resolve to "one" even when the denormalized source repeats them (GAP F).
+ *
+ * The override is *conditional*, because entity-key evidence is weaker than raw uniqueness:
+ *
+ * - A side that is genuinely unique in its own file already IS the parent, so the other side is
+ *   never promoted against it. Without this, the near-universal `customers.customer_id` (PK) /
+ *   `orders.customer_id` (FK) convention promotes the child's repeating FK column — a canvas PK
+ *   is matched by name — and an N:1 reads as 1:1.
+ * - When BOTH sides key an entity and both repeat, neither is the parent: they key the *same*
+ *   entity (a shared dimension denormalized into two files). Promoting both would read 1:1;
+ *   promoting neither leaves the honest N:M, which `classifyRelationship` turns into the
+ *   `shared_parent` verdict — extract the entity, FK both sides into it.
+ */
+export function inferGrain(
+  left: SourceField,
+  right: SourceField,
+  keyContext?: GrainKeyContext,
+): Grain {
+  const rawLeft = keyRole(left);
+  const rawRight = keyRole(right);
+  const promoteLeft = keyContext?.leftIsEntityKey === true && rawRight !== "unique";
+  const promoteRight = keyContext?.rightIsEntityKey === true && rawLeft !== "unique";
+  // Both promotable ⇒ both repeat and both key an entity ⇒ shared dimension: promote neither.
+  const sharedEntity = promoteLeft && promoteRight;
+
+  const leftRole = promoteLeft && !sharedEntity ? "unique" : rawLeft;
+  const rightRole = promoteRight && !sharedEntity ? "unique" : rawRight;
 
   if (leftRole === "unknown" || rightRole === "unknown") {
     return "unknown";
@@ -721,7 +787,15 @@ export type SemanticType =
   | "currency_amount"
   | "postal_code"
   | "latitude"
-  | "longitude";
+  | "longitude"
+  // Geographic place/administrative columns. They are attributes of a row, never links between
+  // files: two health-center exports share ~4,000 city names and all 50 state codes, and those
+  // overlaps say nothing about how the files relate. Naming them lets the join ranking sink them
+  // (`NON_KEY_SEMANTICS`) instead of letting them crowd real FKs out of the top-N.
+  | "city"
+  | "region"
+  | "country"
+  | "geo_code";
 
 export type SemanticTypeFinding = {
   sourceId: string;
@@ -741,6 +815,12 @@ export type SemanticTypeOptions = {
 
 const DEFAULT_MIN_MATCH_RATE = 0.9;
 const DEFAULT_MIN_SEMANTIC_VALUES = 3;
+
+/** A place name: letters and the punctuation of "St. Louis" / "Winston-Salem" — never digits. */
+function isPlaceName(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 60 && /^[\p{L}][\p{L} .'-]*$/u.test(trimmed);
+}
 
 function isFiniteInRange(value: string, min: number, max: number): boolean {
   if (!/^-?\d+(\.\d+)?$/.test(value.trim())) {
@@ -792,17 +872,56 @@ const SEMANTIC_MATCHERS: Array<{
     test: (value) => isFiniteInRange(value, -180, 180),
   },
   {
+    // 4 digits covers the bare ZIP+4 extension, which real exports carry as its own `zip4`
+    // column. Without it the column misses this matcher, reads as a high-cardinality numeric
+    // key, and its coincidental collisions with `pharmacyId`/`contractId` take findings slots.
+    // Safe because the name hint gates it: a plain id column is never called "zip" or "postal".
     semantic: "postal_code",
     nameHint: /zip|postal/i,
-    test: (value) => /^\d{5}(-\d{4})?$/.test(value.trim()),
+    test: (value) => /^\d{4,5}(-\d{4})?$/.test(value.trim()),
   },
   {
+    // The ≥7-digit floor is what stops a bare digit run from reading as a phone number, but a
+    // phone *extension* is 2-5 digits and would fail it — leaving `phoneNumberExtension` to read
+    // as a high-cardinality numeric key that collides with zip4/pharmacyId. The name hint already
+    // establishes it is telephony, so a short digit run is admitted only when the name says so.
     semantic: "phone",
     nameHint: /phone|mobile|tel|fax/i,
     test: (value) => {
       const trimmed = value.trim();
-      return /^\+?[0-9()\s.-]{7,20}$/.test(trimmed) && (trimmed.match(/\d/g)?.length ?? 0) >= 7;
+      if (!/^\+?[0-9()\s.-]{1,20}$/.test(trimmed)) {
+        return false;
+      }
+      const digits = trimmed.match(/\d/g)?.length ?? 0;
+      // A full number (≥7 digits), or a short extension (a handful of digits, nothing else).
+      return digits >= 7 || (digits >= 1 && trimmed.length <= 6);
     },
+  },
+  // A place NAME: letters, spaces and the punctuation of "St. Louis" / "Winston-Salem". The
+  // alphabetic test is what keeps these from swallowing codes — "State and County FIPS Code"
+  // matches the `region` name hint but holds digits, so it falls through to `geo_code` below.
+  {
+    semantic: "city",
+    nameHint: /\b(city|town|municipality)\b/i,
+    test: isPlaceName,
+  },
+  {
+    semantic: "region",
+    nameHint: /\b(state|province|region|county)\b/i,
+    test: isPlaceName,
+  },
+  {
+    semantic: "country",
+    nameHint: /\b(country|nation)\b/i,
+    test: isPlaceName,
+  },
+  // A numeric administrative code (FIPS, census tract, congressional district). These collide
+  // with real numeric ids by pure coincidence — on the real HRSA/OPAIS pair a FIPS+district code
+  // matched `zip4`, `pharmacyId` and `contractId` well enough to take most of the findings window.
+  {
+    semantic: "geo_code",
+    nameHint: /\b(fips|census|tract|congressional district)\b|federal information processing/i,
+    test: (value) => /^\d{1,11}$/.test(value.trim()),
   },
 ];
 
@@ -858,18 +977,367 @@ export function detectSemanticTypes(
   return findings;
 }
 
+export type RelationshipVerdict =
+  | "enforced_fk"
+  | "nullable_fk"
+  | "not_valid_fk"
+  | "junction"
+  | "shared_parent"
+  | "no_link";
+
+export type RelationshipClassification = {
+  verdict: RelationshipVerdict;
+  /** Human-readable justification, phrased as a modeling instruction. */
+  reason: string;
+};
+
+export type ClassifyRelationshipInput = {
+  containmentLeft: number;
+  containmentRight: number;
+  grain: Grain;
+  /**
+   * Blank share of the FK-side (more-contained) column, [0, 1]. `undefined` means *unverified*
+   * — no stats, or a blank count measured over a scan window narrower than the file. It is not
+   * the same as zero: only a verified zero can certify an enforceable (NOT NULL) FK.
+   */
+  nullRate?: number | undefined;
+  formatMismatch?: FormatMismatch | null | undefined;
+  /**
+   * True when both sides key a modeled entity and both repeat — they key the *same* entity,
+   * denormalized into two files. Yields `shared_parent` rather than `junction`.
+   */
+  bothSidesKeyEntity?: boolean | undefined;
+  /**
+   * The containment gate below which a pair is too weak for FK semantics. Must be the SAME
+   * value the caller admitted the candidate with (`DetectOptions.minContainment`), or the
+   * classifier condemns pairs the detector deliberately let through.
+   */
+  minContainment?: number | undefined;
+};
+
+/** Below this max containment the key spaces are effectively disjoint — no relationship. */
+const NO_LINK_MAX_CONTAINMENT = 0.05;
+/** At/above this every FK-side key resolves (within rounding) — the FK is enforceable. */
+const ENFORCEABLE_MIN_CONTAINMENT = 0.999;
+
 /**
- * The stronger of a candidate's two signals: for a symmetric join max-containment ≥ Jaccard
- * anyway, and for the FK shape it is the containment figure — not the diluted Jaccard — that
- * measures how real the link is. Without this, a containment-admitted FK would sort by its
- * (low) Jaccard and get evicted from the consumers' top-N slices.
+ * Turn raw join evidence into a consistent modeling decision (GAP G). Enforceability and
+ * representation are separate concerns: a relationship supported by the data is *represented*
+ * even when partial coverage means it cannot be *enforced* — that is a nullable/soft FK (or a
+ * junction for N:M), never a dropped edge. Only a near-zero-containment pair is "no link".
+ * Pure and deterministic; consumed by `detectJoinKeys`, `probeJoin`, and the copilot prompt.
+ */
+export function classifyRelationship(input: ClassifyRelationshipInput): RelationshipClassification {
+  const { containmentLeft, containmentRight, grain } = input;
+  const coverage = Math.max(containmentLeft, containmentRight);
+  const fkSide = containmentLeft >= containmentRight ? "left" : "right";
+  const pct = Math.round(coverage * 100);
+  const minContainment = input.minContainment ?? DEFAULT_MIN_CONTAINMENT;
+  const normalizeNote = input.formatMismatch
+    ? ` Normalize first: ${input.formatMismatch.note}.`
+    : "";
+
+  if (coverage < NO_LINK_MAX_CONTAINMENT) {
+    return {
+      verdict: "no_link",
+      reason: `near-zero containment (${pct}%) — the columns do not share a key space; reject the join regardless of how similar the names look.`,
+    };
+  }
+
+  if (coverage < minContainment) {
+    return {
+      verdict: "not_valid_fk",
+      reason: `only ${pct}% of the ${fkSide} side's keys resolve — too weak for FK semantics. These figures are already final over the widest captured values; inspect_source the two columns to judge whether the gap is semantic (different populations) or dirty data, then either model a soft link or leave it unlinked and say why.${normalizeNote}`,
+    };
+  }
+
+  if (grain === "N:M") {
+    if (input.bothSidesKeyEntity) {
+      return {
+        verdict: "shared_parent",
+        reason: `both columns key the same entity (each determines its own file's attributes for it) and ${pct}% of the ${fkSide} side's keys resolve — neither file is the parent: extract that entity as its own table keyed by the shared column, or reuse the existing table if one already models it, then give each source a 1:N FK into it. Do NOT draw a direct edge between the two sources, and do NOT add a second table for an entity already on the canvas.${normalizeNote}`,
+      };
+    }
+    return {
+      verdict: "junction",
+      reason: `both sides repeat and ${pct}% of the ${fkSide} side's keys resolve — model with a junction table and two 1:N relationships, never a direct N:M edge.${normalizeNote}`,
+    };
+  }
+
+  const { nullRate } = input;
+  // `nullRate === 0` must be a *verified* zero: `undefined` means unmeasured (no stats, or a
+  // blank count from a scan window narrower than the file), and an unmeasured column cannot
+  // certify a NOT NULL FK. Likewise an "unknown" grain carries no uniqueness evidence at all.
+  if (coverage >= ENFORCEABLE_MIN_CONTAINMENT && nullRate === 0 && grain !== "unknown") {
+    return {
+      verdict: "enforced_fk",
+      reason: `every ${fkSide}-side key resolves to a parent and the column has no blanks (grain ${grain}) — an enforceable FK.${normalizeNote}`,
+    };
+  }
+
+  const blankNote =
+    nullRate === undefined
+      ? "; blank rate unverified over the full file"
+      : nullRate > 0
+        ? `; ${Math.round(nullRate * 100)}% of FK rows are blank`
+        : "";
+  const grainNote =
+    grain === "unknown" ? " (grain unknown — too few rows to judge uniqueness)" : "";
+  return {
+    verdict: "nullable_fk",
+    reason: `partial coverage (${pct}% of the ${fkSide} side's keys resolve${blankNote}, grain ${grain})${grainNote} — still represent the relationship, as a nullable/soft FK; partial coverage limits enforceability, not representation.${normalizeNote}`,
+  };
+}
+
+/** Compound source/field key for set membership (NUL never appears in names). */
+function fieldKey(sourceId: string, field: string): string {
+  return `${sourceId}\u0000${field}`;
+}
+
+/**
+ * Fields that key a *modeled entity* even when they repeat in the flat file (GAP F):
+ * functional-dependency determinants, each the would-be primary key of the table its extraction
+ * candidate creates. In the flagship HRSA case `Health Center Number` repeats once per site yet
+ * determines the org-level columns, so it keys the organization entity.
+ *
+ * Detected primary keys are deliberately NOT collected: a PK candidate is `distinct === nonEmpty`
+ * with no blanks, which is exactly when `keyRole` already returns "unique" — adding them would be
+ * a no-op that costs a full `detectPrimaryKeys` pass.
+ *
+ * A determinant must also look like an *entity key* rather than a lookup/enum, because
+ * `detectFunctionalDependencies` has no distinctness floor: a `state` column determining
+ * `state_name` is a perfectly good determinant, but promoting it makes an incidental state-code
+ * match between two address blocks read as a relationship between the files.
+ *
+ * An absolute cardinality floor cannot express that distinction — a US-state column has ~50
+ * distinct values, as many as a small entity table. The signal is the determinant's *repeat
+ * ratio* within its own scan window (`groups / rows`; `nonEmpty === rows` because `canDetermine`
+ * requires zero blanks). An entity key is near-unique per row and only repeats because the file
+ * is denormalized; an enum repeats because its value space is closed. Measured on the real
+ * 18,855-row HRSA export, sampled at `MAX_ROW_TUPLES`:
+ *
+ *   Health Center Number  167 groups / 200 rows = 0.835   ← entity key
+ *   Site State Abbreviation 46 groups / 200 rows = 0.230   ← enum
+ *
+ * `DEFAULT_MAX_RATIO` (the ceiling `detectValueSets` already uses to call a column a closed value
+ * set) separates them. The absolute floor is kept as a guard for small windows, where a couple of
+ * repeats can push a tiny value set over the ratio.
+ *
+ */
+function entityKeyFields(sources: Source[], nonKeys: Set<string>): Set<string> {
+  const keys = new Set<string>();
+  const fieldLookup = new Map<string, SourceField>();
+  for (const source of sources) {
+    for (const field of source.fields) {
+      fieldLookup.set(fieldKey(source.id, field.name), field);
+    }
+  }
+
+  // Computed uncapped, and deliberately NOT accepted from a caller: `detectFunctionalDependencies`
+  // applies a per-source *display* cap (`MAX_FDS_PER_SOURCE = 3`), and on the real HRSA export
+  // that cap ranked `Health Center Number` out behind three chattier determinants. Feeding the
+  // display list in here would silently starve the org key — the flagship join then grades N:M
+  // ("build a junction table") instead of 1:N, which is exactly what GAP F set out to fix.
+  const fds = detectFunctionalDependencies(sources, { maxPerSource: Number.POSITIVE_INFINITY });
+  for (const candidate of fds) {
+    const key = fieldKey(candidate.sourceId, candidate.determinant);
+    const repeatRatio = candidate.rows === 0 ? 0 : candidate.groups / candidate.rows;
+    if (candidate.groups <= DEFAULT_MAX_DISTINCT || repeatRatio <= DEFAULT_MAX_RATIO) {
+      continue;
+    }
+    // A zip determines its city and state, so it is a textbook determinant — but it keys a value
+    // space, not an entity in this schema.
+    if (nonKeys.has(key)) {
+      continue;
+    }
+    // A determinant must also be an *identifier*. A near-unique free-text column (an address
+    // line, an organization name) determines its row's attributes trivially — but keys nothing.
+    const field = fieldLookup.get(key);
+    if (field && identifierRatio(field) < IDENTIFIER_MIN_RATIO) {
+      continue;
+    }
+    keys.add(key);
+  }
+  return keys;
+}
+
+/** Loose name equality for matching canvas fields to source columns ("Health Center Number" ↔ "health_center_number"). */
+function canonicalFieldName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** Canonical names of every field currently marked pk on the canvas. */
+function schemaPkNames(schema: Schema): Set<string> {
+  const names = new Set<string>();
+  for (const table of schema.tables) {
+    for (const tableField of table.fields) {
+      if (tableField.pk) {
+        names.add(canonicalFieldName(tableField.name));
+      }
+    }
+  }
+  return names;
+}
+
+/**
+ * Blank share of a column, [0, 1], or `undefined` when it cannot be verified.
+ *
+ * `stats` is capped at `MAX_SCAN_ROWS` while containment is computed over the *full-file*
+ * `joinValues`, so a zero blank count from a partial window says nothing about the rest of the
+ * column: a 50k-row FK fully populated in its first 1000 rows but 30% blank thereafter would
+ * otherwise certify as an enforceable NOT NULL FK. A zero is only trustworthy when the window
+ * covered every row (`rowCount` is the uncapped count). A *non-zero* rate needs no such proof —
+ * blanks seen are blanks — and downgrades the pair to a nullable FK either way.
+ */
+function blankRate(source: Source, field: SourceField): number | undefined {
+  const stats = field.stats;
+  if (!stats) {
+    return undefined;
+  }
+  const scanned = stats.nonEmpty + stats.blank;
+  if (scanned === 0) {
+    return undefined;
+  }
+  const windowIsWholeFile = source.rowCount !== undefined && scanned >= source.rowCount;
+  if (stats.blank === 0 && !windowIsWholeFile) {
+    return undefined;
+  }
+  return stats.blank / scanned;
+}
+
+/** Values a join key is made of: no internal whitespace, not prose-length. */
+const IDENTIFIER_MAX_LENGTH = 32;
+/** How many values to test — identifier-ness is uniform within a column; no need to scan it all. */
+const IDENTIFIER_SAMPLE = 200;
+/** Below this share of identifier-like values, a column is prose and cannot key an entity. */
+const IDENTIFIER_MIN_RATIO = 0.9;
+
+/**
+ * Semantic types that are *attributes*, never join keys. A postal code, a phone number, a
+ * lat/long or a money amount can overlap heavily across two files — the real OPAIS/HRSA data has
+ * ~13,000 shared zips — but that overlap is a property of the value space, not a relationship.
+ * Left unfiltered they crowd the FKs out of the consumers' top-N, and a numeric id can even
+ * collide with a zip by coincidence (`ceId ↔ shippingAddresses.zip`, 80% containment, meaningless).
+ * `uuid`/`email`/`url` are NOT listed: those genuinely serve as natural keys.
+ */
+const NON_KEY_SEMANTICS: ReadonlySet<SemanticType> = new Set<SemanticType>([
+  "postal_code",
+  "phone",
+  "latitude",
+  "longitude",
+  "timestamp",
+  "currency_amount",
+  // Geography is an attribute of a row, not a link between files. Two health-center exports share
+  // ~4,000 city names and every state code; ranked on overlap those beat every real FK.
+  "city",
+  "region",
+  "country",
+  "geo_code",
+]);
+
+/** Fields whose values are an attribute type that cannot be a join key. */
+function nonKeyFields(sources: Source[]): Set<string> {
+  const fields = new Set<string>();
+  for (const finding of detectSemanticTypes(sources)) {
+    if (NON_KEY_SEMANTICS.has(finding.semantic)) {
+      fields.add(fieldKey(finding.sourceId, finding.field));
+    }
+  }
+  return fields;
+}
+
+/**
+ * Share of a column's values that look like *identifiers* rather than prose, [0, 1].
+ *
+ * Cardinality alone cannot tell a key from a description: `Site Name`, `addressLine1` and
+ * `subName` are all high-cardinality and overlap heavily across the real files, so a purely
+ * cardinality-weighted ranking floats free text to the top exactly where the FKs belong. A key is
+ * a code — no spaces, bounded length; a street address or an organization name is neither. Same
+ * intuition as `suggestValueSetKind`'s descriptive test, applied to join ranking.
+ */
+function identifierRatio(field: SourceField): number {
+  const values = fieldValues(field);
+  const limit = Math.min(values.length, IDENTIFIER_SAMPLE);
+  if (limit === 0) {
+    return 1;
+  }
+  let identifierLike = 0;
+  for (let i = 0; i < limit; i += 1) {
+    const value = values[i] ?? "";
+    if (value.length <= IDENTIFIER_MAX_LENGTH && !/\s/.test(value)) {
+      identifierLike += 1;
+    }
+  }
+  return identifierLike / limit;
+}
+
+/**
+ * How key-like a column is: its distinct values as a share of its own table's rows, over the
+ * WIDEST captured sets (`joinValues`, not the ≤1000-row `stats` window, which reports a
+ * near-unique ratio for any column once the window is smaller than the file).
+ *
+ * A real key is near-unique across its table and repeats only because the file is denormalized;
+ * an enum repeats because its value space is closed. On the real HRSA export: `BPHC Assigned
+ * Number` 18855/18855 = 1.0, `Health Center Number` 1527/18855 = 0.081, `Site State Abbreviation`
+ * 59/18855 = 0.003. Returns 1 (neutral — never penalize) when the row count is unknown.
+ */
+function keyness(distinct: number, source: Source, field: SourceField, isNonKey: boolean): number {
+  // A postal code / phone / lat-long is an attribute. Its overlap is real but it is not a link,
+  // so it sorts below everything with any key-likeness at all (still emitted — `probe_join` and
+  // the full candidate list remain the escape hatch).
+  if (isNonKey) {
+    return 0;
+  }
+  return cardinalityKeyness(distinct, source, field) * identifierRatio(field);
+}
+
+/**
+ * Distinct values as a share of the table's rows, measured over the FULL file.
+ *
+ * Entity-key status deliberately does NOT short-circuit this to 1. Being an FD determinant is
+ * evidence about *grain* (GAP F), not about how selective a column is, and granting it free rank
+ * is actively harmful: determinant status is decided on a 200-row even sample, where any column
+ * with more than ~200 distinct values looks near-unique regardless of what it is. On the real
+ * HRSA export that promoted `State FIPS and Congressional District Number Code` (442 values, a
+ * geographic code) and floated its numeric collisions with zip4/pharmacyId/contractId into every
+ * top-N slot. Judged against the whole file it is 442/18855 = 0.023 and sinks, while the org key
+ * (1527/18855 = 0.081) and the NPI column (0.32) stay well clear of the enums (state: 0.003).
+ */
+function cardinalityKeyness(distinct: number, source: Source, field: SourceField): number {
+  const rows = source.rowCount;
+  if (rows !== undefined && rows > 0) {
+    return Math.min(1, distinct / rows);
+  }
+  const stats = field.stats;
+  if (stats && stats.nonEmpty > 0) {
+    return Math.min(1, stats.distinct / stats.nonEmpty);
+  }
+  return 1;
+}
+
+/**
+ * Rank a candidate by containment weighted by how key-like its FK side is.
+ *
+ * Containment alone is the wrong ranking signal, and on the real files it is catastrophically
+ * wrong: a 59-value `state ↔ state` match has 100% containment both ways, while the flagship NPI
+ * bridge has 53%. Ranked on containment, every one of the 8 slots a consumer shows the model was
+ * a state/zip/boolean match — the real bridges ranked #41 (HCN ↔ grantNumber), #60 (BPHC) and #96
+ * (NPI) out of 126, so the model never saw a single one and the evidence pipeline was moot.
+ *
+ * Weighting by the FK side's `keyness` demotes exactly the columns that are shared *because their
+ * value space is closed*, without penalizing a high-cardinality bijection: an 18,855-value 1:1 key
+ * pair keeps keyness 1.0 and still sorts top, while a 59-value enum collapses to ~0.003.
+ *
+ * Known trade (unchanged from the admission gate): a genuine FK into a small dimension table has
+ * low keyness and sorts low. It is still emitted — `probe_join` remains the escape hatch.
  */
 function candidateStrength(candidate: JoinKeyCandidate): number {
-  return Math.max(
+  const containment = Math.max(
     candidate.normalizedOverlap,
     candidate.containmentLeft,
     candidate.containmentRight,
   );
+  return containment * candidate.fkSideKeyness;
 }
 
 function compareRefs(a: FieldRef, b: FieldRef): number {
@@ -887,6 +1355,17 @@ function compareRefs(a: FieldRef, b: FieldRef): number {
  */
 export type ProbeJoinRef = { source: string; field: string };
 
+export type ProbeJoinOptions = {
+  /**
+   * The schema currently on the canvas. A probed column already modeled as (or matching the
+   * name of) a table's primary key resolves to the "one" side of the grain regardless of how
+   * often the flat source repeats it (GAP F) — turning "N:M at best" into "1:N, nullable FK".
+   * The promotion yields to raw uniqueness on the other side, so a child's FK column that shares
+   * the parent PK's name (`orders.customer_id`) is not mistaken for the parent.
+   */
+  schema?: Schema;
+};
+
 export type ProbeJoinResult =
   | {
       ok: true;
@@ -902,7 +1381,17 @@ export type ProbeJoinResult =
       /** Share of each side's values found on the other, [0, 1]. High one-way = FK shape. */
       containmentLeft: number;
       containmentRight: number;
+      /** Relationship grain, judged against the modeled entity when a side keys one (GAP F). */
       grain: Grain;
+      /**
+       * True when the side's column keys a modeled entity (detected PK, FD determinant, or a
+       * canvas PK when a schema was passed) — its grain reads "one" despite flat-file repeats.
+       */
+      leftIsEntityKey: boolean;
+      rightIsEntityKey: boolean;
+      /** Modeling decision derived from containment/grain/blanks — see `classifyRelationship`. */
+      verdict: RelationshipVerdict;
+      verdictReason: string;
       formatMismatch: FormatMismatch | null;
       /**
        * False when a side lost its wide join set (e.g. after a project reload) and the probe
@@ -955,6 +1444,7 @@ function hasFullFidelity(source: Source, field: SourceField): boolean {
 export function probeJoin(
   sources: Source[],
   input: { left: ProbeJoinRef; right: ProbeJoinRef },
+  options?: ProbeJoinOptions,
 ): ProbeJoinResult {
   const left = resolveProbeRef(sources, input.left);
   if ("error" in left) {
@@ -970,6 +1460,35 @@ export function probeJoin(
   const leftFull = valueSet(left.field, NORMALIZERS.full);
   const rightFull = valueSet(right.field, NORMALIZERS.full);
   const shared = intersectionSize(leftFull, rightFull);
+  const containmentLeft = leftFull.size === 0 ? 0 : shared / leftFull.size;
+  const containmentRight = rightFull.size === 0 ? 0 : shared / rightFull.size;
+
+  // Schema-aware grain (GAP F): a side keying a modeled entity — an FD determinant, or a field
+  // already marked pk on the canvas — is the "one" side even when the flat source repeats it.
+  // `inferGrain` decides whether the flag actually *fires*: raw uniqueness on the other side
+  // outranks it, and two flagged sides mean a shared parent, not a 1:1.
+  const nonKeys = nonKeyFields(sources);
+  const entityKeys = entityKeyFields(sources, nonKeys);
+  const canvasPks = options?.schema ? schemaPkNames(options.schema) : new Set<string>();
+  const leftIsEntityKey =
+    entityKeys.has(fieldKey(left.source.id, left.field.name)) ||
+    canvasPks.has(canonicalFieldName(left.field.name));
+  const rightIsEntityKey =
+    entityKeys.has(fieldKey(right.source.id, right.field.name)) ||
+    canvasPks.has(canonicalFieldName(right.field.name));
+
+  const grain = inferGrain(left.field, right.field, { leftIsEntityKey, rightIsEntityKey });
+  const formatMismatch = detectFormatMismatch(left.field, right.field);
+  const fkSide = containmentLeft >= containmentRight ? left : right;
+  const classification = classifyRelationship({
+    containmentLeft,
+    containmentRight,
+    grain,
+    nullRate: blankRate(fkSide.source, fkSide.field),
+    formatMismatch,
+    // Both flagged AND still N:M ⇒ `inferGrain` promoted neither ⇒ they key the same entity.
+    bothSidesKeyEntity: leftIsEntityKey && rightIsEntityKey && grain === "N:M",
+  });
 
   return {
     ok: true,
@@ -978,10 +1497,14 @@ export function probeJoin(
     rightDistinct: rightFull.size,
     rawOverlap: jaccard(leftRaw, rightRaw),
     normalizedOverlap: jaccard(leftFull, rightFull),
-    containmentLeft: leftFull.size === 0 ? 0 : shared / leftFull.size,
-    containmentRight: rightFull.size === 0 ? 0 : shared / rightFull.size,
-    grain: inferGrain(left.field, right.field),
-    formatMismatch: detectFormatMismatch(left.field, right.field),
+    containmentLeft,
+    containmentRight,
+    grain,
+    leftIsEntityKey,
+    rightIsEntityKey,
+    verdict: classification.verdict,
+    verdictReason: classification.reason,
+    formatMismatch,
     leftFullFidelity: hasFullFidelity(left.source, left.field),
     rightFullFidelity: hasFullFidelity(right.source, right.field),
   };
@@ -991,6 +1514,10 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
   const minOverlap = options?.minOverlap ?? DEFAULT_MIN_OVERLAP;
   const minShared = options?.minSharedValues ?? DEFAULT_MIN_SHARED;
   const minContainment = options?.minContainment ?? DEFAULT_MIN_CONTAINMENT;
+  // Modeled-entity keys (GAP F): a join against one of these is graded 1:N rather than N:M even
+  // when the denormalized source repeats it — subject to `inferGrain`'s precedence rules.
+  const nonKeys = nonKeyFields(sources);
+  const entityKeys = entityKeyFields(sources, nonKeys);
 
   const candidates: JoinKeyCandidate[] = [];
 
@@ -1047,6 +1574,36 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
           }
 
           const formatMismatch = detectFormatMismatch(leftField, rightField);
+          const leftIsEntityKey = entityKeys.has(fieldKey(leftSource.id, leftField.name));
+          const rightIsEntityKey = entityKeys.has(fieldKey(rightSource.id, rightField.name));
+          const grain = inferGrain(leftField, rightField, { leftIsEntityKey, rightIsEntityKey });
+          const fkIsLeft = containmentLeft >= containmentRight;
+          const classification = classifyRelationship({
+            containmentLeft,
+            containmentRight,
+            grain,
+            nullRate: fkIsLeft
+              ? blankRate(leftSource, leftField)
+              : blankRate(rightSource, rightField),
+            formatMismatch,
+            bothSidesKeyEntity: leftIsEntityKey && rightIsEntityKey && grain === "N:M",
+            // The classifier must condemn a pair only by the gate that admitted it.
+            minContainment,
+          });
+          // The FK side is the contained one; its key-likeness is what ranks this candidate.
+          const fkSideKeyness = fkIsLeft
+            ? keyness(
+                left.full.size,
+                leftSource,
+                leftField,
+                nonKeys.has(fieldKey(leftSource.id, leftField.name)),
+              )
+            : keyness(
+                right.full.size,
+                rightSource,
+                rightField,
+                nonKeys.has(fieldKey(rightSource.id, rightField.name)),
+              );
 
           candidates.push({
             left: {
@@ -1067,7 +1624,10 @@ export function detectJoinKeys(sources: Source[], options?: DetectOptions): Join
             requiresNormalization:
               normalizedOverlap - rawOverlap > NORMALIZATION_EPSILON || formatMismatch !== null,
             formatMismatch,
-            grain: inferGrain(leftField, rightField),
+            fkSideKeyness,
+            grain,
+            verdict: classification.verdict,
+            verdictReason: classification.reason,
           });
         }
       }

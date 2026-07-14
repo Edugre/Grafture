@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Schema } from "../src/model.js";
 import type { Source, SourceField } from "../src/parse/types.js";
 import { probeJoin } from "../src/detect/index.js";
 
@@ -127,5 +128,133 @@ describe("probeJoin", () => {
     }
     expect(result.leftFullFidelity).toBe(false);
     expect(result.rightFullFidelity).toBe(true);
+  });
+
+  it("surfaces the classifier verdict: no_link for the decoy, enforced_fk for the clean FK", () => {
+    const decoy = probeJoin(sources, {
+      left: { source: "decoy.csv", field: "medicare" },
+      right: { source: "parent.csv", field: "id" },
+    });
+    if (!decoy.ok) {
+      throw new Error(decoy.error);
+    }
+    expect(decoy.verdict).toBe("no_link");
+
+    const fk = probeJoin(sources, {
+      left: { source: "child.csv", field: "parent_ref" },
+      right: { source: "parent.csv", field: "id" },
+    });
+    if (!fk.ok) {
+      throw new Error(fk.error);
+    }
+    expect(fk.verdict).toBe("enforced_fk");
+  });
+
+  /* PR-6 (GAP F): a probed column already modeled as a PK on the canvas resolves to the "one"
+   * side, turning the real run's "N:M at best" into a 1:N nullable FK. */
+  it("resolves grain against a canvas PK even when the flat column repeats", () => {
+    // Both columns repeat in their flat files (one row per site / per covered entity), so
+    // stats-only grain reads N:M.
+    const repeatingField = (name: string, values: string[]): SourceField => ({
+      name,
+      type: "text",
+      samples: values.slice(0, 5),
+      distinctValues: [...new Set(values)],
+      stats: { nonEmpty: values.length, distinct: new Set(values).size, blank: 0 },
+    });
+    const orgKeys = Array.from({ length: 8 }, (_, i) => `HC${i}`);
+    const repeated = orgKeys.flatMap((key) => [key, key, key]);
+    const flatSources = [
+      source("h", "hrsa.csv", [repeatingField("Health Center Number", repeated)], repeated.length),
+      source("o", "opais.json", [repeatingField("grantNumber", repeated.slice(0, 18))], 18),
+    ];
+    const input = {
+      left: { source: "hrsa.csv", field: "Health Center Number" },
+      right: { source: "opais.json", field: "grantNumber" },
+    };
+
+    const withoutSchema = probeJoin(flatSources, input);
+    if (!withoutSchema.ok) {
+      throw new Error(withoutSchema.error);
+    }
+    expect(withoutSchema.grain).toBe("N:M");
+    expect(withoutSchema.leftIsEntityKey).toBe(false);
+
+    // The org/site split is on the canvas: organization.health_center_number is a PK. Name
+    // matching is loose ("Health Center Number" ↔ health_center_number).
+    const schema: Schema = {
+      tables: [
+        {
+          id: "t1",
+          name: "organization",
+          x: 0,
+          y: 0,
+          fields: [{ id: "f1", name: "health_center_number", type: "text", pk: true, fk: false }],
+        },
+      ],
+      relationships: [],
+    };
+    const withSchema = probeJoin(flatSources, input, { schema });
+    if (!withSchema.ok) {
+      throw new Error(withSchema.error);
+    }
+    expect(withSchema.leftIsEntityKey).toBe(true);
+    expect(withSchema.grain).toBe("1:N");
+    expect(withSchema.verdict).toBe("enforced_fk");
+  });
+
+  /* A canvas PK is matched to source columns by name, and in the near-universal FK convention
+   * the child's FK column carries the parent PK's name (orders.customer_id → customers.customer_id).
+   * Raw uniqueness on the parent must outrank the name match, or the child's repeating FK column
+   * is promoted to the "one" side and an N:1 reads as 1:1. */
+  it("does not promote a child's FK column that shares the parent PK's name", () => {
+    const customerIds = Array.from({ length: 20 }, (_, i) => `c${i}`);
+    const orderRefs = customerIds.flatMap((id) => [id, id, id]);
+    const convention = [
+      source(
+        "o",
+        "orders.csv",
+        [
+          {
+            name: "customer_id",
+            type: "text",
+            samples: orderRefs.slice(0, 5),
+            distinctValues: customerIds,
+            stats: { nonEmpty: 60, distinct: 20, blank: 0 },
+          },
+        ],
+        60,
+      ),
+      source("c", "customers.csv", [field("customer_id", customerIds)], customerIds.length),
+    ];
+    // The canvas models `customer` with pk `customer_id` — which matches BOTH columns by name.
+    const schema: Schema = {
+      tables: [
+        {
+          id: "t1",
+          name: "customer",
+          x: 0,
+          y: 0,
+          fields: [{ id: "f1", name: "customer_id", type: "text", pk: true, fk: false }],
+        },
+      ],
+      relationships: [],
+    };
+
+    const result = probeJoin(
+      convention,
+      {
+        left: { source: "orders.csv", field: "customer_id" },
+        right: { source: "customers.csv", field: "customer_id" },
+      },
+      { schema },
+    );
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+
+    // Both flagged by name, but customers.customer_id is genuinely unique → it is the parent.
+    expect(result.grain).toBe("N:1");
+    expect(result.verdict).toBe("enforced_fk");
   });
 });

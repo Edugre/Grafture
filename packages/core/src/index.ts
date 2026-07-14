@@ -11,6 +11,7 @@ export type {
   SuggestionRanking,
 } from "./ai/provider.js";
 export type {
+  ClassifyRelationshipInput,
   CompositeKeyCandidate,
   CompositeKeyOptions,
   DetectOptions,
@@ -20,11 +21,15 @@ export type {
   FunctionalDependencyCandidate,
   FunctionalDependencyOptions,
   Grain,
+  GrainKeyContext,
   JoinKeyCandidate,
   PrimaryKeyCandidate,
   PrimaryKeyOptions,
+  ProbeJoinOptions,
   ProbeJoinRef,
   ProbeJoinResult,
+  RelationshipClassification,
+  RelationshipVerdict,
   SemanticType,
   SemanticTypeFinding,
   SemanticTypeOptions,
@@ -33,6 +38,7 @@ export type {
   ValueSetSuggestion,
 } from "./detect/index.js";
 export {
+  classifyRelationship,
   detectCompositeKeys,
   detectFormatMismatch,
   detectFunctionalDependencies,

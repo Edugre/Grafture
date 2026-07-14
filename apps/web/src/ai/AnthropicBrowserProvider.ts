@@ -135,7 +135,7 @@ export class AnthropicBrowserProvider implements AiProvider {
           call.name === PREVIEW_EXPORT_TOOL.name
             ? runExportPreview(schema, call.input)
             : call.name === PROBE_JOIN_TOOL.name
-              ? runProbeJoin(sources, call.input)
+              ? runProbeJoin(sources, call.input, schema)
               : runInspectSource(sources, call.input),
       }));
       messages = [

@@ -112,6 +112,11 @@ function summarizeSources(sources: Source[]) {
   });
 }
 
+// A display budget, not a correctness gate. Verified against the real HRSA+OPAIS pair: with enums,
+// geography and attribute columns demoted by `candidateStrength`, the genuine bridges occupy the
+// top five slots (NPI, BPHC ↔ siteId, ceId ↔ pharmacyId, org key ↔ grantNumber, BHCMIS ↔ ceId), so
+// 8 shows every real link with room to spare. Widen only if a real bridge is being cut — a window
+// that has to be widened to fit the signal is a ranking bug, not a budget problem.
 const MAX_JOIN_FINDINGS = 8;
 const MAX_PK_FINDINGS = 12;
 const MAX_VALUE_SET_FINDINGS = 10;
@@ -126,6 +131,11 @@ const MAX_FUNCTIONAL_DEPENDENCY_FINDINGS = 6;
  * Returns null when there is nothing to report (single source, no stats) so the section is omitted.
  */
 function summarizeDetectorFindings(sources: Source[]) {
+  // This list is for DISPLAY only (per-source capped, then sliced). It must never be fed to
+  // `detectJoinKeys` as the entity-key evidence: the cap dropped the real HRSA org key, which
+  // silently regraded the flagship join. Core recomputes the determinants uncapped for itself.
+  const fdCandidates = detectFunctionalDependencies(sources);
+
   const joins = detectJoinKeys(sources)
     .slice(0, MAX_JOIN_FINDINGS)
     .map((candidate) => ({
@@ -137,6 +147,10 @@ function summarizeDetectorFindings(sources: Source[]) {
       containment_left: `${Math.round(candidate.containmentLeft * 100)}%`,
       containment_right: `${Math.round(candidate.containmentRight * 100)}%`,
       grain: candidate.grain,
+      // The classifier's modeling decision (GAP G): enforceability and representation are
+      // separate — a partial-coverage relationship is still represented (nullable/soft FK).
+      verdict: candidate.verdict,
+      why: candidate.verdictReason,
       normalize: candidate.formatMismatch ? candidate.formatMismatch.note : null,
     }));
 
@@ -171,7 +185,7 @@ function summarizeDetectorFindings(sources: Source[]) {
       reason: candidate.reason,
     }));
 
-  const functionalDependencies = detectFunctionalDependencies(sources)
+  const functionalDependencies = fdCandidates
     .slice(0, MAX_FUNCTIONAL_DEPENDENCY_FINDINGS)
     .map((candidate) => ({
       determinant: `${candidate.sourceName}.${candidate.determinant}`,
@@ -234,6 +248,27 @@ const DESIGN_DOCTRINE = `How to design the schema — model entities, not files:
     1:N relationship on the surrogate pair named in its "link", using those exact column names.
     That link is structural lineage, not value overlap — do not expect detector findings for it.
   - Do not over-normalize: a bare value set with no attributes does not deserve a table.
+- Enforceability and representation are SEPARATE decisions. A relationship supported by the data
+  is always represented: partial key coverage means a nullable/soft FK (or a junction table for
+  N:M) — never a dropped edge. Never leave two sources as disconnected islands when a
+  cross-source key exists; qualify the link in "reply" instead of omitting it. Only a
+  near-zero-containment pair (verdict "no_link") is rejected.
+- Judge grain against the modeled entity, not the flat file. A column that keys one of your
+  proposed tables (its PK, or the determinant of a normalization split) is the "one" side of a
+  join even when the denormalized source repeats it — detector grain and probe_join already
+  account for this. Do not dismiss a real 1:N link as "N:M at best" from raw column repeats.
+- When two sources repeat the SAME key and each denormalizes that key's attributes, neither is
+  the other's parent — they share one entity (verdict "shared_parent"). Extract it as its own
+  table keyed by that column and give each source a 1:N FK into it. A direct edge between the
+  two sources would be wrong in either direction.
+- A shared_parent entity is often ALREADY on the canvas — a normalization split of one source
+  commonly extracts it before the cross-source link is considered. Check first: if a table
+  already models that entity (same key column, same identity), reuse it and add the missing 1:N
+  FK. Do not add a second table for it — two tables with the same grain and identity is the
+  duplicate-entity mistake, whichever step created them.
+- Warn about normalization proportionally: the findings quantify each normalizer's marginal
+  gain (e.g. "+39 matches"). A small gain against thousands of shared values is a footnote, not
+  a blocker — do not report a coverage gap as a formatting problem.
 - Prefer the fewest tables that preserve integrity. Justify every table you add in "reply" — if
   you cannot say what distinct entity it models, do not add it.`;
 
@@ -242,6 +277,14 @@ const ANALYSIS_GUIDANCE = `Before proposing actions, analyze the data:
 - Compare sample value formats (leading zeros, prefixes, casing) and warn when joins need normalization.
 - Flag grain mismatches (e.g. one file is per-entity, another is per-transaction).
 - Choose column types from the target's vocabulary above, and set primary keys before adding foreign keys that reference them.
+- Read each join finding's "verdict" as the modeling decision framework: enforced_fk and
+  nullable_fk are represented as relationships; junction gets a junction table; shared_parent
+  means both columns key the SAME entity — extract it as its own table and give each source a
+  1:N FK into it rather than drawing a direct source-to-source edge; no_link is rejected.
+- A not_valid_fk verdict is already final on the numbers — re-probing it with probe_join only
+  recomputes the same figures from the same values. Use inspect_source to see whether the gap is
+  semantic (two different populations) or dirty data, then decide. Spend probe_join on pairs the
+  findings do NOT list.
 - Mention uncertainties in your reply; do not silently assume joins will work.`;
 
 /**
@@ -306,6 +349,15 @@ export function buildStaticInstructions(targetId: TargetId = DEFAULT_TARGET): st
     `on ${PROBE_JOIN_TOOL.name}/${INSPECT_SOURCE_TOOL.name} to confirm keys, joins, and grains, and`,
     "only then submit your proposal.",
     "",
+    "Cross-source linking is a REQUIRED step when more than one source is loaded: before calling",
+    `${COPILOT_RESPONSE_TOOL.name}, test every cross-source join candidate — the ones in`,
+    `<detector_findings> plus any you hypothesize yourself via ${PROBE_JOIN_TOOL.name} — and either`,
+    "represent each survivor per its verdict (nullable/soft FK for partial coverage, junction for",
+    'N:M, an extracted shared entity for shared_parent) or state in "reply" why it was rejected.',
+    "Linking is mandatory, not opportunistic:",
+    "partial coverage or a needed normalization is a qualification to note, never a reason to",
+    "leave the sources disconnected.",
+    "",
     `Return your final response by calling the ${COPILOT_RESPONSE_TOOL.name} tool — put your`,
     'explanation in "reply", the schema actions in "actions" (empty for a plain question), and set',
     '"status". Do not answer in plain text.',
@@ -342,7 +394,13 @@ export function buildDynamicContext(schema: Schema, sources: Source[]): string {
           "<detector_findings>",
           "Detector findings (computed deterministically from the data — strong evidence, but",
           "confirm against the samples and the user's intent before acting). `grain` is the inferred",
-          "relationship cardinality; `normalize` lists steps needed before the columns will join;",
+          "relationship cardinality, judged against the modeled entity (a column keying a proposed",
+          "table counts as the 'one' side even when the flat file repeats it); `verdict`/`why` are",
+          "the classifier's modeling decision — represent enforced_fk/nullable_fk as relationships,",
+          "junction via a junction table, shared_parent by extracting the shared entity and giving",
+          "each source a 1:N FK into it, reject no_link, and treat not_valid_fk's figures as final;",
+          "`normalize` lists steps needed before the columns will join (with each step's marginal",
+          "match gain — warn proportionally);",
           "`primaryKeys` are columns that are unique and non-null in the data; `compositeKeys`",
           "are column pairs that are only unique together (sampled evidence — the natural key of",
           "a line-item/junction grain); `functionalDependencies` are columns whose value fixes other",
