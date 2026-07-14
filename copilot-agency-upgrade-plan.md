@@ -2,6 +2,18 @@
 
 _Scope: the Copilot agency feature (Step 6) as deepened by the GF-9 detectors (Step 9). Grounded in a read of the actual source, validated against a checked-in miniature of the HRSA `Health_Center...csv` + OPAIS `OPA_CE_DAILY_PUBLIC.JSON` pair._
 
+> **STATUS — this plan is IMPLEMENTED. Read it as a design record, not a work queue.**
+> **PR-0…PR-7 all landed** on `chore/rebrand-grafture` (PR #24, then `d7e22bb`, 2026-07-11→14).
+> Three fixes the plan did **not** anticipate followed, all found by the real-file smoke
+> check against `local-data/` that §6 flags as the one thing no fixture can cover:
+> entity keys gated on repeat ratio + reuse of an existing `shared_parent` table (`14f6868`),
+> join candidates ranked by **FK-shape rather than raw containment** (`786d45e`), and
+> geographic semantic types sunk out of join findings (`a6b4bf6`). The lesson worth carrying:
+> **ranking, not detection, was starving the copilot of evidence** — the detectors were
+> finding the bridges and the top-N window was dropping them. Detector fixtures must carry
+> real-file cardinalities or they hide this whole class of bug.
+> **HANDOFF.md §4 is the status source of truth; this file wins only on design rationale.**
+
 ---
 
 ## 0. What the user wants (the anchor)
@@ -180,7 +192,7 @@ Highest-leverage, lowest-risk change — pure prompt/helper work, shippable inde
 
 - **Doctrine (`systemPrompt.ts` `DESIGN_DOCTRINE`):** add a rule — _enforceability and representation are separate. A relationship supported by the data is always represented; partial coverage is modeled as a **nullable/soft FK** (or a bridge table for N:M), never dropped. Never leave two sources as disconnected islands when a cross-source key exists._
 - **Workflow (`systemPrompt.ts` `<workflow>` + `ANALYSIS_GUIDANCE`):** make cross-source linking a **required finalize step** for multi-source schemas — before `submit_schema_response`, the agent must test each cross-source join candidate (via `<detector_findings>` and `probe_join`) and either represent the survivors or state in `reply` why each was rejected. Mandatory, not opportunistic.
-- **Relationship classifier (core helper, `detect/index.ts`):** `classifyRelationship({containmentLeft, containmentRight, grain, nullRate, formatMismatch})` → `{ verdict: "enforced_fk" | "nullable_fk" | "not_valid_fk" | "junction" | "no_link", reason }`. Turns raw probe numbers into a consistent modeling decision instead of the ad-hoc reasoning that produced the N:M mislabel + over-warning. Surface the verdict in `<detector_findings>` and as a `probe_join` output field.
+- **Relationship classifier (core helper, `detect/index.ts`):** `classifyRelationship({containmentLeft, containmentRight, grain, nullRate, formatMismatch})` → `{ verdict: "enforced_fk" | "nullable_fk" | "not_valid_fk" | "junction" | "no_link", reason }`. Turns raw probe numbers into a consistent modeling decision instead of the ad-hoc reasoning that produced the N:M mislabel + over-warning. _(As shipped, a sixth verdict — `shared_parent` — was added: two sources keyed on the same entity are modeled by extracting that entity and giving each a 1:N FK into it.)_ Surface the verdict in `<detector_findings>` and as a `probe_join` output field.
 - **Quantify normalization gain (`detectFormatMismatch`, `detect/index.ts:152-185`):** report the _marginal_ shared-value gain per normalizer (e.g. `+39` for trim+case) so the model warns proportionally and doesn't call a coverage gap a formatting problem.
 - Files: `copilot/systemPrompt.ts` (doctrine + workflow), `detect/index.ts` (`classifyRelationship`, marginal-gain in `FormatMismatch`), `copilot/probeJoinTool.ts` + `<detector_findings>` (surface the verdict).
 - Tests: `packages/core/test/detect.test.ts` — classifier returns `nullable_fk` for the 1:N partial-coverage HRSA pair and `no_link` for a near-zero-overlap decoy; format-mismatch reports the marginal gain. `apps/web` loop test: a stubbed multi-source proposal that omits an available cross-source FK is driven to add a nullable FK (workflow enforcement).
