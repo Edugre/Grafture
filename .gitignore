@@ -17,3 +17,5 @@ DESIGN_FOLLOWUPS.md
 .claude/
 # Local scratch data (e.g. full raw HRSA/OPAIS dumps) — kept out of the repo
 local-data/
+# Generated knowledge graph (rebuildable from source; contains a large HTML bundle)
+graphify-out/
