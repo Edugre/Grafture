@@ -10,6 +10,7 @@ export {
   INVESTIGATION_TOOLS,
   isInvestigationTool,
   runInvestigationTool,
+  type ToolSpec,
 } from "./investigationTools.js";
 export {
   collectAffectedTableIds,

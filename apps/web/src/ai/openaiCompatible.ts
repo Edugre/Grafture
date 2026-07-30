@@ -14,7 +14,11 @@ import type {
 import { buildCopilotSystemPrompt, buildRerankSystemPrompt } from "../copilot/systemPrompt.js";
 import { COPILOT_RESPONSE_TOOL, parseResponseArgs } from "../copilot/responseTool.js";
 import { parseCopilotResponse } from "../copilot/parseResponse.js";
-import { INVESTIGATION_TOOLS, runInvestigationTool } from "../copilot/investigationTools.js";
+import {
+  INVESTIGATION_TOOLS,
+  runInvestigationTool,
+  type ToolSpec,
+} from "../copilot/investigationTools.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 
 /** Cap on investigation round-trips within a single propose() before we force a finalization. */
@@ -78,9 +82,6 @@ function isToolUnsupportedError(error: unknown): boolean {
  * `propose` can retry in JSON mode. Internal control flow only — never surfaced to the user.
  */
 class ToolCallMissingError extends Error {}
-
-/** A JSON Schema tool spec in the shared `{ name, description, input_schema }` shape. */
-type ToolSpec = { name: string; description: string; input_schema: unknown };
 
 type OpenAiToolCall = {
   id: string;

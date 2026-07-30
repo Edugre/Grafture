@@ -46,6 +46,17 @@ describe("investigation tool registry", () => {
       expect(isInvestigationTool(tool.name)).toBe(true);
     }
   });
+
+  it("declares every tool in the shared ToolSpec shape", () => {
+    // The providers hand these straight to the wire, so a tool missing a description or a
+    // schema would be offered to the model as an unusable declaration. `ToolSpec` on the
+    // registry makes that a compile error; this asserts the values are actually populated.
+    for (const tool of INVESTIGATION_TOOLS) {
+      expect(tool.name).toMatch(/^[a-z_]+$/);
+      expect(tool.description.length).toBeGreaterThan(0);
+      expect(tool.input_schema).toMatchObject({ type: "object" });
+    }
+  });
 });
 
 describe("runInvestigationTool dispatch", () => {

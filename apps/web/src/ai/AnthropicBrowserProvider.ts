@@ -22,6 +22,7 @@ import {
   INVESTIGATION_TOOLS,
   isInvestigationTool,
   runInvestigationTool,
+  type ToolSpec,
 } from "../copilot/investigationTools.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 import { DEFAULT_MODEL, parseModelsPage } from "./models.js";
@@ -62,7 +63,6 @@ type AnthropicMessageResponse = {
 };
 
 type SystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
-type ToolSpec = { name: string; description: string; input_schema: unknown };
 type ToolChoice = { type: "tool"; name: string } | { type: "any" } | { type: "auto" };
 type MessageContent = string | AnthropicContentBlock[];
 type ProviderMessage = { role: "user" | "assistant"; content: MessageContent };
