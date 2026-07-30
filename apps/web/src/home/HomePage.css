@@ -35,7 +35,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -58,7 +58,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-muted);
@@ -75,7 +75,7 @@
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   color: var(--accent-text);
@@ -124,7 +124,7 @@
   flex: 0 0 auto;
   height: 38px;
   padding: 0 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
@@ -134,7 +134,8 @@
 }
 
 .home-newbtn:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .home-newbtn:disabled {
@@ -151,7 +152,7 @@
   flex: 0 0 auto;
   height: 38px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -181,7 +182,7 @@
   gap: 12px;
   margin-top: 16px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -190,8 +191,8 @@
 }
 
 .home-notice--error {
-  border-color: var(--danger, #d94040);
-  color: var(--danger, #d94040);
+  border-color: var(--danger);
+  color: var(--danger-text);
 }
 
 .home-notice__text {
@@ -228,7 +229,7 @@
   gap: 8px;
   height: 38px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -257,7 +258,7 @@
   display: flex;
   align-items: center;
   height: 38px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   overflow: hidden;
 }
@@ -314,7 +315,7 @@
   flex-direction: column;
   gap: 14px;
   padding: 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   box-shadow: var(--shadow-node);
@@ -347,7 +348,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-strong);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
@@ -359,10 +360,10 @@
   gap: 5px;
   height: 22px;
   padding: 0 8px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--accent-text);
   white-space: nowrap;
 }
@@ -370,7 +371,7 @@
 .home-card__badge-dot {
   width: 5px;
   height: 5px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent);
 }
 
@@ -390,16 +391,17 @@
 
 .home-card__chip {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-muted);
   background: var(--surface-strong);
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
 }
 
+/* Empty state reads from color alone — italic-as-state is a weak signal and the
+   chip is already mono, where italics render poorly. */
 .home-card__chip--empty {
-  font-style: italic;
   color: var(--text-faint);
 }
 
@@ -418,10 +420,11 @@
   color: var(--border);
 }
 
+/* The ring comes from the baseline `:focus-visible` outline in index.css —
+   `--accent-border` is a ~1.2:1 tint and was never a visible indicator on its own.
+   The border-color shift stays as a secondary cue. */
 .home-card:focus-visible {
-  outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-border);
 }
 
 /* ---- Card head: badge + kebab menu ---- */
@@ -442,7 +445,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
@@ -460,6 +463,13 @@
   opacity: 1;
 }
 
+/* Touch devices have no hover — the card's only menu would otherwise be invisible. */
+@media (pointer: coarse) {
+  .home-card__kebab {
+    opacity: 1;
+  }
+}
+
 .home-card__kebab:hover {
   background: var(--surface-hover);
   color: var(--text-secondary);
@@ -473,7 +483,7 @@
   min-width: 148px;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow-popover);
   display: flex;
@@ -488,7 +498,7 @@
   width: 100%;
   padding: 7px 9px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   font: inherit;
   font-size: 13px;
@@ -521,13 +531,9 @@
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--accent);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 1px 7px;
   box-shadow: 0 0 0 3px var(--accent-border);
-}
-
-.home-card__name-edit:focus {
-  outline: none;
 }
 
 /* ---- Derive-from-files tile ---- */
@@ -539,7 +545,7 @@
   gap: 10px;
   min-height: 172px;
   padding: 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px dashed var(--border);
   background: transparent;
   color: inherit;
@@ -566,7 +572,7 @@
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   color: var(--accent);
 }
@@ -583,4 +589,41 @@
   line-height: 16px;
   color: var(--text-faint);
   text-align: center;
+}
+
+/* ---- Narrow viewports ----
+   The grid already collapses at 1040/720. Below ~560px the fixed chrome padding
+   and the non-wrapping header were the remaining failures: 80px of horizontal
+   padding at a 320px viewport, and a title colliding with its two action buttons. */
+@media (max-width: 560px) {
+  .home-topbar {
+    padding: 0 var(--space-4);
+  }
+
+  .home-content {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .home-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .home-header__actions {
+    flex: 1 1 100%;
+  }
+
+  .home-newbtn,
+  .home-importbtn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .home-filters {
+    flex-wrap: wrap;
+  }
+
+  .home-search {
+    flex: 1 1 100%;
+  }
 }

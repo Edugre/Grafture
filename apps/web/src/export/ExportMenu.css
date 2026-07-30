@@ -10,7 +10,7 @@
   padding: 0 16px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: var(--accent);
   color: var(--on-accent);
@@ -19,7 +19,8 @@
 }
 
 .export-menu__toggle:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .export-menu__panel {
@@ -33,7 +34,7 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: var(--bg-panel);
   box-shadow: var(--shadow-popover);
@@ -46,9 +47,9 @@
 
 .export-menu__tab {
   padding: 4px 12px;
-  font-size: 0.72rem;
+  font-size: var(--type-body-sm);
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
@@ -69,12 +70,12 @@
   max-height: 360px;
   overflow: auto;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: var(--surface-strong);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--type-body-md);
   line-height: 1.5;
   white-space: pre;
   tab-size: 2;
@@ -87,9 +88,9 @@
 
 .export-menu__actions button {
   padding: 6px 12px;
-  font-size: 0.74rem;
+  font-size: var(--type-body-sm);
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-secondary);
@@ -105,5 +106,5 @@
   margin: 0;
   padding: 8px 4px;
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: var(--type-body-md);
 }

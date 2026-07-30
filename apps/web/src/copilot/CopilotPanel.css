@@ -12,7 +12,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -32,7 +32,7 @@
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
@@ -83,11 +83,11 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
 }
 
 /* The body splits into a scrolling message area and a pinned composer. */
@@ -127,7 +127,7 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   color: var(--accent);
@@ -142,7 +142,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--bg-panel);
   border: 1px solid var(--accent-border);
   color: var(--accent);
@@ -171,7 +171,7 @@
   height: 40px;
   padding: 0 18px;
   margin-top: 22px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
@@ -181,7 +181,8 @@
 }
 
 .copilot-cta__btn:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .copilot-cta__link {
@@ -243,7 +244,7 @@
   height: 20px;
   flex-shrink: 0;
   margin-top: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -263,7 +264,7 @@
 .copilot-bubble--user {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px 12px 4px 12px;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   color: var(--text);
 }
 
@@ -284,7 +285,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   font-size: 12px;
   line-height: 16px;
@@ -298,7 +299,7 @@
 .copilot-applied {
   margin-top: 10px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   overflow: hidden;
 }
@@ -434,7 +435,7 @@
   font-family: var(--font-mono);
   font-size: 12px;
   background: var(--code-chip-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 4px;
 }
 
@@ -443,7 +444,7 @@
   padding: 10px 12px;
   background: var(--surface-strong);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
 }
 
@@ -471,9 +472,8 @@
   gap: 7px;
   margin: 0;
   padding-top: 3px;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   color: var(--text-muted);
-  font-style: italic;
 }
 
 .copilot-status__dots {
@@ -484,7 +484,7 @@
 .copilot-status__dots i {
   width: 5px;
   height: 5px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--text-faint);
   animation: copilot-blink 1.2s ease-in-out infinite;
 }
@@ -535,7 +535,7 @@
   align-items: flex-end;
   gap: 8px;
   padding: 8px 8px 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -566,14 +566,15 @@
   height: 32px;
   flex-shrink: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
 }
 
 .copilot-compose__send:hover:not(:disabled) {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .copilot-compose__send:disabled {
@@ -619,7 +620,7 @@
 .copilot-compose__cancel {
   padding: 5px 12px;
   font-size: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);

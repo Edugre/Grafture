@@ -23,7 +23,7 @@
   max-height: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   box-shadow:
     0 24px 60px -12px rgba(23, 26, 31, 0.32),
     0 0 0 1px rgba(23, 26, 31, 0.02);
@@ -31,6 +31,9 @@
   animation: npm-pop 0.16s ease;
 }
 
+/* Dialog container is `tabIndex={-1}` and only ever focused programmatically on
+   open — it is not a tab stop, so suppressing its ring costs no keyboard user
+   anything. Do not copy this onto an element a user can actually tab to. */
 .npm-card:focus {
   outline: none;
 }
@@ -64,7 +67,7 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--accent-bg);
   color: var(--accent-text);
 }
@@ -97,7 +100,7 @@
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
@@ -142,7 +145,7 @@
 }
 
 .npm-hint {
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-faint);
 }
 
@@ -154,12 +157,14 @@
   width: 100%;
   padding: 30px 24px;
   border: 1.5px dashed var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-sunken);
   cursor: pointer;
   text-align: center;
   font: inherit;
-  transition: all 0.12s ease;
+  transition:
+    border-color var(--dur-hover) var(--ease-out),
+    background var(--dur-hover) var(--ease-out);
 }
 
 .npm-dropzone.is-dragging {
@@ -174,7 +179,7 @@
   width: 44px;
   height: 44px;
   margin-bottom: 12px;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--accent-bg);
   color: var(--accent-text);
 }
@@ -217,7 +222,7 @@
   gap: 11px;
   padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-sunken);
 }
 
@@ -228,7 +233,7 @@
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-hover);
   border: 1px solid var(--border);
   color: var(--text-secondary);
@@ -252,7 +257,7 @@
 }
 
 .npm-filerow__meta {
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-faint);
 }
 
@@ -264,7 +269,7 @@
   width: 26px;
   height: 26px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
@@ -280,7 +285,7 @@
 
 .npm-note {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   line-height: 15px;
   color: var(--text-muted);
 }
@@ -294,7 +299,7 @@
 .npm-textarea {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -323,7 +328,6 @@
 
 .npm-input:focus,
 .npm-textarea:focus {
-  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(124, 92, 224, 0.14);
 }
@@ -343,16 +347,16 @@
   height: 26px;
   padding: 0 10px;
   border: 1px solid var(--accent-border);
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   color: var(--accent-text);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   cursor: pointer;
   transition: filter 0.12s ease;
 }
 
 .npm-chip:hover {
-  filter: brightness(0.97);
+  background: var(--accent-border);
 }
 
 /* ---- Footer ---- */
@@ -382,7 +386,7 @@
   align-items: center;
   gap: 7px;
   height: 38px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -412,7 +416,8 @@
 }
 
 .npm-btn--primary:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .npm-btn--primary:disabled {

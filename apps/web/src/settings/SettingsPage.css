@@ -30,7 +30,7 @@
   gap: 5px;
   height: 32px;
   padding: 0 11px 0 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text);
@@ -61,7 +61,7 @@
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   color: var(--accent-text);
@@ -101,7 +101,7 @@
   gap: 10px;
   height: 36px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
@@ -136,7 +136,7 @@
 }
 
 .settings__nav-soon {
-  font-size: 10px;
+  font-size: var(--type-body-xs);
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -188,7 +188,7 @@
   gap: 7px;
   height: 38px;
   padding: 0 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -202,7 +202,8 @@
 }
 
 .settings__btn--primary:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* ---- Trust banner ---- */
@@ -211,7 +212,7 @@
   gap: 9px;
   margin-top: 18px;
   padding: 11px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--privacy-bg);
   color: var(--privacy-text);
 }
@@ -237,7 +238,7 @@
 .settings__key-card {
   margin-top: 20px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   overflow: hidden;
 }
@@ -261,7 +262,7 @@
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -313,7 +314,7 @@
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -335,8 +336,8 @@
   gap: 5px;
   height: 20px;
   padding: 0 8px;
-  border-radius: 9999px;
-  font-size: 11px;
+  border-radius: var(--radius-full);
+  font-size: var(--type-body-xs);
   font-weight: 500;
 }
 
@@ -348,7 +349,7 @@
 .settings__pill-dot {
   width: 5px;
   height: 5px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: currentColor;
 }
 
@@ -361,7 +362,7 @@
   text-align: center;
   padding: 36px 24px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
 }
 
@@ -371,7 +372,7 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   color: var(--accent);
@@ -454,7 +455,7 @@
   min-width: 160px;
   height: 38px;
   padding: 0 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -468,7 +469,6 @@
 }
 
 .settings__select:focus-visible {
-  outline: none;
   border-color: var(--accent);
 }
 
@@ -491,7 +491,7 @@
   justify-content: center;
   gap: 6px;
   height: 38px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
@@ -516,4 +516,45 @@
   font-size: 12px;
   line-height: 16px;
   color: var(--text-faint);
+}
+
+/* ---- Narrow viewports ----
+   The 224px nav rail plus a 620px pane cannot both sit on a phone. Below 720px
+   the rail unstacks into a horizontally scrolling strip above the content. */
+@media (max-width: 720px) {
+  .settings__body {
+    flex-direction: column;
+  }
+
+  .settings__nav {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .settings__nav-label {
+    display: none;
+  }
+
+  .settings__nav-item {
+    flex: 0 0 auto;
+  }
+
+  .settings__pane {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .settings__topbar {
+    padding: 0 var(--space-4);
+  }
+
+  .settings__page-header {
+    flex-wrap: wrap;
+  }
 }
