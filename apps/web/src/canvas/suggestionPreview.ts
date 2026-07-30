@@ -1,7 +1,7 @@
 import type { Schema, Table } from "@grafture/core";
 
 import { tableNameFromFilename } from "../sources/tableName.js";
-import type { SuggestionItem } from "../suggest/index.js";
+import type { SuggestionItem } from "../suggest/useSuggestions.js";
 import { FIELD_ROW_HEIGHT, HEADER_HEIGHT, NODE_BORDER, NODE_WIDTH } from "./constants.js";
 
 /**
