@@ -5,13 +5,25 @@ import { INSPECT_SOURCE_TOOL, runInspectSource } from "./inspectSourceTool.js";
 import { PROBE_JOIN_TOOL, runProbeJoin } from "./probeJoinTool.js";
 
 /**
+ * A JSON Schema tool spec in the shared `{ name, description, input_schema }` shape.
+ *
+ * Both provider families declare tools in this shape, so it lives with the registry rather
+ * than being retyped per provider — the same duplication that let the dispatch chains drift.
+ */
+export type ToolSpec = { name: string; description: string; input_schema: unknown };
+
+/**
  * The read-only tools the copilot may call mid-turn, before finalizing with the response tool.
  *
  * Single source of truth for both providers: they offer this list and dispatch through
  * `runInvestigationTool`, so adding a tool is one edit here rather than a registration and a
  * dispatch arm in each provider — the shape that let a fourth tool be offered but never routed.
  */
-export const INVESTIGATION_TOOLS = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, PROBE_JOIN_TOOL];
+export const INVESTIGATION_TOOLS: ToolSpec[] = [
+  PREVIEW_EXPORT_TOOL,
+  INSPECT_SOURCE_TOOL,
+  PROBE_JOIN_TOOL,
+];
 
 /** True when `name` is one of the investigation tools (i.e. not the finalizing response tool). */
 export function isInvestigationTool(name: string): boolean {
