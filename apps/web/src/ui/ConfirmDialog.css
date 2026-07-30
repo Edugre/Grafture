@@ -20,7 +20,7 @@
   padding: 22px 24px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   box-shadow:
     0 24px 60px -12px rgba(23, 26, 31, 0.32),
     0 0 0 1px rgba(23, 26, 31, 0.02);
@@ -70,7 +70,7 @@
 .confirm-btn {
   height: 38px;
   padding: 0 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -97,15 +97,17 @@
 }
 
 .confirm-btn--primary:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .confirm-btn--danger {
   border: 1px solid var(--danger);
   background: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
 }
 
 .confirm-btn--danger:hover {
-  filter: brightness(0.94);
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
 }

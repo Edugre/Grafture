@@ -5,18 +5,20 @@
   inset: 0;
   z-index: 6;
   pointer-events: none;
-  /* Per-tone accent, defaults to the purple AI/proposed accent. */
-  --preview-accent: #7c5ce0;
-  --preview-glow-soft: rgba(124, 92, 224, 0.18);
-  --preview-glow-strong: rgba(124, 92, 224, 0.45);
-  --preview-fill: rgba(124, 92, 224, 0.13);
+  /* Per-tone accent, defaults to the purple AI/proposed accent. Derived from the
+     theme tokens rather than restating their hex, so the overlay follows dark mode —
+     the hardcoded values here rendered light-theme purple/amber in both themes. */
+  --preview-accent: var(--accent);
+  --preview-glow-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --preview-glow-strong: color-mix(in srgb, var(--accent) 45%, transparent);
+  --preview-fill: color-mix(in srgb, var(--accent) 13%, transparent);
 }
 
 .preview-overlay--warn {
-  --preview-accent: #b8801f;
-  --preview-glow-soft: rgba(184, 128, 31, 0.16);
-  --preview-glow-strong: rgba(184, 128, 31, 0.3);
-  --preview-fill: rgba(184, 128, 31, 0.1);
+  --preview-accent: var(--warning);
+  --preview-glow-soft: color-mix(in srgb, var(--warning) 16%, transparent);
+  --preview-glow-strong: color-mix(in srgb, var(--warning) 30%, transparent);
+  --preview-fill: color-mix(in srgb, var(--warning) 10%, transparent);
 }
 
 .preview-scrim {
@@ -52,7 +54,7 @@
 .preview-ring {
   position: absolute;
   border: 1.5px solid var(--preview-accent);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--preview-fill);
   box-shadow:
     0 0 0 4px var(--preview-glow-soft),
@@ -70,7 +72,7 @@
   gap: 12px;
   max-width: min(780px, calc(100% - 48px));
   padding: 11px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
@@ -80,12 +82,12 @@
 .preview-caption__badge {
   flex: 0 0 auto;
   padding: 3px 8px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   color: var(--accent-text);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   letter-spacing: 0.03em;
   white-space: nowrap;
 }

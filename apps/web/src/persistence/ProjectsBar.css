@@ -12,7 +12,7 @@
   height: 34px;
   padding: 0 10px;
   font-size: 13px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -52,7 +52,7 @@
   padding: 0 10px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
@@ -76,8 +76,8 @@
 .projects-bar__error {
   margin-left: auto;
   padding: 4px 10px;
-  font-size: 0.72rem;
-  border-radius: 6px;
+  font-size: var(--type-body-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--danger-border);
   background: var(--danger-bg);
   color: var(--danger-text);

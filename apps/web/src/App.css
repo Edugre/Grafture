@@ -41,7 +41,7 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
@@ -60,16 +60,6 @@
   letter-spacing: 0.04em;
   color: var(--text-muted);
   user-select: none;
-}
-
-.panel-header {
-  padding: 12px 16px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .panel-body {
@@ -121,7 +111,7 @@
   gap: 4px;
   height: 28px;
   padding: 0 12px 0 9px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   box-shadow: var(--shadow-node);
@@ -143,7 +133,7 @@
   gap: 7px;
   height: 28px;
   padding: 0 13px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   color: var(--accent-text);
@@ -156,7 +146,7 @@
 .canvas-preview-pill__dot {
   width: 7px;
   height: 7px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent);
 }
 
@@ -167,7 +157,7 @@
   gap: 8px;
   height: 32px;
   padding: 0 6px 0 13px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
   box-shadow: var(--shadow-node);
@@ -197,14 +187,14 @@
 .canvas-draft-bar__dot {
   width: 7px;
   height: 7px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--accent);
 }
 
 .canvas-draft-bar__btn {
   height: 24px;
   padding: 0 12px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -228,7 +218,8 @@
 }
 
 .canvas-draft-bar__btn--primary:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* ---- Ghost (proposed) table + edge ---- */
@@ -266,7 +257,7 @@
   gap: 7px;
   height: 28px;
   padding: 0 13px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   box-shadow: var(--shadow-node);
@@ -293,7 +284,7 @@
   gap: 4px;
   height: 32px;
   padding: 0 6px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   box-shadow: var(--shadow-node);
@@ -306,7 +297,7 @@
   height: 24px;
   padding: 0 9px;
   border: none;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text);
   font-size: 12px;
@@ -321,7 +312,7 @@
   width: 26px;
   height: 24px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -359,7 +350,7 @@
   max-width: 160px;
   padding: 0 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -377,7 +368,7 @@
   align-items: center;
   gap: 2px;
   padding: 3px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   box-shadow: var(--shadow-node);
@@ -390,7 +381,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -409,7 +400,7 @@
 /* ReactFlow controls/minimap — themed for both appearances. */
 .react-flow__controls {
   box-shadow: var(--shadow-node);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -430,7 +421,7 @@
 
 .react-flow__minimap {
   background: var(--bg-panel);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .react-flow__minimap-mask {
@@ -448,7 +439,7 @@
   position: relative;
   min-width: 160px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow-node);
   overflow: hidden;
@@ -472,7 +463,7 @@
 
 .table-node__count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   font-weight: 400;
   color: var(--text-faint);
 }
@@ -538,7 +529,7 @@
   content: "";
   width: 6px;
   height: 6px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--pk);
 }
 
@@ -549,17 +540,17 @@
 
 .table-node__type {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-muted);
   background: var(--surface-strong);
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
 }
 
 .table-node__fk {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-muted);
 }
 
@@ -572,7 +563,7 @@
   font: inherit;
   background: var(--surface);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   outline: 1px solid var(--accent);
 }
@@ -587,10 +578,10 @@
   height: 20px;
   padding: 0 5px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   background: var(--surface);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   outline: 1px solid var(--accent);
 }
@@ -615,8 +606,18 @@
   transition: opacity 0.1s ease;
 }
 
-.table-node__field:hover .table-node__remove {
+/* Reveal on hover, on keyboard focus, and unconditionally on coarse pointers —
+   a touch user has no hover, and this is the only way to remove a field. */
+.table-node__field:hover .table-node__remove,
+.table-node__field:focus-within .table-node__remove,
+.table-node__remove:focus-visible {
   opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .table-node__remove {
+    opacity: 1;
+  }
 }
 
 .table-node__remove:hover {
@@ -644,14 +645,28 @@
 .table-node__add-input {
   cursor: text;
   color: var(--text);
-  outline: 1px solid var(--accent);
+  /* Inset so the ring reads inside the table node instead of clipping against it.
+     Matches the baseline focus ring in index.css — this input is autofocused, so
+     `:focus-visible` won't reliably fire for it. */
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
+/* Connection handles are chrome, not AI output — a mid-size schema paints ~100 of
+   them, and in accent they were the single biggest drain on the "accent means
+   Claude reasoned about this" signal (brand kit §1.3). They take `--border`, the
+   same value §5.5 gives relationship edges, and reach for accent only on hover,
+   where it means "you can connect here". */
 .field-handle {
   width: 9px;
   height: 9px;
-  background: var(--accent);
+  background: var(--border);
   border: 1px solid var(--surface);
+  transition: background var(--dur-hover) var(--ease-out);
+}
+
+.field-handle:hover {
+  background: var(--accent);
 }
 
 .field-handle--source {
@@ -673,7 +688,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0 8px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   box-shadow: var(--shadow-node);

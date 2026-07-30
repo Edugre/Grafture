@@ -38,7 +38,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--accent-border);
   background: var(--accent-bg);
 }
@@ -74,17 +74,17 @@
 
 .copilot-suggest-draft__chip {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--accent-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
 }
 
 .copilot-suggest-draft__hint {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   line-height: 15px;
   color: var(--text-muted);
 }
@@ -107,7 +107,7 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   line-height: 16px;
   color: var(--accent-text);
 }
@@ -118,7 +118,7 @@
   background: transparent;
   padding: 0;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-faint);
   cursor: pointer;
   text-decoration: underline;
@@ -131,7 +131,7 @@
 .copilot-suggest-rank__spin {
   width: 10px;
   height: 10px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   border: 1.5px solid var(--accent-border);
   border-top-color: var(--accent);
   animation: copilot-suggest-spin 0.7s linear infinite;
@@ -148,8 +148,8 @@
   flex: 0 0 auto;
   align-self: center;
   padding: 1px 7px;
-  border-radius: 9999px;
-  font-size: 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--type-body-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -195,7 +195,7 @@
 
 .copilot-suggest-grouphead__count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-dim);
 }
 
@@ -207,7 +207,7 @@
 
 /* ---- Collapsible card ---- */
 .copilot-suggest-card {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--border-subtle);
   overflow: hidden;
@@ -239,7 +239,7 @@
   flex: 0 0 auto;
   width: 6px;
   height: 6px;
-  border-radius: 9999px;
+  border-radius: var(--radius-full);
   background: var(--pk);
 }
 
@@ -305,7 +305,7 @@
 
 .copilot-suggest-card__note {
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   line-height: 15px;
   color: var(--caution-text);
 }
@@ -321,7 +321,7 @@
 .copilot-suggest-btn {
   height: 30px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -346,7 +346,8 @@
 }
 
 .copilot-suggest-btn--primary:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* ---- Footer ---- */

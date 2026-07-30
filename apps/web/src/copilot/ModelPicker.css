@@ -10,7 +10,7 @@
   max-width: 220px;
   padding: 4px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-muted);
   font-size: 12px;
@@ -45,7 +45,7 @@
   overflow-y: auto;
   padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
 }
@@ -64,11 +64,11 @@
   padding: 4px 8px 2px;
 }
 
+/* Renders a provider name (`Anthropic`, `OpenAI`) — uppercasing a proper noun to
+   dress it as a section eyebrow was the tic. Weight and color carry the hierarchy. */
 .model-picker__group-label {
-  font-size: 10px;
+  font-size: var(--type-body-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 
@@ -78,10 +78,10 @@
   gap: 3px;
   padding: 1px 6px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   cursor: pointer;
 }
 
@@ -105,7 +105,7 @@
   width: 100%;
   padding: 6px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text);
   font-size: 13px;

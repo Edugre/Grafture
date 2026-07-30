@@ -48,9 +48,11 @@ absolute white, `neutral-1300` is near-black; nothing in the UI uses true `#0000
 | `neutral-100`  | `#E9ECEF` | Light theme borders, dividers                  |
 | `neutral-200`  | `#DCE0E4` | Light theme stronger borders, input borders    |
 | `neutral-300`  | `#C2C8CD` | Disabled text on light, icon default (light)   |
-| `neutral-400`  | `#9AA1A8` | Placeholder text, muted labels                 |
-| `neutral-500`  | `#757C84` | Secondary body text                            |
-| `neutral-600`  | `#5B6168` | Body text (dark theme secondary)               |
+| `neutral-400`  | `#9AA1A8` | Muted labels on dark only (2.5:1 on light)     |
+| `neutral-450`  | `#8A9199` | Dark theme placeholder / faint text            |
+| `neutral-500`  | `#757C84` | Borders, icons, disabled — not body copy       |
+| `neutral-550`  | `#6E747B` | Light theme placeholder / faint text           |
+| `neutral-600`  | `#5B6168` | Secondary body text (both themes)              |
 | `neutral-700`  | `#454A50` | Body text (light theme primary)                |
 | `neutral-800`  | `#30343A` | Dark theme sunken panels, light theme headings |
 | `neutral-900`  | `#23262B` | Dark theme default page background             |
@@ -127,12 +129,21 @@ that flips between light and dark.
 | `border.default`   | `neutral-100`        | `neutral-800`     |
 | `border.strong`    | `neutral-200`        | `neutral-700`     |
 | `text.primary`     | `neutral-700`        | `neutral-50`      |
-| `text.secondary`   | `neutral-500`        | `neutral-400`     |
-| `text.placeholder` | `neutral-400`        | `neutral-500`     |
+| `text.secondary`   | `neutral-600`        | `neutral-400`     |
+| `text.placeholder` | `neutral-550`        | `neutral-450`     |
 | `text.disabled`    | `neutral-300`        | `neutral-600`     |
 | `text.onAccent`    | `neutral-0`          | `neutral-0`       |
+| `text.onError`     | `neutral-0`          | `neutral-900`     |
 | `data.value`       | `neutral-700`        | `neutral-100`     |
-| `data.label`       | `neutral-500`        | `neutral-400`     |
+| `data.label`       | `neutral-600`        | `neutral-400`     |
+
+> **Contrast floor.** Every token above that carries normal-size copy clears WCAG AA
+> 4.5:1 against the lightest surface it sits on. The original mapping put
+> `text.secondary` at `neutral-500` (4.1:1 on `surface.page`) and `text.placeholder` at
+> `neutral-400` (2.5:1) — both failed, which is why `neutral-450` and `neutral-550` were
+> added to the ramp. Do not move these roles back up the ramp without re-measuring.
+> `text.onError` exists because dark theme's `error-500` is light enough that white
+> text on it measures 3.2:1; ink reads 4.7:1.
 
 ---
 
@@ -162,11 +173,17 @@ A small, deliberate scale — 8 sizes, 1.25 ratio-ish but hand-tuned for screen 
 | `type.body.lg`    | 15px / 22px        | 400     | Default body, chat messages                |
 | `type.body.md`    | 13px / 20px        | 400     | Default UI text, table fields, labels      |
 | `type.body.sm`    | 12px / 16px        | 400     | Helper text, timestamps, captions          |
+| `type.body.xs`    | 11px / 16px        | 400/500 | Badges, chips, type tags, counts only      |
 | `type.mono.md`    | 13px / 20px        | 400/500 | Field names, sample values, type badges    |
 | `type.mono.sm`    | 12px / 18px        | 400     | Inline code in chat, compact diffs         |
 
 Tracking: UI sans uses default tracking. Mono uses `-0.01em` at sizes above 13px to
 offset monospace's naturally loose rhythm.
+
+> `type.body.xs` is a 9th step added after the fact: 25 badge / chip / type-tag /
+> count declarations were already shipping at 10–11px, below the stated floor.
+> Naming the tier beats a silent off-scale size. It is for **labels only** — never
+> running copy, never anything the user has to read a sentence of.
 
 ---
 

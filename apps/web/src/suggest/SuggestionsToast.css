@@ -10,7 +10,7 @@
   max-width: calc(100vw - 48px);
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 12px 32px rgba(23, 26, 31, 0.16);
   overflow: hidden;
 }
@@ -29,7 +29,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--accent);
   color: var(--on-accent);
 }
@@ -61,7 +61,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
@@ -97,7 +97,7 @@
   gap: 7px;
   height: 34px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
@@ -108,7 +108,8 @@
 }
 
 .suggest-toast__cta:hover {
-  filter: brightness(0.94);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* Animated countdown bar, clipped to the toast's rounded bottom. */
@@ -118,7 +119,7 @@
   right: 0;
   bottom: 0;
   height: 3px;
-  background: #efeff1;
+  background: var(--surface-strong);
 }
 
 .suggest-toast__timerfill {
@@ -138,8 +139,11 @@
   }
 }
 
+/* The countdown bar is a functional timer, not decoration — collapsing it to the
+   global 0.01ms floor would hide how long the toast has left. Slow it instead.
+   `!important` is required to outrank the blanket rule in index.css. */
 @media (prefers-reduced-motion: reduce) {
   .suggest-toast__timerfill {
-    animation-duration: 12s;
+    animation-duration: 12s !important;
   }
 }

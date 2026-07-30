@@ -1,3 +1,10 @@
+/* Grafture design system — source of truth: /grafture-brand-kit.md
+ * Tokens below implement the kit's §2 color, §3.2 type scale, §4 spacing/radius/
+ * elevation, and §6 motion. Component CSS consumes these by name; raw hex, raw px
+ * sizes, and raw radii do not belong in component files.
+ * Amendments this file carries beyond the kit as written, all recorded there too:
+ * neutral-450/550 (WCAG AA floor for faint text), --type-body-xs, --on-danger.
+ */
 :root {
   color-scheme: light dark;
 
@@ -7,6 +14,55 @@
   font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
+
+  /* ---- Type scale (grafture-brand-kit.md §3.2) ----
+     Named `--type-*` rather than `--text-*` so the size scale never collides
+     with the `--text*` color family below. Each size has a paired leading. */
+  --type-display: 32px;
+  --leading-display: 40px;
+  --type-heading-lg: 22px;
+  --leading-heading-lg: 28px;
+  --type-heading-md: 17px;
+  --leading-heading-md: 24px;
+  --type-body-lg: 15px;
+  --leading-body-lg: 22px;
+  --type-body-md: 13px;
+  --leading-body-md: 20px;
+  --type-body-sm: 12px;
+  --leading-body-sm: 16px;
+  /* xs is below the kit's original 8-step floor. It was added because 25 badge /
+     chip / type-tag / count declarations were already sitting at 10–11px off-scale;
+     naming the tier is honest, a silent 9th size is not. Badges and counts only —
+     never running copy. */
+  --type-body-xs: 11px;
+  --leading-body-xs: 16px;
+  --type-mono-md: 13px;
+  --leading-mono-md: 20px;
+  --type-mono-sm: 12px;
+  --leading-mono-sm: 18px;
+
+  /* ---- Spacing (brand kit §4) — 4px base unit ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- Radius (brand kit §4) ---- */
+  --radius-sm: 4px; /* chips, badges */
+  --radius-md: 8px; /* buttons, inputs, cards */
+  --radius-lg: 12px; /* panels, modals */
+  --radius-full: 9999px; /* avatars, pills only */
+
+  /* ---- Motion (brand kit §6) — nothing bounces, nothing overshoots ---- */
+  --dur-hover: 150ms; /* hovers, highlights */
+  --dur-overlay: 200ms; /* panel / modal open */
+  --dur-arrange: 300ms; /* elkjs node repositioning — the one earned longer move */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ---- Design tokens (light is canonical; dark overrides below) ----
      Sourced from the Grafture design handoff. The semantic names map
@@ -27,13 +83,16 @@
   --border-subtle: #e9ecef; /* default — pane dividers, cards */
   --row-divider: #f4f6f8; /* inner row dividers */
 
-  /* Text */
-  --text: #454a50; /* primary */
+  /* Text — every step below carries normal-size copy somewhere in the UI, so each
+     one has to clear WCAG AA 4.5:1 against `--bg-app`, the lightest thing it sits on.
+     The previous `--text-muted` (neutral-500) measured 4.07:1 and `--text-faint`
+     (neutral-400) 2.53:1; both were failing. Contrast noted per token. */
+  --text: #454a50; /* primary — 8.6:1 */
   --text-mono: #454a50; /* identifiers */
   --text-secondary: #454a50;
-  --text-muted: #757c84; /* secondary / muted */
-  --text-faint: #9aa1a8; /* counts, samples, icons */
-  --text-dim: #9aa1a8;
+  --text-muted: #5b6168; /* secondary / muted — neutral-600, 6.0:1 */
+  --text-faint: #6e747b; /* counts, samples, icons — neutral-550, 4.6:1 */
+  --text-dim: #6e747b;
   --text-strong: #2a2e33;
 
   /* Accent — purple, shared across modes */
@@ -42,6 +101,7 @@
   --accent-text: #6a4bd0;
   --accent-bg: #f1eefc; /* tint fill — proposed row/card */
   --accent-border: #e1dbfa; /* tint border */
+  --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
   --on-accent: #ffffff;
 
   /* Primary key / identifier dot */
@@ -58,6 +118,12 @@
   --danger-text: #b42525;
   --danger-bg: rgba(204, 59, 59, 0.1);
   --danger-border: rgba(204, 59, 59, 0.3);
+  --danger-hover: color-mix(
+    in srgb,
+    var(--danger) 86%,
+    #000
+  ); /* no error-600 in the kit — derived */
+  --on-danger: #ffffff; /* 4.9:1 on --danger */
 
   /* FK marker */
   --fk-border: #e9ecef;
@@ -107,9 +173,9 @@
     --text: #f4f6f8;
     --text-mono: #e9ecef;
     --text-secondary: #e9ecef;
-    --text-muted: #9aa1a8;
-    --text-faint: #757c84;
-    --text-dim: #757c84;
+    --text-muted: #9aa1a8; /* 6.6:1 on --bg-panel */
+    --text-faint: #8a9199; /* neutral-450 — was neutral-500 at 4.1:1 */
+    --text-dim: #8a9199;
     --text-strong: #ffffff;
 
     --accent: #7c5ce0;
@@ -117,6 +183,7 @@
     --accent-text: #b7a6f2;
     --accent-bg: #241a4a;
     --accent-border: #52399e;
+    --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
     --on-accent: #ffffff;
 
     --pk: #e9ecef;
@@ -130,6 +197,8 @@
     --danger-text: #f0a0a0;
     --danger-bg: rgba(220, 80, 80, 0.12);
     --danger-border: rgba(220, 80, 80, 0.35);
+    --danger-hover: color-mix(in srgb, var(--danger) 86%, #fff); /* lightens on dark */
+    --on-danger: #23262b; /* dark theme's --danger is light enough that white fails (3.2:1); ink reads 4.7:1 */
 
     --fk-border: #30343a;
 
@@ -166,9 +235,9 @@
   --text: #f4f6f8;
   --text-mono: #e9ecef;
   --text-secondary: #e9ecef;
-  --text-muted: #9aa1a8;
-  --text-faint: #757c84;
-  --text-dim: #757c84;
+  --text-muted: #9aa1a8; /* 6.6:1 on --bg-panel */
+  --text-faint: #8a9199; /* neutral-450 — was neutral-500 at 4.1:1 */
+  --text-dim: #8a9199;
   --text-strong: #ffffff;
 
   --accent: #7c5ce0;
@@ -176,6 +245,7 @@
   --accent-text: #b7a6f2;
   --accent-bg: #241a4a;
   --accent-border: #52399e;
+  --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
   --on-accent: #ffffff;
 
   --pk: #e9ecef;
@@ -189,6 +259,8 @@
   --danger-text: #f0a0a0;
   --danger-bg: rgba(220, 80, 80, 0.12);
   --danger-border: rgba(220, 80, 80, 0.35);
+  --danger-hover: color-mix(in srgb, var(--danger) 86%, #fff); /* lightens on dark */
+  --on-danger: #23262b; /* dark theme's --danger is light enough that white fails (3.2:1); ink reads 4.7:1 */
 
   --fk-border: #30343a;
 
@@ -235,8 +307,69 @@ select {
   font: inherit;
 }
 
+/* Blanket reduced-motion floor. Components that need a *different* reduced
+   behaviour rather than none — the toast countdown bar, which is a functional
+   timer and not decoration — override this with their own `!important`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Baseline focus indicator for every interactive element. `--accent` clears 3:1
+   against both `--bg-app` (4.7:1) and the dark `--surface` (4.0:1). Components
+   may replace this ring, but must not remove it: a bare `outline: none` with no
+   substitute leaves keyboard users with no indicator at all. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Inputs that render borderless inside a bordered shell (search fields, chat
+   composer) hand their ring to the shell so the outline traces the visible box. */
+.home-search:focus-within,
+.byok__input:focus-within,
+.copilot-compose__shell:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* …and suppress their own, or the field draws a second ring inside the shell's. */
+.home-search__input:focus-visible,
+.byok__input-field:focus-visible,
+.copilot-compose__shell textarea:focus-visible {
+  outline: none;
+}
+
 /* Shared mono helper for identifiers, type chips, samples, code, tags. */
 .mono {
   font-family: var(--font-mono);
   letter-spacing: -0.01em;
+}
+
+/* Lining figures wherever numbers stack into a column and are meant to be
+   compared down the list — row counts, field counts, file sizes, overlap
+   percentages. Inter's default proportional figures make these ragged. */
+.mono,
+.home-card__footer,
+.table-node__count,
+.canvas-chip__count,
+.copilot-suggest-grouphead__count,
+.sources-panel__source-meta,
+.settings__key-meta,
+.npm-filerow__meta,
+.npm-footer__summary,
+.preview-caption__stat {
+  font-variant-numeric: tabular-nums;
 }
