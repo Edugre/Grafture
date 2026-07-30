@@ -7,6 +7,11 @@ export { parseCopilotResponse } from "./parseResponse.js";
 export { COPILOT_RESPONSE_TOOL, parseToolUseResponse } from "./responseTool.js";
 export { PREVIEW_EXPORT_TOOL, runExportPreview } from "./exportPreviewTool.js";
 export {
+  INVESTIGATION_TOOLS,
+  isInvestigationTool,
+  runInvestigationTool,
+} from "./investigationTools.js";
+export {
   collectAffectedTableIds,
   formatRejectedAction,
   summarizeAppliedActions,

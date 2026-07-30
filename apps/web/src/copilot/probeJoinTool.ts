@@ -1,6 +1,8 @@
 import type { Schema, Source } from "@grafture/core";
 import { probeJoin } from "@grafture/core";
 
+import { requiredStringArgs } from "./toolArgs.js";
+
 /**
  * A read-only tool the copilot can call mid-turn to VERIFY a join hypothesis it formed from
  * names or semantics ("these NPI columns should join once normalized") instead of consuming
@@ -46,15 +48,15 @@ const asPercent = (ratio: number): string => `${Math.round(ratio * 100)}%`;
  * passed) makes the grain schema-aware: a probed column already marked pk resolves to "one".
  */
 export function runProbeJoin(sources: Source[], input: unknown, schema?: Schema): string {
-  const record =
-    typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
-  const str = (key: string): string => (typeof record[key] === "string" ? record[key] : "");
+  // Keys are derived from PROBE_JOIN_TOOL.input_schema, so renaming an argument there breaks
+  // the build here instead of silently reading "" — see `requiredStringArgs`.
+  const args = requiredStringArgs(PROBE_JOIN_TOOL, input);
 
   const result = probeJoin(
     sources,
     {
-      left: { source: str("left_source"), field: str("left_field") },
-      right: { source: str("right_source"), field: str("right_field") },
+      left: { source: args.left_source, field: args.left_field },
+      right: { source: args.right_source, field: args.right_field },
     },
     schema ? { schema } : undefined,
   );
@@ -63,8 +65,8 @@ export function runProbeJoin(sources: Source[], input: unknown, schema?: Schema)
     return `probe_join error: ${result.error}`;
   }
 
-  const leftLabel = `${str("left_source")}.${str("left_field")}`;
-  const rightLabel = `${str("right_source")}.${str("right_field")}`;
+  const leftLabel = `${args.left_source}.${args.left_field}`;
+  const rightLabel = `${args.right_source}.${args.right_field}`;
 
   const lines = [
     `probe: ${leftLabel} ↔ ${rightLabel}`,

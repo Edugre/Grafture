@@ -14,9 +14,7 @@ import type {
 import { buildCopilotSystemPrompt, buildRerankSystemPrompt } from "../copilot/systemPrompt.js";
 import { COPILOT_RESPONSE_TOOL, parseResponseArgs } from "../copilot/responseTool.js";
 import { parseCopilotResponse } from "../copilot/parseResponse.js";
-import { PREVIEW_EXPORT_TOOL, runExportPreview } from "../copilot/exportPreviewTool.js";
-import { INSPECT_SOURCE_TOOL, runInspectSource } from "../copilot/inspectSourceTool.js";
-import { PROBE_JOIN_TOOL, runProbeJoin } from "../copilot/probeJoinTool.js";
+import { INVESTIGATION_TOOLS, runInvestigationTool } from "../copilot/investigationTools.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 
 /** Cap on investigation round-trips within a single propose() before we force a finalization. */
@@ -254,7 +252,6 @@ export class OpenAiCompatibleProvider implements AiProvider {
     history: ConversationTurn[],
     options?: ProposeOptions,
   ): Promise<AiProviderResult> {
-    const investigationTools = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, PROBE_JOIN_TOOL];
     let messages: OpenAiMessage[] = [
       ...history.map((turn) => ({ role: turn.role, content: turn.content })),
       { role: "user", content: message },
@@ -275,8 +272,8 @@ export class OpenAiCompatibleProvider implements AiProvider {
     for (let iteration = 0; iteration < MAX_PREVIEW_ITERATIONS; iteration += 1) {
       const tools = (
         iteration < withheldRounds
-          ? investigationTools
-          : [...investigationTools, COPILOT_RESPONSE_TOOL]
+          ? INVESTIGATION_TOOLS
+          : [...INVESTIGATION_TOOLS, COPILOT_RESPONSE_TOOL]
       ).map(toOpenAiTool);
       const data = await this.request(system, messages, tools, "required");
       const msg = data.choices?.[0]?.message;
@@ -368,16 +365,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
   /** Dispatch one preview/inspect tool call to its pure runner, or report an unknown tool. */
   private runTool(schema: Schema, sources: ParsedSource[], call: OpenAiToolCall): string {
     const args = toolArgsOrEmpty(call.function.arguments);
-    if (call.function.name === PREVIEW_EXPORT_TOOL.name) {
-      return runExportPreview(schema, args);
-    }
-    if (call.function.name === INSPECT_SOURCE_TOOL.name) {
-      return runInspectSource(sources, args);
-    }
-    if (call.function.name === PROBE_JOIN_TOOL.name) {
-      return runProbeJoin(sources, args, schema);
-    }
-    return `error: unknown tool "${call.function.name}".`;
+    return runInvestigationTool(call.function.name, schema, sources, args);
   }
 
   /** Turn a finalizing response message into a result, surfacing a malformed payload as blocked. */
