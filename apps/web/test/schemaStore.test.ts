@@ -278,6 +278,47 @@ describe("schemaStore", () => {
         "csv",
       ]);
     });
+
+    it("restores the wide join sets on undo instead of a stripped copy", () => {
+      // Snapshots alias sources by reference precisely so undo returns the heavy detection
+      // evidence intact. A snapshot that cloned-and-stripped would silently degrade joins.
+      const store = createSchemaStore({ makeId: makeTestIds() });
+      const heavy: Source = {
+        ...sampleSource("heavy"),
+        fields: [
+          {
+            name: "grant_number",
+            type: "text",
+            samples: ["H80CS00001"],
+            distinctValues: ["H80CS00001"],
+            joinValues: ["H80CS00001", "H80CS00002", "H80CS00003"],
+          },
+        ],
+        sampleRows: [["H80CS00001"]],
+      };
+
+      store.getState().addSource(heavy);
+      store.getState().removeSource("heavy");
+      store.getState().undo();
+
+      const restored = store.getState().sources[0];
+      expect(restored?.fields[0]?.joinValues).toEqual(["H80CS00001", "H80CS00002", "H80CS00003"]);
+      expect(restored?.sampleRows).toEqual([["H80CS00001"]]);
+    });
+
+    it("does not copy sources into a snapshot for a schema-only edit", () => {
+      // The invariant behind aliasing: schema commands never touch the sources array, so the
+      // pre-edit reference stays a faithful record. Identity is the cheap proof that a 68 MB
+      // deep clone did not happen.
+      const store = createSchemaStore({ makeId: makeTestIds() });
+      store.getState().addSource(sampleSource("source-1"));
+
+      const beforeEdit = store.getState().sources;
+      store.getState().addTable("users");
+      store.getState().undo();
+
+      expect(store.getState().sources).toBe(beforeEdit);
+    });
   });
 
   describe("chat", () => {
@@ -354,6 +395,36 @@ describe("schemaStore", () => {
       store.getState().moveTable(tableId!, 120, 0);
 
       expect(store.getState().schema.tables[0]).toMatchObject({ x: 120, y: 0 });
+
+      store.getState().undo();
+      expect(store.getState().schema.tables[0]).toMatchObject({ x: 0, y: 0 });
+    });
+
+    it("coalesces a drag-resize into one undo step", () => {
+      const store = createSchemaStore({ makeId: makeTestIds() });
+
+      store.getState().addTable("users", { x: 0, y: 0 });
+      const tableId = store.getState().schema.tables[0]?.id;
+
+      store.getState().resizeTable(tableId!, 300);
+      store.getState().resizeTable(tableId!, 340);
+      store.getState().resizeTable(tableId!, 380);
+
+      expect(store.getState().schema.tables[0]?.width).toBe(380);
+
+      store.getState().undo();
+      expect(store.getState().schema.tables[0]?.width).toBeUndefined();
+    });
+
+    it("keeps the pre-drag snapshot when a move targets a missing table", () => {
+      // The snapshot is skipped only when it would coalesce — never when the command no-ops.
+      const store = createSchemaStore({ makeId: makeTestIds() });
+
+      store.getState().addTable("users", { x: 0, y: 0 });
+      const tableId = store.getState().schema.tables[0]?.id;
+
+      store.getState().moveTable("no-such-table", 40, 0);
+      store.getState().moveTable(tableId!, 40, 0);
 
       store.getState().undo();
       expect(store.getState().schema.tables[0]).toMatchObject({ x: 0, y: 0 });
