@@ -18,9 +18,11 @@ import {
   buildStaticInstructions,
 } from "../copilot/systemPrompt.js";
 import { COPILOT_RESPONSE_TOOL, parseToolUseResponse } from "../copilot/responseTool.js";
-import { PREVIEW_EXPORT_TOOL, runExportPreview } from "../copilot/exportPreviewTool.js";
-import { INSPECT_SOURCE_TOOL, runInspectSource } from "../copilot/inspectSourceTool.js";
-import { PROBE_JOIN_TOOL, runProbeJoin } from "../copilot/probeJoinTool.js";
+import {
+  INVESTIGATION_TOOLS,
+  isInvestigationTool,
+  runInvestigationTool,
+} from "../copilot/investigationTools.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 import { DEFAULT_MODEL, parseModelsPage } from "./models.js";
 
@@ -92,7 +94,6 @@ export class AnthropicBrowserProvider implements AiProvider {
       },
       { type: "text", text: buildDynamicContext(schema, sources) },
     ];
-    const investigationTools = [PREVIEW_EXPORT_TOOL, INSPECT_SOURCE_TOOL, PROBE_JOIN_TOOL];
     let messages: ProviderMessage[] = [...history, { role: "user", content: message }];
     // Fresh derivations (declared by the caller, never inferred from history length — a plain
     // first-turn question must not be forced to fabricate tool calls) get an evidence-gathering
@@ -110,16 +111,16 @@ export class AnthropicBrowserProvider implements AiProvider {
     for (let iteration = 0; iteration < MAX_PREVIEW_ITERATIONS; iteration += 1) {
       const tools =
         iteration < withheldRounds
-          ? investigationTools
-          : [...investigationTools, COPILOT_RESPONSE_TOOL];
+          ? INVESTIGATION_TOOLS
+          : [...INVESTIGATION_TOOLS, COPILOT_RESPONSE_TOOL];
       const data = await this.request(systemBlocks, messages, tools, { type: "any" });
 
       if (data.content.some((block) => isToolUse(block, COPILOT_RESPONSE_TOOL.name))) {
         return this.finalizeResponse(data);
       }
 
-      const calls = data.content.filter((block) =>
-        investigationTools.some((tool) => isToolUse(block, tool.name)),
+      const calls = data.content.filter(
+        (block) => block.type === "tool_use" && isInvestigationTool(block.name ?? ""),
       );
       if (calls.length === 0) {
         // No recognized tool — parse whatever came back (text fallback) or surface it as blocked.
@@ -131,12 +132,7 @@ export class AnthropicBrowserProvider implements AiProvider {
       const toolResults: AnthropicContentBlock[] = calls.map((call) => ({
         type: "tool_result",
         tool_use_id: call.id ?? "",
-        content:
-          call.name === PREVIEW_EXPORT_TOOL.name
-            ? runExportPreview(schema, call.input)
-            : call.name === PROBE_JOIN_TOOL.name
-              ? runProbeJoin(sources, call.input, schema)
-              : runInspectSource(sources, call.input),
+        content: runInvestigationTool(call.name ?? "", schema, sources, call.input),
       }));
       messages = [
         ...messages,

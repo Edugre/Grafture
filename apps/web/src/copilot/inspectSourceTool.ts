@@ -1,5 +1,7 @@
 import type { Source } from "@grafture/core";
 
+import { requiredStringArgs } from "./toolArgs.js";
+
 /** Cap on values returned per call — enough to judge a column, bounded for the context window. */
 const MAX_INSPECT_VALUES = 100;
 
@@ -36,10 +38,8 @@ export const INSPECT_SOURCE_TOOL = {
  * including the valid names so it can self-correct a typo on the next call.
  */
 export function runInspectSource(sources: Source[], input: unknown): string {
-  const record =
-    typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
-  const sourceName = typeof record["source"] === "string" ? record["source"] : "";
-  const fieldName = typeof record["field"] === "string" ? record["field"] : "";
+  // Keys derived from INSPECT_SOURCE_TOOL.input_schema — see `requiredStringArgs`.
+  const { source: sourceName, field: fieldName } = requiredStringArgs(INSPECT_SOURCE_TOOL, input);
 
   const source = sources.find((candidate) => candidate.name === sourceName);
   if (!source) {
