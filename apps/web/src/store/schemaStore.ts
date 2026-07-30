@@ -16,6 +16,7 @@ import {
   pushHistory,
   redo,
   undo,
+  willCoalesce,
 } from "./history.js";
 
 export type RunActionsResult = Pick<ApplyResult, "applied" | "rejected">;
@@ -446,7 +447,10 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         },
 
         moveTable: (tableId, x, y) => {
-          const before = captureSnapshot(get());
+          const state = get();
+          const coalesceKey = `move:${tableId}`;
+          // Mid-drag the snapshot would be coalesced away; don't build it at all.
+          const before = willCoalesce(state._history, coalesceKey) ? null : captureSnapshot(state);
 
           set((draft) => {
             const table = findTableById(draft.schema, tableId);
@@ -454,7 +458,9 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
               return;
             }
 
-            pushHistory(draft._history, before, `move:${tableId}`);
+            if (before) {
+              pushHistory(draft._history, before, coalesceKey);
+            }
             table.x = x;
             table.y = y;
           });
@@ -477,7 +483,11 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         },
 
         resizeTable: (tableId, width) => {
-          const before = captureSnapshot(get());
+          const state = get();
+          // Coalesce a continuous drag-resize into a single undo step, and skip the snapshot
+          // entirely once coalescing has started.
+          const coalesceKey = `resize:${tableId}`;
+          const before = willCoalesce(state._history, coalesceKey) ? null : captureSnapshot(state);
 
           set((draft) => {
             const table = findTableById(draft.schema, tableId);
@@ -485,8 +495,9 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
               return;
             }
 
-            // Coalesce a continuous drag-resize into a single undo step.
-            pushHistory(draft._history, before, `resize:${tableId}`);
+            if (before) {
+              pushHistory(draft._history, before, coalesceKey);
+            }
             table.width = width;
           });
         },
