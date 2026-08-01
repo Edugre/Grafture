@@ -1,4 +1,12 @@
-import type { ApplyResult, Cardinality, Field, Schema, Source, Table } from "@grafture/core";
+import type {
+  ApplyResult,
+  Cardinality,
+  Field,
+  Origin,
+  Schema,
+  Source,
+  Table,
+} from "@grafture/core";
 import { SchemaSchema, applyActions, emptySchema } from "@grafture/core";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -21,6 +29,12 @@ import {
 
 export type RunActionsResult = Pick<ApplyResult, "applied" | "rejected">;
 
+export type RunActionsOptions = {
+  actor?: Origin;
+  /** Groups a copilot turn's rationales in the review panel. Set only on the copilot path. */
+  turnId?: string;
+};
+
 export type AcceptDraftResult = { ok: true } | { ok: false; error: string };
 
 export type SchemaStore = {
@@ -42,7 +56,13 @@ export type SchemaStore = {
    */
   draft: Schema | null;
 
-  runActions: (rawActions: unknown[]) => RunActionsResult;
+  /**
+   * Apply a batch of actions, attributing them to `opts.actor`. Every caller declares who is
+   * acting: the copilot passes `"ai"`, building a table from a parsed file passes `"imported"`,
+   * and everything else takes the `"user"` default. Core cannot infer this — manual edits and
+   * copilot output share this one path.
+   */
+  runActions: (rawActions: unknown[], opts?: RunActionsOptions) => RunActionsResult;
 
   addTable: (name: string, opts?: { x?: number; y?: number }) => RunActionsResult;
   addField: (
@@ -216,9 +236,16 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         });
       };
 
-      const runValidatedActions = (rawActions: unknown[]): RunActionsResult => {
+      const runValidatedActions = (
+        rawActions: unknown[],
+        opts?: RunActionsOptions,
+      ): RunActionsResult => {
         const state = get();
-        const result = applyActions(state.schema, rawActions, { makeId: state._makeId });
+        const result = applyActions(state.schema, rawActions, {
+          makeId: state._makeId,
+          ...(opts?.actor === undefined ? {} : { actor: opts.actor }),
+          ...(opts?.turnId === undefined ? {} : { turnId: opts.turnId }),
+        });
 
         if (result.applied.length === 0) {
           return { applied: result.applied, rejected: result.rejected };

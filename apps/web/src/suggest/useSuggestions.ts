@@ -108,6 +108,10 @@ export function useSuggestions(): SuggestionsApi {
   return useMemo<SuggestionsApi>(() => {
     const open = groups.flatMap((group) => group.items);
 
+    // Applying a suggestion takes the default `user` actor rather than `ai`, deliberately: these
+    // are deterministic detector findings the user reviewed and accepted, with no model involved
+    // anywhere in the path. Stamping them `ai` would make the canvas claim the copilot authored
+    // something it never saw — and would show a provenance marker with no rationale behind it.
     const apply = (item: SuggestionItem): ApplyOutcome => {
       if (item.group === "fk") {
         const plan = buildApplyPlan(sources, schema, item.join.candidate);

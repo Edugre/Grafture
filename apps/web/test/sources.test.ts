@@ -76,16 +76,21 @@ describe("buildTableFromSource", () => {
       ],
     });
 
-    expect(runActions).toHaveBeenCalledWith([
-      {
-        op: "add_table",
-        name: "orgs",
-        fields: [
-          { name: "grant_number", type: "text" },
-          { name: "count", type: "int" },
-        ],
-      },
-    ]);
+    expect(runActions).toHaveBeenCalledWith(
+      [
+        {
+          op: "add_table",
+          name: "orgs",
+          fields: [
+            { name: "grant_number", type: "text" },
+            { name: "count", type: "int" },
+          ],
+        },
+      ],
+      // The table's shape is the file's own, so it is attributed to the import rather than to
+      // the user who clicked build.
+      { actor: "imported" },
+    );
     expect(result.tableName).toBe("orgs");
   });
 });

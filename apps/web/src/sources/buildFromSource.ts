@@ -1,9 +1,9 @@
 import type { Schema, Source, SourceField } from "@grafture/core";
 
-import type { RunActionsResult } from "../store/index.js";
+import type { RunActionsOptions, RunActionsResult } from "../store/index.js";
 import { tableNameForSource, uniqueTableName } from "./tableName.js";
 
-type RunActions = (rawActions: unknown[]) => RunActionsResult;
+type RunActions = (rawActions: unknown[], opts?: RunActionsOptions) => RunActionsResult;
 type AddField = (
   tableId: string,
   name: string,
@@ -98,7 +98,9 @@ export function buildTableFromSource(
     }
   }
 
-  const result = runActions(actions);
+  // `imported`, not `user`: these columns are the file's own shape, read straight off the parsed
+  // source. Distinguishing that from a shape someone chose is the point of recording origin.
+  const result = runActions(actions, { actor: "imported" });
 
   return { ...result, tableName };
 }

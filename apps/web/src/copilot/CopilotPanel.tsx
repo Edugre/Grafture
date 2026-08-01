@@ -161,6 +161,9 @@ export function CopilotPanel({
 
     // Capture history from the conversation so far, before appending the new user turn.
     const history = buildConversationHistory(messages);
+    // One id for the whole send, not per round: the loop may take several rounds to satisfy a
+    // single request, and every rationale it writes belongs to that one turn.
+    const turnId = nextMessageId();
 
     setDraft("");
     appendChatMessages([{ id: nextMessageId(), role: "user", text }]);
@@ -197,7 +200,7 @@ export function CopilotPanel({
           };
         },
         apply: (actions) => {
-          const { applied, rejected } = runActions(actions);
+          const { applied, rejected } = runActions(actions, { actor: "ai", turnId });
           const updatedSchema = useSchemaStore.getState().schema;
 
           const affectedTableIds = collectAffectedTableIds(applied);

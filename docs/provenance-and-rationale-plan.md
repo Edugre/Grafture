@@ -160,12 +160,27 @@ entity must declare `provenance?: Provenance | undefined` explicitly.
 - A later rationale replaces the earlier one; they do not accumulate.
 - 11 tests in `packages/core/test/rationale.test.ts`. Suite green (262 core / 264 web).
 
-### PR-3 — store: actor plumbing + history
+### PR-3 — store: actor plumbing + history — **DONE**
 
-- `runActions` passes `actor: "ai"`; the typed UI commands pass `actor: "user"`.
-- Verify undo/redo restores provenance — should be free via `structuredClone` in `cloneSnapshot`,
-  but assert it in a test rather than assuming.
-- `acceptDraft` must preserve provenance from the draft schema.
+- `runActions` takes a second argument, `RunActionsOptions { actor?, turnId? }`, so every call site
+  declares who is acting. The typed UI commands pass nothing and take the `"user"` default.
+- **Correction to the original bullet:** "`runActions` passes `actor: "ai"`" was wrong — it assumed
+  `runActions` was the copilot's private entry point. It is shared by **three** callers with three
+  different actors:
+  - `CopilotPanel.tsx` → `"ai"`, plus a `turnId` minted once per send (the loop can take several
+    rounds to satisfy one request, and all its rationales belong to that one turn).
+  - `buildFromSource.ts` → **`"imported"`**. This resolves the open question below: the columns are
+    the file's own shape read off the parsed source, and distinguishing that from a shape someone
+    chose is precisely what origin is for.
+  - `useSuggestions.ts` → left at the `"user"` default **deliberately**, and commented in place.
+    Suggestions read as an AI feature but are pure local detector findings with no model anywhere
+    in the path; stamping them `"ai"` would have the canvas credit the copilot with work it never
+    saw, and show a provenance marker with no rationale behind it.
+- Undo/redo needed no plumbing — `cloneSnapshot`'s `structuredClone` carries provenance — but it is
+  now asserted rather than assumed, in both directions.
+- `acceptDraft` preserves provenance through its `SchemaSchema.safeParse` re-check.
+- 7 tests in `apps/web/test/provenanceStore.test.ts`; one existing `sources.test.ts` assertion
+  updated for the new call shape. Suite green (262 core / 271 web), lint and build clean.
 
 ### PR-4 — prompt + response tool
 
@@ -199,12 +214,17 @@ it is stale. Reuses the existing suggestion-card `rationale` presentation where 
 
 ## Open questions
 
-1. **Does `imported` earn its place in v1?** Resolved to "not free": `packages/core/src/import/sql.ts`
-   builds the schema directly rather than going through `applyActions` — it duplicates the FK-badge
-   logic by hand (`sql.ts:781`). So `imported` needs its own stamping pass in the SQL importer.
-   Recommend keeping the enum value in the model (so no migration later) but deferring the importer
-   stamping to a follow-up; imported entities read as `user` until then, which is the correct
-   fallback since the user does own them.
+1. ~~**Does `imported` earn its place in v1?**~~ **Resolved in PR-3 — yes.** The file→table build
+   path (`buildFromSource.ts`) goes through `runActions` and now stamps `"imported"`, so the value
+   is live and tested.
+
+   Still outstanding, and narrower than first written: **`packages/core/src/import/sql.ts` builds
+   its schema directly rather than through `applyActions`** — it duplicates the FK-badge logic by
+   hand (`sql.ts:781`) — so SQL-imported entities carry no provenance and render as `user`. That is
+   an acceptable fallback, not a correct one: a schema slurped from an existing database is exactly
+   the case where "you did not write this" is worth showing. Needs its own stamping pass; not
+   blocking PR-4/5/6.
+
 2. **Rationale on `add_table` for junction tables** — the N:M junction case (`systemPrompt.ts:275`)
    is exactly where a rationale is most valuable, but the blanket "no rationale on add_table" rule
    would suppress it. Likely needs a carve-out for tables created as junctions.
