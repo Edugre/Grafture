@@ -366,3 +366,61 @@ describe("fromSql", () => {
     expect(() => SchemaSchema.parse(schema)).not.toThrow();
   });
 });
+
+describe("fromSql provenance", () => {
+  const DDL = `
+    CREATE TABLE customers (
+      id integer PRIMARY KEY,
+      email text
+    );
+    CREATE TABLE orders (
+      id integer PRIMARY KEY,
+      customer_id integer REFERENCES customers(id)
+    );
+  `;
+
+  it("stamps every table, field, and relationship as imported", () => {
+    const { schema } = fromSql(DDL);
+
+    for (const table of schema.tables) {
+      expect(table.provenance, table.name).toEqual({ origin: "imported", touched: false });
+      for (const field of table.fields) {
+        expect(field.provenance, `${table.name}.${field.name}`).toEqual({
+          origin: "imported",
+          touched: false,
+        });
+      }
+    }
+    expect(schema.relationships).toHaveLength(1);
+    expect(schema.relationships[0]?.provenance).toEqual({ origin: "imported", touched: false });
+  });
+
+  it("gives each entity its own provenance object", () => {
+    // `markTouched` mutates `touched` in place, so a shared literal would let one edit to one
+    // column mark the whole imported schema as edited.
+    const { schema } = fromSql(DDL);
+    const first = schema.tables[0]!;
+    const second = schema.tables[1]!;
+
+    first.fields[0]!.provenance!.touched = true;
+
+    expect(first.fields[1]?.provenance?.touched).toBe(false);
+    expect(first.provenance?.touched).toBe(false);
+    expect(second.fields[0]?.provenance?.touched).toBe(false);
+    expect(schema.relationships[0]?.provenance?.touched).toBe(false);
+  });
+
+  it("survives the SchemaSchema validation fromSql runs before returning", () => {
+    // fromSql parses its own output; provenance must be part of the contract it validates against.
+    const { schema } = fromSql(DDL);
+    expect(SchemaSchema.parse(schema).tables[0]?.provenance?.origin).toBe("imported");
+  });
+
+  it("leaves the emitted DDL unchanged — provenance is canvas state, not schema", () => {
+    const { schema } = fromSql(DDL);
+    const sql = toSql(schema);
+
+    expect(sql).not.toContain("provenance");
+    expect(sql).not.toContain("imported");
+  });
+});

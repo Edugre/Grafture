@@ -296,13 +296,30 @@ PR-5 pass wrote to the real `Test` project, which was restored):
 
 ## What remains
 
-All six PRs are landed. Two things are outstanding, both flagged in the open questions below:
+All six PRs are landed, plus the SQL-importer follow-up.
 
-1. **The live run has never happened.** Every layer is verified — provenance, staleness, the
-   prompt's contents, the canvas, the panel — but always with rationales I wrote by hand. Nothing
-   confirms the model actually emits them first, cites real figures, and does not pad every action.
-   That is the acceptance gate for the reasoning claim, not the green suite.
-2. **SQL-imported schemas carry no provenance** (`import/sql.ts` bypasses `applyActions`).
+- ~~**The live run has never happened.**~~ **Done — the user ran the copilot live against real
+  sources and reported the feature working.** That closes the acceptance gate no offline check
+  could reach: whether the model actually emits rationales, cites figures, and stays within scope.
+- ~~**SQL-imported schemas carry no provenance.**~~ **Done — see PR-7 below.**
+
+### PR-7 — SQL importer provenance — **DONE**
+
+`buildSchema` in `import/sql.ts` constructs its schema directly rather than through `applyActions`
+(the same reason it maintains the FK badge by hand), so it now stamps `imported` on every table,
+field, and relationship itself.
+
+`importedProvenance()` returns a **fresh object per entity**, never a shared constant: `markTouched`
+mutates `touched` in place, so a shared literal would let one hand edit mark an entire imported
+schema as edited. Pinned by a test.
+
+4 tests in `import.test.ts` — the stamping, the shared-object hazard, survival through the
+`SchemaSchema.parse` that `fromSql` already runs on its own output, and that `toSql` output is
+unchanged (provenance is canvas state, not DDL).
+
+Verified in the browser: imported entities render as **blue squares** against the copilot's purple
+circles — shape as well as hue — with `"Created by an imported file"` on every marker, blue field
+edges, and a blue-bordered relationship chip.
 
 ## Open questions
 
@@ -310,12 +327,7 @@ All six PRs are landed. Two things are outstanding, both flagged in the open que
    path (`buildFromSource.ts`) goes through `runActions` and now stamps `"imported"`, so the value
    is live and tested.
 
-   Still outstanding, and narrower than first written: **`packages/core/src/import/sql.ts` builds
-   its schema directly rather than through `applyActions`** — it duplicates the FK-badge logic by
-   hand (`sql.ts:781`) — so SQL-imported entities carry no provenance and render as `user`. That is
-   an acceptable fallback, not a correct one: a schema slurped from an existing database is exactly
-   the case where "you did not write this" is worth showing. Needs its own stamping pass; not
-   blocking PR-4/5/6.
+   The SQL importer's own stamping pass — the narrower remainder — **landed in PR-7**.
 
 2. ~~**Rationale on `add_table` for junction tables**~~ **Resolved in PR-4.** Required on
    `add_table` when the table is not one source file (junction, normalization split, extracted
@@ -325,9 +337,11 @@ All six PRs are landed. Two things are outstanding, both flagged in the open que
    recurring input cost is ~zero. `set_type` was scoped to deviating/conflicting types only, which
    was the op that would have inflated output most. **Output cost is still unmeasured** and needs a
    live run.
-4. **Does the model actually comply?** Nothing offline can verify that it emits `rationale` first,
-   cites real figures, and does not pad every action. This is the open risk PR-4 carries into
-   PR-5/6 — a live run should check compliance and rationale quality, not just that actions apply.
+4. ~~**Does the model actually comply?**~~ **Resolved by a live run** — the user exercised the
+   copilot against real sources and reported it working. Worth re-checking whenever
+   `RATIONALE_GUIDANCE` or the model changes, since nothing offline can verify it: the only
+   automated hook would be extending `evals.live.test.ts` to assert that qualifying actions carry a
+   citation, which it does not do today.
 
 ## Risks
 

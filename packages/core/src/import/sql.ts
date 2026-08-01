@@ -1,5 +1,5 @@
 import { SchemaSchema } from "../model.js";
-import type { Cardinality, Field, Relationship, Schema, Table } from "../model.js";
+import type { Cardinality, Field, Provenance, Relationship, Schema, Table } from "../model.js";
 import { ParseError } from "../parse/errors.js";
 
 /**
@@ -680,6 +680,20 @@ function makeLookup<T>(entries: [string, T][]): (name: string) => T | undefined 
   return (name) => exact.get(name) ?? lower.get(name.toLowerCase());
 }
 
+/**
+ * Everything this importer produces came out of a DDL file, so it is stamped `imported` rather
+ * than left unattributed. `applyActions` normally does this stamping, but `buildSchema` constructs
+ * its schema directly — the same reason the FK badge is maintained by hand below — so the stamp has
+ * to be applied here too, or a schema pulled from an existing database would read as the user's own
+ * work: the one case where "you did not write this" is most worth showing.
+ *
+ * A fresh object per entity, never a shared constant: `touched` is mutated in place by
+ * `markTouched`, so a shared literal would let one edit mark the entire imported schema.
+ */
+function importedProvenance(): Provenance {
+  return { origin: "imported", touched: false };
+}
+
 function buildSchema(ctx: ParseContext, makeId: () => string): Schema {
   // Fold ALTER ... ADD PRIMARY KEY back into the owning table's pk columns.
   const findRaw = makeLookup(ctx.tables.map((table) => [table.name, table] as [string, RawTable]));
@@ -698,6 +712,7 @@ function buildSchema(ctx: ParseContext, makeId: () => string): Schema {
       type: column.type,
       pk: column.pk || pkNames.has(column.name.toLowerCase()),
       fk: false,
+      provenance: importedProvenance(),
     }));
     return {
       id: makeId(),
@@ -705,6 +720,7 @@ function buildSchema(ctx: ParseContext, makeId: () => string): Schema {
       x: (index % GRID_COLUMNS) * GRID_SPACING_X,
       y: Math.floor(index / GRID_COLUMNS) * GRID_SPACING_Y,
       fields,
+      provenance: importedProvenance(),
     };
   });
 
@@ -777,6 +793,7 @@ function buildSchema(ctx: ParseContext, makeId: () => string): Schema {
         toTable: toTable.id,
         toField: toField.id,
         cardinality: DEFAULT_CARDINALITY,
+        provenance: importedProvenance(),
       });
       // Keep the FK badge in sync, exactly as applyActions does for add_relationship.
       fromField.fk = true;
