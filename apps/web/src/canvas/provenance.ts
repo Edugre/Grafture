@@ -1,4 +1,6 @@
-import type { Origin, Provenance, Table } from "@grafture/core";
+import type { Origin, Provenance, Rationale, Schema, Table } from "@grafture/core";
+
+import type { RationaleFocus } from "../store/index.js";
 
 /**
  * Presentation-side reading of provenance. Pure functions of the entity — no store access — so the
@@ -55,4 +57,81 @@ export function provenanceLabel(
   const what = opts?.what ?? "Created";
   const base = `${what} by ${ORIGIN_NOUN[origin]}`;
   return opts?.touched ? `${base}, edited since` : base;
+}
+
+export type ResolvedRationale = {
+  /** What the explanation is about, e.g. `orders.customer_id` or `orders → customers`. */
+  subject: string;
+  kind: "table" | "field" | "relationship";
+  origin: Origin;
+  stale: boolean;
+  rationale: Rationale;
+};
+
+/**
+ * Resolve a focus to the entity's **current** rationale, or null when it no longer has one (the
+ * entity was deleted, or the copilot's explanation was dropped). Reading through the live schema
+ * rather than caching at click time is what lets the open panel start saying "edited since" the
+ * moment the user changes the thing it describes.
+ */
+export function resolveRationale(
+  schema: Schema,
+  focus: RationaleFocus | null,
+): ResolvedRationale | null {
+  if (!focus) {
+    return null;
+  }
+
+  if (focus.kind === "relationship") {
+    const relationship = schema.relationships.find(
+      (candidate) => candidate.id === focus.relationshipId,
+    );
+    const rationale = relationship?.provenance?.rationale;
+    if (!relationship || !rationale) {
+      return null;
+    }
+    const from = schema.tables.find((candidate) => candidate.id === relationship.fromTable);
+    const to = schema.tables.find((candidate) => candidate.id === relationship.toTable);
+    const fromField = from?.fields.find((candidate) => candidate.id === relationship.fromField);
+    const toField = to?.fields.find((candidate) => candidate.id === relationship.toField);
+    return {
+      subject: `${from?.name ?? "?"}.${fromField?.name ?? "?"} → ${to?.name ?? "?"}.${
+        toField?.name ?? "?"
+      }`,
+      kind: "relationship",
+      origin: originOf(relationship),
+      stale: isStaleRationale(relationship),
+      rationale,
+    };
+  }
+
+  const table = schema.tables.find((candidate) => candidate.id === focus.tableId);
+  if (!table) {
+    return null;
+  }
+
+  if (focus.kind === "table") {
+    const rationale = table.provenance?.rationale;
+    return rationale
+      ? {
+          subject: table.name,
+          kind: "table",
+          origin: originOf(table),
+          stale: isStaleRationale(table),
+          rationale,
+        }
+      : null;
+  }
+
+  const field = table.fields.find((candidate) => candidate.id === focus.fieldId);
+  const rationale = field?.provenance?.rationale;
+  return field && rationale
+    ? {
+        subject: `${table.name}.${field.name}`,
+        kind: "field",
+        origin: originOf(field),
+        stale: isStaleRationale(field),
+        rationale,
+      }
+    : null;
 }

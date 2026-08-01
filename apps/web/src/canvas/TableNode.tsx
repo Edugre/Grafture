@@ -49,18 +49,38 @@ function ProvenanceMarker({
   );
 }
 
-function RationaleBadge({ text, stale }: { text: string; stale: boolean }) {
+/**
+ * The badge is a real button, not a tooltip-only affordance: the title attribute truncates long
+ * reasoning and is unreachable by keyboard, and the reasoning is the point of the feature. It
+ * opens the full text, its cited evidence, and its staleness in the review panel.
+ */
+function RationaleBadge({
+  text,
+  stale,
+  onOpen,
+}: {
+  text: string;
+  stale: boolean;
+  onOpen: () => void;
+}) {
   const label = stale ? `Why (edited since): ${text}` : `Why: ${text}`;
 
   return (
-    <span
-      className={`rationale-badge${stale ? " is-stale" : ""}`}
+    <button
+      type="button"
+      className={`rationale-badge nodrag${stale ? " is-stale" : ""}`}
       title={label}
       aria-label={label}
-      role="img"
+      onClick={(event) => {
+        // The row selects a field and the title starts a rename — neither is what a click on the
+        // badge means.
+        event.stopPropagation();
+        onOpen();
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
     >
       {stale ? "?" : "i"}
-    </span>
+    </button>
   );
 }
 
@@ -89,6 +109,7 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
   const selectField = useSchemaStore((state) => state.selectField);
   const selectedFieldId = useSchemaStore((state) => state.selection.fieldId);
   const reviewMode = useSchemaStore((state) => state.reviewMode);
+  const focusRationale = useSchemaStore((state) => state.focusRationale);
 
   const selected = selectedFieldId === field.id;
   const origin = originOf(field);
@@ -174,7 +195,11 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
           </span>
           {field.fk ? <span className="table-node__fk">FK</span> : null}
           {reviewMode && rationale ? (
-            <RationaleBadge text={rationale.text} stale={isStaleRationale(field)} />
+            <RationaleBadge
+              text={rationale.text}
+              stale={isStaleRationale(field)}
+              onOpen={() => focusRationale({ kind: "field", tableId: table.id, fieldId: field.id })}
+            />
           ) : null}
           {editing === "type" ? (
             <>
@@ -232,6 +257,7 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
 function TableTitle({ table }: { table: Table }) {
   const renameTable = useSchemaStore((state) => state.renameTable);
   const reviewMode = useSchemaStore((state) => state.reviewMode);
+  const focusRationale = useSchemaStore((state) => state.focusRationale);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(table.name);
 
@@ -282,7 +308,11 @@ function TableTitle({ table }: { table: Table }) {
       </span>
       <span className="table-node__title-meta">
         {reviewMode && table.provenance?.rationale ? (
-          <RationaleBadge text={table.provenance.rationale.text} stale={isStaleRationale(table)} />
+          <RationaleBadge
+            text={table.provenance.rationale.text}
+            stale={isStaleRationale(table)}
+            onOpen={() => focusRationale({ kind: "table", tableId: table.id })}
+          />
         ) : null}
         <span className="table-node__count">{table.fields.length}</span>
       </span>

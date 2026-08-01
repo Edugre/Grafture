@@ -35,6 +35,7 @@ export function RelationshipEdge({
 }: EdgeProps<RelationshipFlowEdge>) {
   const setCardinality = useSchemaStore((state) => state.setCardinality);
   const reviewMode = useSchemaStore((state) => state.reviewMode);
+  const focusRationale = useSchemaStore((state) => state.focusRationale);
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -49,21 +50,16 @@ export function RelationshipEdge({
   const relationshipId = data?.relationshipId ?? id;
   const proposed = data?.proposed ?? false;
 
-  // Edge labels are tight, so provenance rides the existing cardinality chip rather than adding a
-  // second floating element: `data-origin` tints its border, and the rationale extends the title
-  // the chip already carries.
+  // Edge labels are tight, so origin rides the existing cardinality chip's border rather than
+  // adding a third floating element. The reasoning itself lives on the badge beside it.
   const entity = { provenance: data?.provenance };
   const rationale = data?.provenance?.rationale;
   const showProvenance = reviewMode && !proposed;
   const stale = isStaleRationale(entity);
   const labelTitle = showProvenance
-    ? [
-        provenanceLabel(originOf(entity), { touched: entity.provenance?.touched ?? false }),
-        rationale ? `${stale ? "Why (edited since)" : "Why"}: ${rationale.text}` : null,
-        "Click to change cardinality",
-      ]
-        .filter(Boolean)
-        .join(" — ")
+    ? `${provenanceLabel(originOf(entity), {
+        touched: entity.provenance?.touched ?? false,
+      })} — Click to change cardinality`
     : "Click to change cardinality";
 
   // Proposed (ghost) edges are dashed, tinted, and don't carry the arrow marker.
@@ -99,13 +95,27 @@ export function RelationshipEdge({
             onClick={() => setCardinality(relationshipId, NEXT[cardinality])}
           >
             {cardinality}
-            {showProvenance && rationale ? (
-              <span className="relationship-label__why" aria-hidden>
-                {stale ? "?" : "i"}
-              </span>
-            ) : null}
           </button>
         )}
+        {showProvenance && rationale ? (
+          // A sibling of the cardinality chip, not a child: the chip is itself a button (it cycles
+          // cardinality), and a button inside a button is invalid and unreachable by keyboard.
+          // Offset just past the chip so the two read as one control group.
+          <button
+            type="button"
+            className={`rationale-badge rationale-badge--edge nodrag nopan${
+              stale ? " is-stale" : ""
+            }`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX + 26}px, ${labelY}px)`,
+            }}
+            title={stale ? `Why (edited since): ${rationale.text}` : `Why: ${rationale.text}`}
+            aria-label={stale ? `Why (edited since): ${rationale.text}` : `Why: ${rationale.text}`}
+            onClick={() => focusRationale({ kind: "relationship", relationshipId })}
+          >
+            {stale ? "?" : "i"}
+          </button>
+        ) : null}
       </EdgeLabelRenderer>
     </>
   );

@@ -265,11 +265,44 @@ label carries the accent border and its rationale in the title; every `user` row
 
 11 tests in `apps/web/test/canvasProvenance.test.ts`. Suite green (266 core / 288 web).
 
-### PR-6 — rationale panel
+### PR-6 — rationale panel — **DONE**
 
-Click a badge → panel showing rationale text, cited evidence, the turn it came from, and whether
-it is stale. Reuses the existing suggestion-card `rationale` presentation where possible
-(`systemPrompt.ts:488`).
+- Badges became real **buttons**. They were `role="img"` spans relying on `title`, which truncates
+  long reasoning and is unreachable by keyboard — unacceptable for the one thing this feature
+  exists to show.
+- `rationaleFocus` on the store (`{kind, ids}`, ephemeral): cleared when review mode is switched
+  off, when another project loads, and when the focus stops resolving.
+- `resolveRationale(schema, focus)` reads the entity through the **live schema** rather than
+  snapshotting at click time — that is what makes an open panel flip to "edited since" the moment
+  the user changes what it describes, instead of continuing to show the state it was opened in.
+- `RationalePanel`: subject line, stale banner, reasoning text, cited evidence, origin footer,
+  close button, Esc to dismiss. Docked bottom-left rather than anchored to its node — the canvas
+  pans and zooms, and a popover tracking a moving node either fights the viewport or drifts
+  off-screen. The subject line names what it explains, so proximity is not needed.
+- **Correction to the plan:** the edge badge could not stay inside the cardinality chip. That chip
+  is itself a button (it cycles cardinality), so a nested button is invalid HTML and unreachable by
+  keyboard. The badge is now a sibling positioned just past it.
+
+Verified in the browser on a throwaway project (created, exercised, then deleted — the earlier
+PR-5 pass wrote to the real `Test` project, which was restored):
+
+- relationship badge → panel with both evidence tokens and "Created by the AI copilot";
+- clicking the cardinality chip by hand → chip goes dashed amber, badge flips `i` → `?`, and the
+  **already-open panel** shows the "edited since" banner;
+- Esc closes; field badge → `Column · orders.order_id`; table badge → `Table · customers`;
+- deleting the focused table clears the focus and removes the panel rather than leaving it stuck.
+
+21 tests in `apps/web/test/canvasProvenance.test.ts`. Suite green (266 core / 298 web).
+
+## What remains
+
+All six PRs are landed. Two things are outstanding, both flagged in the open questions below:
+
+1. **The live run has never happened.** Every layer is verified — provenance, staleness, the
+   prompt's contents, the canvas, the panel — but always with rationales I wrote by hand. Nothing
+   confirms the model actually emits them first, cites real figures, and does not pad every action.
+   That is the acceptance gate for the reasoning claim, not the green suite.
+2. **SQL-imported schemas carry no provenance** (`import/sql.ts` bypasses `applyActions`).
 
 ## Open questions
 

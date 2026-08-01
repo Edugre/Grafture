@@ -1,6 +1,7 @@
 export type { Selection, StoreSnapshot } from "./history.js";
 export type {
   CreateSchemaStoreOptions,
+  RationaleFocus,
   RunActionsOptions,
   RunActionsResult,
   SchemaStore,

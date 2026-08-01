@@ -27,6 +27,7 @@ import {
   UnlockIcon,
 } from "../ui/icons.js";
 import { PreviewOverlay } from "./PreviewOverlay.js";
+import { RationalePanel } from "./RationalePanel.js";
 import { registerArrangeHandler } from "./arrangeBridge.js";
 import { RelationshipEdge } from "./RelationshipEdge.js";
 import type { RelationshipFlowEdge } from "./RelationshipEdge.js";
@@ -417,6 +418,7 @@ export function CanvasPanel({
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
           <MiniMap pannable zoomable />
           {preview ? <PreviewOverlay preview={preview} /> : null}
+          <RationalePanel />
           <div className="canvas-controls">
             <button
               type="button"

@@ -29,6 +29,16 @@ import {
 
 export type RunActionsResult = Pick<ApplyResult, "applied" | "rejected">;
 
+/**
+ * Which entity's rationale the review panel is showing. Stored as ids rather than a snapshot of
+ * the rationale so the panel always reads live provenance — an explanation that goes stale while
+ * open must say so rather than keep rendering the state it was opened in.
+ */
+export type RationaleFocus =
+  | { kind: "table"; tableId: string }
+  | { kind: "field"; tableId: string; fieldId: string }
+  | { kind: "relationship"; relationshipId: string };
+
 export type RunActionsOptions = {
   actor?: Origin;
   /** Groups a copilot turn's rationales in the review panel. Set only on the copilot path. */
@@ -56,6 +66,8 @@ export type SchemaStore = {
    * persisted.
    */
   reviewMode: boolean;
+  /** The rationale open in the review panel, or null. Ephemeral UI state, like `reviewMode`. */
+  rationaleFocus: RationaleFocus | null;
   /**
    * A not-yet-applied schema proposed by the AI (the New Project auto-draft). Rendered on the
    * canvas as a ghost overlay the user can Accept or Discard. Ephemeral UI state: kept out of
@@ -109,6 +121,7 @@ export type SchemaStore = {
   dismissSuggestions: (ids: string[]) => void;
 
   setReviewMode: (on: boolean) => void;
+  focusRationale: (focus: RationaleFocus | null) => void;
 
   /** Stash (or clear) the AI-proposed draft schema shown as a ghost overlay. No history entry. */
   setDraft: (schema: Schema | null) => void;
@@ -279,6 +292,7 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         chat: options?.initialChat ?? [],
         dismissedSuggestionIds: [],
         reviewMode: false,
+        rationaleFocus: null,
         draft: null,
         _history: createHistoryController(),
         _makeId: makeId,
@@ -607,6 +621,16 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         setReviewMode: (on) => {
           set((state) => {
             state.reviewMode = on;
+            // Leaving review mode closes the panel: it explains markers that are no longer shown.
+            if (!on) {
+              state.rationaleFocus = null;
+            }
+          });
+        },
+
+        focusRationale: (focus) => {
+          set((state) => {
+            state.rationaleFocus = focus;
           });
         },
 
@@ -654,6 +678,10 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             state.chat = structuredClone(chat);
             state.selection = {};
             state.dismissedSuggestionIds = [];
+            // A review of the previous project's proposal means nothing here, and the focused
+            // ids belong to a schema that is no longer loaded.
+            state.reviewMode = false;
+            state.rationaleFocus = null;
             state.draft = null;
             state._history = createHistoryController();
           });
