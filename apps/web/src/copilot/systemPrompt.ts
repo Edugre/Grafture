@@ -240,18 +240,69 @@ export function warmDetectorFindings(sources: Source[]): void {
   cachedDetectorFindings(sources);
 }
 
-const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal ids):
-- add_table: { "op": "add_table", "name": string, "x"?: number, "y"?: number, "fields"?: [{ "name", "type", "pk"?, "fk"? }] }
+const ACTION_PROTOCOL = `Allowed action ops (use table/field NAMES, not internal ids).
+Where an op shows "rationale" it is written FIRST, before the rest of the object — see <rationale>:
+- add_table: { "rationale"?: { "text": string, "evidence"?: string[] }, "op": "add_table", "name": string, "x"?: number, "y"?: number, "fields"?: [{ "name", "type", "pk"?, "fk"? }] }
 - add_field: { "op": "add_field", "table": string, "name": string, "type": string, "pk"?: boolean, "fk"?: boolean }
 - remove_field: { "op": "remove_field", "table": string, "field": string }
 - remove_table: { "op": "remove_table", "table": string }
 - rename_table: { "op": "rename_table", "table": string, "new_name": string }
 - rename_field: { "op": "rename_field", "table": string, "field": string, "new_name": string }
-- add_relationship: { "op": "add_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality"?: "1:1" | "1:N" | "N:M" }
+- add_relationship: { "rationale": { "text": string, "evidence"?: string[] }, "op": "add_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality"?: "1:1" | "1:N" | "N:M" }
 - remove_relationship: { "op": "remove_relationship", "from_table": string, "from_field": string, "to_table": string, "to_field": string }
-- set_pk: { "op": "set_pk", "table": string, "field": string, "pk": boolean }
-- set_type: { "op": "set_type", "table": string, "field": string, "type": string }
-- set_cardinality: { "op": "set_cardinality", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality": "1:1" | "1:N" | "N:M" }`;
+- set_pk: { "rationale": { "text": string, "evidence"?: string[] }, "op": "set_pk", "table": string, "field": string, "pk": boolean }
+- set_type: { "rationale"?: { "text": string, "evidence"?: string[] }, "op": "set_type", "table": string, "field": string, "type": string }
+- set_cardinality: { "rationale": { "text": string, "evidence"?: string[] }, "op": "set_cardinality", "from_table": string, "from_field": string, "to_table": string, "to_field": string, "cardinality": "1:1" | "1:N" | "N:M" }`;
+
+/**
+ * Rationale guidance. Two things here do the work, and neither is the field's existence:
+ *
+ * 1. **Order.** `rationale` is written before the decision fields, in the op signatures above and
+ *    in every example below. Generation is autoregressive, so a reason emitted first conditions
+ *    the choice that follows, while one emitted last can only defend a choice already made. This
+ *    is the only place that ordering is enforced — the response tool types `actions` as a loose
+ *    `object[]`, so no JSON Schema constrains it.
+ * 2. **Citation.** Requiring a measured figure means the model cannot satisfy the field without
+ *    consulting the detector findings or calling a probe. Free prose would degrade into filler
+ *    that users learn to ignore.
+ *
+ * Scope is deliberately narrow. A rationale on every action would inflate output on every turn and
+ * bury the judgment calls in restatement, so the ops that are usually mechanical (add_field,
+ * renames, removals) carry none at all.
+ */
+const RATIONALE_GUIDANCE = `Explaining your decisions — the "rationale" field:
+Write "rationale" as the FIRST key of the action object, before "op" and before the decision
+itself. State the evidence, then decide from it. Do not write the action first and justify it
+afterwards — if the evidence does not support the decision you were about to make, change the
+decision.
+
+REQUIRED on: add_relationship, set_cardinality, set_pk.
+REQUIRED on add_table when the table is not simply one source file (a junction table, a
+normalization split, an extracted shared_parent entity) — explain what grain or dependency forced
+it.
+REQUIRED on set_type only when the type differs from the column's inferred type or resolves a
+format conflict between two sources. A routine type carries no rationale.
+OMIT entirely on: add_field, remove_field, remove_table, rename_table, rename_field,
+remove_relationship, and on an add_table that maps one file to one table.
+
+"text": one or two sentences, citing a figure or verdict you actually observed — a containment or
+overlap percentage, a distinct/non-empty count, an inferred grain, a detector verdict, a format
+conflict. Never restate the action in words.
+"evidence": short tokens naming where each figure came from, e.g.
+["detector_findings:join orders.customer_id~customers.id", "probe_join:orders.customer_id~customers.id"].
+
+Good — cites the measurement, and the measurement is what picks the cardinality:
+  { "rationale": { "text": "98.4% of orders.customer_id values are contained in customers.id, and customers.id is distinct across all sampled rows, so customers is the one side.", "evidence": ["detector_findings:join orders.customer_id~customers.id"] },
+    "op": "add_relationship", "from_table": "orders", "from_field": "customer_id",
+    "to_table": "customers", "to_field": "id", "cardinality": "1:N" }
+
+Bad — restates the action, cites nothing, and could have been written without looking at the data:
+  { "op": "add_relationship", "from_table": "orders", "from_field": "customer_id",
+    "to_table": "customers", "to_field": "id", "cardinality": "1:N",
+    "rationale": { "text": "Linking orders to customers because orders belong to customers." } }
+
+If you cannot cite a figure for a decision that requires a rationale, you have not investigated it
+yet — call probe_join or inspect_source first, then decide.`;
 
 /**
  * Schema-design doctrine: what a *good* relational schema looks like. This is the guidance that
@@ -348,6 +399,10 @@ export function buildStaticInstructions(targetId: TargetId = DEFAULT_TARGET): st
     "<action_protocol>",
     ACTION_PROTOCOL,
     "</action_protocol>",
+    "",
+    "<rationale>",
+    RATIONALE_GUIDANCE,
+    "</rationale>",
     "",
     "<workflow>",
     "You work in a correction loop. After your actions are applied, you may receive a follow-up",

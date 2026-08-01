@@ -20,6 +20,33 @@ describe("COPILOT_RESPONSE_TOOL", () => {
       "blocked",
     ]);
   });
+
+  it("points at the rationale rule from the actions description", () => {
+    expect(COPILOT_RESPONSE_TOOL.input_schema.properties.actions.description).toContain(
+      "rationale",
+    );
+  });
+});
+
+describe("rationale passthrough", () => {
+  it("carries a rationale on an action through to the store unchanged", () => {
+    // Nothing between the model and applyActions may strip unknown-looking keys — core's zod is
+    // the only validator, and a dropped rationale would fail silently.
+    const action = {
+      rationale: { text: "98% containment", evidence: ["probe_join:a.b~c.d"] },
+      op: "add_relationship",
+      from_table: "orders",
+      from_field: "customer_id",
+      to_table: "customers",
+      to_field: "id",
+    };
+    const result = parseToolUseResponse(
+      toolBlock({ reply: "Linked.", actions: [action], status: "needs_revision" }),
+    );
+
+    expect("error" in result).toBe(false);
+    expect((result as { actions: unknown[] }).actions[0]).toEqual(action);
+  });
 });
 
 describe("parseToolUseResponse", () => {

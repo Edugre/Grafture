@@ -182,14 +182,48 @@ entity must declare `provenance?: Provenance | undefined` explicitly.
 - 7 tests in `apps/web/test/provenanceStore.test.ts`; one existing `sources.test.ts` assertion
   updated for the new call shape. Suite green (262 core / 271 web), lint and build clean.
 
-### PR-4 — prompt + response tool
+### PR-4 — prompt + response tool — **DONE**
 
-- `responseTool.ts`: document the rationale field in the `actions` description.
-- `systemPrompt.ts`: require a rationale on relationship/cardinality/PK/type actions, and require
-  it to cite a detector finding or probe result — not restate the action. Give one good and one
-  bad example. Explicitly: no rationale on obvious `add_table` from a single source file.
-- Keep the detector block untouched — it is cached and prewarmed, and must stay a pure function of
-  `sources`.
+- `ACTION_PROTOCOL` now shows `"rationale"` as the **first** key of the five ops that take one, and
+  says so in a header line. This is the mechanism identified in PR-2 — the only place the ordering
+  is enforced, since the response tool types `actions` as a loose `object[]`.
+- New `<rationale>` section (`RATIONALE_GUIDANCE`) between `<action_protocol>` and `<workflow>`:
+  - Required on `add_relationship`, `set_cardinality`, `set_pk`.
+  - **Open question 2 resolved:** required on `add_table` when the table is _not_ one source file —
+    a junction, a normalization split, an extracted `shared_parent`. Omitted for a plain
+    file→table. This is the carve-out the blanket rule would have suppressed, and it covers the
+    N:M junction case where grain reasoning matters most.
+  - **Open question 3 resolved:** `set_type` carries a rationale only when the type differs from
+    the inferred type or resolves a cross-source format conflict. Routine types carry none — that
+    was the high-frequency op that would have inflated every turn.
+  - Omitted entirely on `add_field`, the renames, and the removals.
+  - `text` must cite an observed figure or verdict and must not restate the action; a good example
+    (containment % picking the cardinality) and a bad one (restating the link in words) are both
+    shown.
+  - Closing rule: if you cannot cite a figure for a decision that requires one, you have not
+    investigated it — call `probe_join`/`inspect_source` first.
+- `responseTool.ts`: the `actions` description points at the rationale rule and the first-key
+  requirement.
+- Detector block untouched, as required.
+- 5 prompt tests in `copilot.test.ts` (including an ordering assertion that reads the actual op
+  signature lines) and 2 in `responseTool.test.ts` — one of which pins that a rationale survives
+  the model→store path unstripped, since core's zod is the only validator and a dropped rationale
+  would fail silently. Suite green (262 core / 277 web).
+
+**Real-file check.** The live eval needs `ANTHROPIC_API_KEY` and was not run. What _was_ run: the
+real `local-data/` pair (HRSA CSV + OPAIS JSON, 6 sources after unnesting) pushed through
+`parseCsv`/`parseJson` → detectors → both prompt builders. Prompt builds clean; detectors take
+3.06s, in line with the documented ~3.7s and unchanged by this PR.
+
+Measured cost of the rationale guidance: **3,842 chars — 25.3% of the static half, 7.5% of the
+full prompt.** The static half sits before the provider's prompt-cache breakpoint, so after the
+first turn the marginal input cost is ~zero; the first turn pays roughly a thousand tokens. The
+**output** cost — rationale text on every qualifying action — remains unmeasured and needs a live
+run. Command:
+
+```
+ANTHROPIC_API_KEY=sk-... pnpm --filter @grafture/web exec vitest run test/evals.live.test.ts
+```
 
 ### PR-5 — canvas rendering
 
@@ -225,11 +259,17 @@ it is stale. Reuses the existing suggestion-card `rationale` presentation where 
    the case where "you did not write this" is worth showing. Needs its own stamping pass; not
    blocking PR-4/5/6.
 
-2. **Rationale on `add_table` for junction tables** — the N:M junction case (`systemPrompt.ts:275`)
-   is exactly where a rationale is most valuable, but the blanket "no rationale on add_table" rule
-   would suppress it. Likely needs a carve-out for tables created as junctions.
-3. **Token cost.** Requiring rationale on every relationship inflates output on every turn. Worth
-   measuring against a real run before deciding whether to also require it on `set_type`.
+2. ~~**Rationale on `add_table` for junction tables**~~ **Resolved in PR-4.** Required on
+   `add_table` when the table is not one source file (junction, normalization split, extracted
+   `shared_parent`); omitted for a plain file→table.
+3. ~~**Token cost.**~~ **Partly resolved in PR-4.** Input side measured on the real files: the
+   guidance is 3,842 chars, 7.5% of the full prompt, and sits in the cached static half — so the
+   recurring input cost is ~zero. `set_type` was scoped to deviating/conflicting types only, which
+   was the op that would have inflated output most. **Output cost is still unmeasured** and needs a
+   live run.
+4. **Does the model actually comply?** Nothing offline can verify that it emits `rationale` first,
+   cites real figures, and does not pad every action. This is the open risk PR-4 carries into
+   PR-5/6 — a live run should check compliance and rationale quality, not just that actions apply.
 
 ## Risks
 

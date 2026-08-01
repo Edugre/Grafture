@@ -129,6 +129,48 @@ describe("prompt structure", () => {
     expect(staticPart).toContain("fewest tables");
   });
 
+  it("documents the rationale field and what must back it", () => {
+    const staticPart = buildStaticInstructions();
+
+    expect(staticPart).toContain("<rationale>");
+    expect(staticPart).toContain("REQUIRED on: add_relationship, set_cardinality, set_pk");
+    // The citation requirement is the part that forces real investigation rather than prose.
+    expect(staticPart).toContain("citing a figure or verdict you actually observed");
+    expect(staticPart).toContain("probe_join or inspect_source");
+  });
+
+  it("puts rationale ahead of the decision in every op signature that takes one", () => {
+    const staticPart = buildStaticInstructions();
+
+    // Generation is autoregressive: a reason emitted after the decision can only rationalize it.
+    // Nothing else enforces this ordering — `actions` is a loose object[] in the response tool.
+    for (const op of ["add_relationship", "set_cardinality", "set_pk"]) {
+      const line = staticPart.split("\n").find((candidate) => candidate.startsWith(`- ${op}: `));
+      expect(line, `no protocol line for ${op}`).toBeDefined();
+      expect(line?.indexOf('"rationale"')).toBeGreaterThan(-1);
+      expect(line?.indexOf('"rationale"')).toBeLessThan(line?.indexOf('"op"') ?? 0);
+    }
+  });
+
+  it("keeps rationale off the ops that are mechanical", () => {
+    const staticPart = buildStaticInstructions();
+
+    for (const op of ["add_field", "remove_field", "remove_table", "rename_field"]) {
+      const line = staticPart.split("\n").find((candidate) => candidate.startsWith(`- ${op}: `));
+      expect(line).toBeDefined();
+      expect(line).not.toContain('"rationale"');
+    }
+  });
+
+  it("shows the good example citing a measurement and the bad one restating the action", () => {
+    const staticPart = buildStaticInstructions();
+
+    expect(staticPart).toContain(
+      "98.4% of orders.customer_id values are contained in customers.id",
+    );
+    expect(staticPart).toContain("Linking orders to customers because orders belong to customers.");
+  });
+
   it("marks schema/source content as data, never instructions", () => {
     const staticPart = buildStaticInstructions();
     const dynamic = buildDynamicContext(emptySchema(), sources);
