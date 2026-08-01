@@ -3,10 +3,23 @@ import { z } from "zod";
 import {
   CardinalitySchema,
   type Field,
+  type Origin,
+  type Provenance,
+  type Rationale,
   type Relationship,
   type Schema,
   type Table,
 } from "./model.js";
+
+/**
+ * The rationale the copilot supplies alongside a decision. `turnId` is deliberately absent: it
+ * identifies the copilot turn and is supplied by the caller, not the model — a model asked for an
+ * id it cannot know would invent one.
+ */
+const rationaleInputSchema = z.object({
+  text: z.string().min(1),
+  evidence: z.array(z.string()).default([]),
+});
 
 const fieldInputSchema = z.object({
   name: z.string(),
@@ -15,7 +28,15 @@ const fieldInputSchema = z.object({
   fk: z.boolean().default(false),
 });
 
+/**
+ * `rationale` is declared ahead of the decision fields on every op that carries one. Generation is
+ * autoregressive, so a reason emitted before the choice conditions it, while one emitted after can
+ * only rationalize a choice already made. The zod key order documents that intent; what actually
+ * holds the model to it is the ordering of the examples in the system prompt, since the response
+ * tool types `actions` loosely as `object[]`.
+ */
 const addTableActionSchema = z.object({
+  rationale: rationaleInputSchema.optional(),
   op: z.literal("add_table"),
   name: z.string(),
   x: z.number().optional(),
@@ -57,6 +78,7 @@ const renameFieldActionSchema = z.object({
 });
 
 const addRelationshipActionSchema = z.object({
+  rationale: rationaleInputSchema.optional(),
   op: z.literal("add_relationship"),
   from_table: z.string(),
   from_field: z.string(),
@@ -74,6 +96,7 @@ const removeRelationshipActionSchema = z.object({
 });
 
 const setPkActionSchema = z.object({
+  rationale: rationaleInputSchema.optional(),
   op: z.literal("set_pk"),
   table: z.string(),
   field: z.string(),
@@ -81,6 +104,7 @@ const setPkActionSchema = z.object({
 });
 
 const setTypeActionSchema = z.object({
+  rationale: rationaleInputSchema.optional(),
   op: z.literal("set_type"),
   table: z.string(),
   field: z.string(),
@@ -88,6 +112,7 @@ const setTypeActionSchema = z.object({
 });
 
 const setCardinalityActionSchema = z.object({
+  rationale: rationaleInputSchema.optional(),
   op: z.literal("set_cardinality"),
   from_table: z.string(),
   from_field: z.string(),
@@ -120,10 +145,104 @@ export type ApplyResult = {
 
 export type ApplyActionsOptions = {
   makeId?: () => string;
+  /**
+   * Who is applying these actions. Manual edits and copilot output both flow through
+   * `applyActions`, so it cannot infer the actor and must not guess — the caller supplies it.
+   * Defaults to `"user"`, which is the safe reading: an unattributed edit is the user's.
+   */
+  actor?: Origin;
+  /**
+   * Identifies the copilot turn these actions came from, stamped onto any rationale so the review
+   * panel can group a turn's reasoning. Supplied by the caller because the model cannot know it.
+   */
+  turnId?: string;
 };
 
 function defaultMakeId(): string {
   return crypto.randomUUID();
+}
+
+function stamp(actor: Origin): Provenance {
+  return { origin: actor, touched: false };
+}
+
+/**
+ * Record that an entity was modified by someone other than whoever created it. That difference —
+ * not merely "was edited" — is the signal that invalidates a rationale: the copilot revising its
+ * own proposal leaves the explanation true, while a hand edit to the same entity does not.
+ *
+ * Entities with no provenance (built before this existed, or imported) are left alone rather than
+ * back-filled: inventing an origin we never observed would be a worse record than none.
+ */
+function markTouched(target: { provenance?: Provenance | undefined }, actor: Origin): void {
+  const provenance = target.provenance;
+  if (!provenance) {
+    return;
+  }
+
+  // Once an entity carries a rationale, staleness is judged against whoever wrote that
+  // explanation — and only the copilot ever writes one — so origin stops mattering.
+  //
+  // Origin alone is not enough: the copilot can explain an entity it did not create (a legacy or
+  // imported column), which lands as `origin: "user"`. Under an origin-only rule a user edit to
+  // that column matched its own origin, left `touched` false, and let a now-wrong explanation
+  // keep presenting itself as current — the exact failure this feature exists to prevent. Found
+  // by driving the real app, not by the suite.
+  //
+  // `touched` is only ever *set* here, never cleared — it is monotonic per `ProvenanceSchema`.
+  // Clearing it on any AI edit would un-stale an explanation the user had already invalidated,
+  // for ops that carry no new reasoning at all (a `rename_field`, a bare `set_type`). Only
+  // `attachRationale` clears it, because only a freshly written explanation makes the entity
+  // current again.
+  if (provenance.rationale !== undefined) {
+    if (actor !== "ai") {
+      provenance.touched = true;
+    }
+    return;
+  }
+
+  if (provenance.origin === actor) {
+    return;
+  }
+  provenance.touched = true;
+}
+
+/**
+ * Record why the copilot made this decision. Dropped for non-AI actors: a reason attached to a
+ * hand edit is not provenance, it is the user narrating their own work, and nothing reads it.
+ *
+ * Writing a rationale clears `touched`, and the order matters — this runs *after* `markTouched`.
+ * `touched` means "drifted from the last authoritative explanation"; a rationale written now *is*
+ * that explanation, so the entity is current again by definition. Without the reset, the copilot
+ * re-deciding a cardinality the user had edited would render its own fresh reasoning as stale.
+ *
+ * An entity with no provenance gets one materialized as `user` rather than having its rationale
+ * dropped. That is the documented reading of absent provenance, not a new inference — and losing
+ * the explanation silently is the failure mode this whole feature exists to prevent.
+ */
+function attachRationale(
+  target: { provenance?: Provenance | undefined },
+  input: { text: string; evidence: string[] } | undefined,
+  actor: Origin,
+  turnId: string | undefined,
+): void {
+  if (!input || actor !== "ai") {
+    return;
+  }
+
+  const rationale: Rationale = {
+    text: input.text,
+    evidence: input.evidence,
+    ...(turnId === undefined ? {} : { turnId }),
+  };
+
+  if (target.provenance) {
+    target.provenance.rationale = rationale;
+    target.provenance.touched = false;
+    return;
+  }
+
+  target.provenance = { origin: "user", touched: false, rationale };
 }
 
 function cloneSchema(schema: Schema): Schema {
@@ -240,6 +359,8 @@ export function applyActions(
   opts?: ApplyActionsOptions,
 ): ApplyResult {
   const makeId = opts?.makeId ?? defaultMakeId;
+  const actor: Origin = opts?.actor ?? "user";
+  const turnId = opts?.turnId;
 
   if (!Array.isArray(rawActions)) {
     return {
@@ -294,15 +415,19 @@ export function applyActions(
           type: field.type,
           pk: field.pk,
           fk: field.fk,
+          provenance: stamp(actor),
         }));
 
-        working.tables.push({
+        const newTable: Table = {
           id: tableId,
           name: action.name,
           x: position.x,
           y: position.y,
           fields,
-        });
+          provenance: stamp(actor),
+        };
+        working.tables.push(newTable);
+        attachRationale(newTable, action.rationale, actor, turnId);
 
         applied.push({ op: action.op, tableIds: [tableId] });
         break;
@@ -332,6 +457,7 @@ export function applyActions(
           type: action.type,
           pk: action.pk,
           fk: action.fk,
+          provenance: stamp(actor),
         });
 
         applied.push({ op: action.op, tableIds: [table.id] });
@@ -402,6 +528,7 @@ export function applyActions(
         }
 
         table.name = action.new_name;
+        markTouched(table, actor);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -443,6 +570,7 @@ export function applyActions(
         }
 
         field.name = action.new_name;
+        markTouched(field, actor);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -493,14 +621,17 @@ export function applyActions(
         }
 
         const relationshipId = makeId();
-        working.relationships.push({
+        const newRelationship: Relationship = {
           id: relationshipId,
           fromTable: fromTable.id,
           fromField: fromField.id,
           toTable: toTable.id,
           toField: toField.id,
           cardinality: action.cardinality,
-        });
+          provenance: stamp(actor),
+        };
+        working.relationships.push(newRelationship);
+        attachRationale(newRelationship, action.rationale, actor, turnId);
         // The from-side column now sources a relationship — keep the FK badge in sync.
         fromField.fk = true;
 
@@ -591,6 +722,8 @@ export function applyActions(
         }
 
         field.pk = action.pk;
+        markTouched(field, actor);
+        attachRationale(field, action.rationale, actor, turnId);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -615,6 +748,8 @@ export function applyActions(
         }
 
         field.type = action.type;
+        markTouched(field, actor);
+        attachRationale(field, action.rationale, actor, turnId);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -666,6 +801,8 @@ export function applyActions(
         }
 
         relationship.cardinality = action.cardinality;
+        markTouched(relationship, actor);
+        attachRationale(relationship, action.rationale, actor, turnId);
 
         applied.push({
           op: action.op,

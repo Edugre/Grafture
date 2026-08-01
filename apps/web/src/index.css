@@ -132,6 +132,13 @@
   --edge: #dce0e4;
   --edge-proposed: #7c5ce0;
 
+  /* Provenance markers (review mode). Never the only channel — every marker also carries a
+     title/aria label, and origins differ in shape as well as hue. */
+  --prov-ai: #7c5ce0; /* accent — matches the AI-draft language already on the canvas */
+  --prov-imported: #3e72b8; /* the shared blue used by the privacy pill */
+  --prov-user: #6e747b; /* neutral-550 — quiet on purpose */
+  --prov-touched: #b8801f; /* warning — "edited since", so the rationale is stale */
+
   /* Privacy pill — blue, shared accent across modes */
   --privacy-bg: #eaf1fb;
   --privacy-text: #3e72b8;
@@ -187,6 +194,12 @@
     --on-accent: #ffffff;
 
     --pk: #e9ecef;
+
+    /* Provenance — lifted for contrast against the dark surface. */
+    --prov-ai: #b7a6f2;
+    --prov-imported: #7ba7e0;
+    --prov-user: #9aa1a9;
+    --prov-touched: #d9a648;
 
     --warning: #c99a3a;
     --caution-bg: #332406;
@@ -249,6 +262,12 @@
   --on-accent: #ffffff;
 
   --pk: #e9ecef;
+
+  /* Provenance — lifted for contrast against the dark surface. */
+  --prov-ai: #b7a6f2;
+  --prov-imported: #7ba7e0;
+  --prov-user: #9aa1a9;
+  --prov-touched: #d9a648;
 
   --warning: #c99a3a;
   --caution-bg: #332406;

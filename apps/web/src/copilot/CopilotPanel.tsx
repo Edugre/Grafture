@@ -161,6 +161,9 @@ export function CopilotPanel({
 
     // Capture history from the conversation so far, before appending the new user turn.
     const history = buildConversationHistory(messages);
+    // One id for the whole send, not per round: the loop may take several rounds to satisfy a
+    // single request, and every rationale it writes belongs to that one turn.
+    const turnId = nextMessageId();
 
     setDraft("");
     appendChatMessages([{ id: nextMessageId(), role: "user", text }]);
@@ -197,12 +200,18 @@ export function CopilotPanel({
           };
         },
         apply: (actions) => {
-          const { applied, rejected } = runActions(actions);
+          const { applied, rejected } = runActions(actions, { actor: "ai", turnId });
           const updatedSchema = useSchemaStore.getState().schema;
 
           const affectedTableIds = collectAffectedTableIds(applied);
           if (affectedTableIds[0]) {
             selectTable(affectedTableIds[0]);
+          }
+          // Switch the canvas into review mode the moment the copilot changes something: this is
+          // the window where "the AI proposed this, and here is why" is worth the screen space.
+          // The user can toggle it back off; nothing re-enables it until the next copilot edit.
+          if (applied.length > 0) {
+            useSchemaStore.getState().setReviewMode(true);
           }
 
           return {
@@ -270,6 +279,10 @@ export function CopilotPanel({
     // proposes against this evolving copy across rounds; the store is never touched here.
     let working: Schema = useSchemaStore.getState().schema;
     const makeId = () => crypto.randomUUID();
+    // This path applies through core directly rather than the store — it must therefore declare
+    // the actor itself. Without it the draft takes the "user" default, and the whole auto-drafted
+    // schema would land unattributed with every rationale silently dropped.
+    const turnId = nextMessageId();
     let attempt = 0;
 
     try {
@@ -296,7 +309,7 @@ export function CopilotPanel({
           };
         },
         apply: (actions) => {
-          const r = applyActions(working, actions, { makeId });
+          const r = applyActions(working, actions, { makeId, actor: "ai", turnId });
           working = r.schema;
           return {
             applied: r.applied.length > 0 ? summarizeAppliedActions(working, r.applied) : [],

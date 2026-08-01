@@ -28,7 +28,7 @@ export const COPILOT_RESPONSE_TOOL = {
         type: "array",
         items: { type: "object" },
         description:
-          "Zero or more schema actions using the ops defined in the system prompt (table/field NAMES, not ids). Empty for a plain question.",
+          "Zero or more schema actions using the ops defined in the system prompt (table/field NAMES, not ids). Empty for a plain question. Ops that take a 'rationale' must carry it as the FIRST key of the action object, citing a measured figure — see the <rationale> section of the system prompt.",
       },
       status: {
         type: "string",

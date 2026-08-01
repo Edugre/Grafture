@@ -1,4 +1,12 @@
-import type { ApplyResult, Cardinality, Field, Schema, Source, Table } from "@grafture/core";
+import type {
+  ApplyResult,
+  Cardinality,
+  Field,
+  Origin,
+  Schema,
+  Source,
+  Table,
+} from "@grafture/core";
 import { SchemaSchema, applyActions, emptySchema } from "@grafture/core";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -21,6 +29,22 @@ import {
 
 export type RunActionsResult = Pick<ApplyResult, "applied" | "rejected">;
 
+/**
+ * Which entity's rationale the review panel is showing. Stored as ids rather than a snapshot of
+ * the rationale so the panel always reads live provenance — an explanation that goes stale while
+ * open must say so rather than keep rendering the state it was opened in.
+ */
+export type RationaleFocus =
+  | { kind: "table"; tableId: string }
+  | { kind: "field"; tableId: string; fieldId: string }
+  | { kind: "relationship"; relationshipId: string };
+
+export type RunActionsOptions = {
+  actor?: Origin;
+  /** Groups a copilot turn's rationales in the review panel. Set only on the copilot path. */
+  turnId?: string;
+};
+
 export type AcceptDraftResult = { ok: true } | { ok: false; error: string };
 
 export type SchemaStore = {
@@ -35,6 +59,16 @@ export type SchemaStore = {
    */
   dismissedSuggestionIds: string[];
   /**
+   * Whether the canvas shows provenance markers and rationale badges. Off by default and switched
+   * on automatically after a copilot turn: "who made this" matters intensely while reviewing a
+   * fresh proposal and hardly at all a week later, so it is a mode rather than permanent chrome
+   * competing with genuinely transient canvas state. Ephemeral UI state — out of undo/redo, not
+   * persisted.
+   */
+  reviewMode: boolean;
+  /** The rationale open in the review panel, or null. Ephemeral UI state, like `reviewMode`. */
+  rationaleFocus: RationaleFocus | null;
+  /**
    * A not-yet-applied schema proposed by the AI (the New Project auto-draft). Rendered on the
    * canvas as a ghost overlay the user can Accept or Discard. Ephemeral UI state: kept out of
    * undo/redo and out of the autosaved project (the autosave subscription watches only
@@ -42,7 +76,13 @@ export type SchemaStore = {
    */
   draft: Schema | null;
 
-  runActions: (rawActions: unknown[]) => RunActionsResult;
+  /**
+   * Apply a batch of actions, attributing them to `opts.actor`. Every caller declares who is
+   * acting: the copilot passes `"ai"`, building a table from a parsed file passes `"imported"`,
+   * and everything else takes the `"user"` default. Core cannot infer this — manual edits and
+   * copilot output share this one path.
+   */
+  runActions: (rawActions: unknown[], opts?: RunActionsOptions) => RunActionsResult;
 
   addTable: (name: string, opts?: { x?: number; y?: number }) => RunActionsResult;
   addField: (
@@ -79,6 +119,9 @@ export type SchemaStore = {
   clearChat: () => void;
 
   dismissSuggestions: (ids: string[]) => void;
+
+  setReviewMode: (on: boolean) => void;
+  focusRationale: (focus: RationaleFocus | null) => void;
 
   /** Stash (or clear) the AI-proposed draft schema shown as a ghost overlay. No history entry. */
   setDraft: (schema: Schema | null) => void;
@@ -216,9 +259,16 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         });
       };
 
-      const runValidatedActions = (rawActions: unknown[]): RunActionsResult => {
+      const runValidatedActions = (
+        rawActions: unknown[],
+        opts?: RunActionsOptions,
+      ): RunActionsResult => {
         const state = get();
-        const result = applyActions(state.schema, rawActions, { makeId: state._makeId });
+        const result = applyActions(state.schema, rawActions, {
+          makeId: state._makeId,
+          ...(opts?.actor === undefined ? {} : { actor: opts.actor }),
+          ...(opts?.turnId === undefined ? {} : { turnId: opts.turnId }),
+        });
 
         if (result.applied.length === 0) {
           return { applied: result.applied, rejected: result.rejected };
@@ -241,6 +291,8 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         selection: {},
         chat: options?.initialChat ?? [],
         dismissedSuggestionIds: [],
+        reviewMode: false,
+        rationaleFocus: null,
         draft: null,
         _history: createHistoryController(),
         _makeId: makeId,
@@ -564,6 +616,24 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           });
         },
 
+        // Not undoable: toggling a view is not a schema edit, and putting it in history would
+        // make undo restore a display mode instead of the user's last real change.
+        setReviewMode: (on) => {
+          set((state) => {
+            state.reviewMode = on;
+            // Leaving review mode closes the panel: it explains markers that are no longer shown.
+            if (!on) {
+              state.rationaleFocus = null;
+            }
+          });
+        },
+
+        focusRationale: (focus) => {
+          set((state) => {
+            state.rationaleFocus = focus;
+          });
+        },
+
         // Replace the entire working set when switching local projects. History is
         // reset so undo never crosses a project boundary.
         setDraft: (schema) => {
@@ -591,6 +661,10 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           commitSnapshot((state) => {
             state.schema = parsed.data;
             state.draft = null;
+            // Same rule as the chat path: accepting a copilot proposal is exactly the moment
+            // "who made this, and why" is worth the screen space. The auto-draft never goes
+            // through `runActions`, so it cannot inherit that from there.
+            state.reviewMode = true;
           });
           return { ok: true };
         },
@@ -608,6 +682,10 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             state.chat = structuredClone(chat);
             state.selection = {};
             state.dismissedSuggestionIds = [];
+            // A review of the previous project's proposal means nothing here, and the focused
+            // ids belong to a schema that is no longer loaded.
+            state.reviewMode = false;
+            state.rationaleFocus = null;
             state.draft = null;
             state._history = createHistoryController();
           });

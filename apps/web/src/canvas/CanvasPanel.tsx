@@ -21,11 +21,13 @@ import {
   MinimizeIcon,
   MinusIcon,
   PlusIcon,
+  ProvenanceIcon,
   RedoIcon,
   UndoIcon,
   UnlockIcon,
 } from "../ui/icons.js";
 import { PreviewOverlay } from "./PreviewOverlay.js";
+import { RationalePanel } from "./RationalePanel.js";
 import { registerArrangeHandler } from "./arrangeBridge.js";
 import { RelationshipEdge } from "./RelationshipEdge.js";
 import type { RelationshipFlowEdge } from "./RelationshipEdge.js";
@@ -96,6 +98,8 @@ export function CanvasPanel({
   const removeRelationship = useSchemaStore((state) => state.removeRelationship);
   const undo = useSchemaStore((state) => state.undo);
   const redo = useSchemaStore((state) => state.redo);
+  const reviewMode = useSchemaStore((state) => state.reviewMode);
+  const setReviewMode = useSchemaStore((state) => state.setReviewMode);
   const canUndo = useSchemaStore((state) => state.canUndo());
   const canRedo = useSchemaStore((state) => state.canRedo());
 
@@ -183,6 +187,7 @@ export function CanvasPanel({
           data: {
             relationshipId: relationship.id,
             cardinality: relationship.cardinality,
+            provenance: relationship.provenance,
           },
           selected: existing?.selected ?? false,
         };
@@ -339,6 +344,17 @@ export function CanvasPanel({
           <span className="canvas-tools__divider" />
           <button
             type="button"
+            className={`canvas-tools__icon${reviewMode ? " is-active" : ""}`}
+            onClick={() => setReviewMode(!reviewMode)}
+            title={reviewMode ? "Hide where things came from" : "Show where things came from"}
+            aria-label="Toggle provenance review mode"
+            aria-pressed={reviewMode}
+          >
+            <ProvenanceIcon size={15} />
+          </button>
+          <span className="canvas-tools__divider" />
+          <button
+            type="button"
             className="canvas-tools__icon"
             onClick={undo}
             disabled={!canUndo}
@@ -402,6 +418,7 @@ export function CanvasPanel({
           <Background variant={BackgroundVariant.Dots} gap={24} size={1} />
           <MiniMap pannable zoomable />
           {preview ? <PreviewOverlay preview={preview} /> : null}
+          <RationalePanel />
           <div className="canvas-controls">
             <button
               type="button"
