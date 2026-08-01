@@ -207,6 +207,12 @@ export function CopilotPanel({
           if (affectedTableIds[0]) {
             selectTable(affectedTableIds[0]);
           }
+          // Switch the canvas into review mode the moment the copilot changes something: this is
+          // the window where "the AI proposed this, and here is why" is worth the screen space.
+          // The user can toggle it back off; nothing re-enables it until the next copilot edit.
+          if (applied.length > 0) {
+            useSchemaStore.getState().setReviewMode(true);
+          }
 
           return {
             applied: applied.length > 0 ? summarizeAppliedActions(updatedSchema, applied) : [],

@@ -49,6 +49,14 @@ export type SchemaStore = {
    */
   dismissedSuggestionIds: string[];
   /**
+   * Whether the canvas shows provenance markers and rationale badges. Off by default and switched
+   * on automatically after a copilot turn: "who made this" matters intensely while reviewing a
+   * fresh proposal and hardly at all a week later, so it is a mode rather than permanent chrome
+   * competing with genuinely transient canvas state. Ephemeral UI state — out of undo/redo, not
+   * persisted.
+   */
+  reviewMode: boolean;
+  /**
    * A not-yet-applied schema proposed by the AI (the New Project auto-draft). Rendered on the
    * canvas as a ghost overlay the user can Accept or Discard. Ephemeral UI state: kept out of
    * undo/redo and out of the autosaved project (the autosave subscription watches only
@@ -99,6 +107,8 @@ export type SchemaStore = {
   clearChat: () => void;
 
   dismissSuggestions: (ids: string[]) => void;
+
+  setReviewMode: (on: boolean) => void;
 
   /** Stash (or clear) the AI-proposed draft schema shown as a ghost overlay. No history entry. */
   setDraft: (schema: Schema | null) => void;
@@ -268,6 +278,7 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         selection: {},
         chat: options?.initialChat ?? [],
         dismissedSuggestionIds: [],
+        reviewMode: false,
         draft: null,
         _history: createHistoryController(),
         _makeId: makeId,
@@ -588,6 +599,14 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
                 draft.dismissedSuggestionIds.push(id);
               }
             }
+          });
+        },
+
+        // Not undoable: toggling a view is not a schema edit, and putting it in history would
+        // make undo restore a display mode instead of the user's last real change.
+        setReviewMode: (on) => {
+          set((state) => {
+            state.reviewMode = on;
           });
         },
 

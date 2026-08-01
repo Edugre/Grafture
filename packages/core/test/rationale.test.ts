@@ -370,3 +370,88 @@ describe("rationale", () => {
     ).toBe(true);
   });
 });
+
+describe("rationale staleness is judged against the explanation, not the origin", () => {
+  /**
+   * Regression: found by running the app, not by the suite. The copilot can explain an entity it
+   * did not create — a legacy or imported column — and that lands as `origin: "user"`. Under an
+   * origin-only touched rule, a later user edit matched its own origin, left `touched` false, and
+   * the canvas kept presenting a now-wrong explanation as current.
+   */
+  const legacy = (): Schema => ({
+    tables: [
+      {
+        id: "t1",
+        name: "pharmacy",
+        x: 0,
+        y: 0,
+        fields: [{ id: "f1", name: "pharmacy_id", type: "integer", pk: false, fk: false }],
+      },
+    ],
+    relationships: [],
+  });
+
+  function explained(): Schema {
+    const makeId = makeTestIds();
+    return applyActions(
+      legacy(),
+      [
+        {
+          op: "set_pk",
+          table: "pharmacy",
+          field: "pharmacy_id",
+          pk: true,
+          rationale: { text: "distinct across all sampled rows" },
+        },
+      ],
+      { makeId, actor: "ai" },
+    ).schema;
+  }
+
+  it("goes stale when the user edits a user-origin entity the copilot explained", () => {
+    const makeId = makeTestIds();
+    const { schema } = applyActions(
+      explained(),
+      [{ op: "set_type", table: "pharmacy", field: "pharmacy_id", type: "bigint" }],
+      { makeId, actor: "user" },
+    );
+
+    const provenance = field(schema, "pharmacy", "pharmacy_id").provenance;
+    expect(provenance?.origin).toBe("user");
+    expect(provenance?.touched).toBe(true);
+    expect(provenance?.rationale?.text).toBe("distinct across all sampled rows");
+  });
+
+  it("goes stale on an import-driven edit too — only the copilot's own edits are exempt", () => {
+    const makeId = makeTestIds();
+    const { schema } = applyActions(
+      explained(),
+      [{ op: "set_type", table: "pharmacy", field: "pharmacy_id", type: "bigint" }],
+      { makeId, actor: "imported" },
+    );
+
+    expect(field(schema, "pharmacy", "pharmacy_id").provenance?.touched).toBe(true);
+  });
+
+  it("stays current when the copilot edits what it explained", () => {
+    const makeId = makeTestIds();
+    const { schema } = applyActions(
+      explained(),
+      [{ op: "set_type", table: "pharmacy", field: "pharmacy_id", type: "bigint" }],
+      { makeId, actor: "ai" },
+    );
+
+    expect(field(schema, "pharmacy", "pharmacy_id").provenance?.touched).toBe(false);
+  });
+
+  it("leaves an unexplained user entity untouched by the user's own edits", () => {
+    const makeId = makeTestIds();
+    const { schema } = applyActions(
+      seed("user"),
+      [{ op: "set_type", table: "orders", field: "customer_id", type: "text" }],
+      { makeId, actor: "user" },
+    );
+
+    expect(field(schema, "orders", "customer_id").provenance?.touched).toBe(false);
+  });
+});

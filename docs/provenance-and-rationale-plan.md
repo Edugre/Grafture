@@ -225,20 +225,45 @@ run. Command:
 ANTHROPIC_API_KEY=sk-... pnpm --filter @grafture/web exec vitest run test/evals.live.test.ts
 ```
 
-### PR-5 — canvas rendering
+### PR-5 — canvas rendering — **DONE**
 
-- Provenance marker: 2px left edge on the field row (`.table-node__field`), header dot on the
-  table for mixed/AI tables. **Not** background color — `--surface-hover` is already the
-  field-selection background (`App.css:505`), node selection uses the accent border/ring
-  (`App.css:484`), and `CopilotPanel.tsx:203` selects affected tables post-turn. Background and
-  border are spoken for by transient state.
-- Non-color redundant channel (marker shape + `title`/aria text) to hold the a11y floor landed in
-  `3313245`.
-- Rationale badge on relationships and fields that have one; stale rationale renders muted with an
-  explicit "edited since" label.
-- Gate the provenance markers behind a **review-mode toggle**, default on immediately after a
-  copilot turn. Provenance matters intensely for ~a minute and near-zero a week later; permanent
-  chrome for it would outweigh genuinely urgent canvas state.
+- `canvas/provenance.ts`: pure view helpers — `originOf`, `tableOrigin` (the derived rollup,
+  including `mixed`), `isTouched`, `isStaleRationale`, `provenanceLabel`.
+- Field rows: a 2px left edge via a **`::before`, not an inset shadow or a background**. The row's
+  `background` is already the field-selection channel (`App.css`), so an edge painted there would
+  vanish exactly when the row is selected — when someone is looking at it.
+- Table titles: a dot whose **shape** carries origin as well as hue — filled circle (ai), square
+  (imported), half-filled (mixed), hollow (user) — plus `title`/`aria-label` on every marker, to
+  hold the a11y floor from `3313245`.
+- `user` rows are deliberately **unmarked**. In review mode the question is "what did I not
+  write"; marking every hand-authored row is noise that hides the answer.
+- Rationale badge (`i`, or `?` + dashed + drained colour when stale) on tables and fields.
+  Relationships have no room for a second floating element, so provenance rides the existing
+  cardinality chip: `data-origin` tints its border and the glyph sits inside it.
+- Review-mode toggle in the canvas toolbar (`reviewMode` on the store — ephemeral, not undoable,
+  not persisted), switched on automatically when a copilot turn applies anything.
+
+**Found by running the app — two things the suite could not have caught.**
+
+1. **A rationale on a user-origin entity could never go stale.** PR-2's legacy-materialization path
+   lands an AI-written rationale on `origin: "user"`; under the origin-only `touched` rule a later
+   user edit matched its own origin, left `touched` false, and the canvas kept presenting a
+   now-wrong explanation as current — the exact failure this feature exists to prevent. Reproduced
+   live (user changed a type; `touched` stayed false), then fixed in `markTouched`: **once an
+   entity carries a rationale, staleness is judged against the explanation's author, and only the
+   copilot writes one** — so authorship decides in both directions and origin stops mattering. 4
+   regression tests in `rationale.test.ts`.
+2. **A touched field with no rationale rendered identically to an untouched one** — a solid bar
+   reads as "as the copilot made it", which stops being true after a hand edit, and with no badge
+   there was nothing else carrying that meaning. The bar now breaks into a dashed gradient when
+   touched.
+
+Verified in the browser against the real project: AI table shows a filled dot + live `i` badge; the
+edited AI field shows a dashed edge and `"Created by the AI copilot, edited since"`; the explained
+field the user then edited shows the `?` badge and `"Why (edited since): …"`; the AI relationship
+label carries the accent border and its rationale in the title; every `user` row is unmarked.
+
+11 tests in `apps/web/test/canvasProvenance.test.ts`. Suite green (266 core / 288 web).
 
 ### PR-6 — rationale panel
 

@@ -5,6 +5,64 @@ import { useState } from "react";
 
 import { useSchemaStore } from "../store/index.js";
 import { MIN_NODE_WIDTH, NODE_WIDTH } from "./constants.js";
+import {
+  type TableOrigin,
+  isStaleRationale,
+  isTouched,
+  originOf,
+  provenanceLabel,
+  tableOrigin,
+} from "./provenance.js";
+
+/**
+ * The provenance affordance: a small marker plus, where one exists, a rationale badge. Rendered
+ * only in review mode.
+ *
+ * Deliberately NOT a background tint. `--surface-hover` is already the field-selection background
+ * and the accent ring is node selection, so background and border carry transient state; a
+ * persistent wash over every node would outrank the states that actually need attention. The
+ * marker is a left edge (fields) or a dot (table title), and `data-origin` drives its colour while
+ * `title` carries the same meaning in words — hue alone must never be the channel.
+ */
+function ProvenanceMarker({
+  origin,
+  touched,
+  what,
+}: {
+  origin: TableOrigin;
+  touched: boolean;
+  what?: string;
+}) {
+  const label = provenanceLabel(origin, {
+    touched,
+    ...(what === undefined ? {} : { what }),
+  });
+
+  return (
+    <span
+      className={`provenance-dot${touched ? " is-touched" : ""}`}
+      data-origin={origin}
+      title={label}
+      aria-label={label}
+      role="img"
+    />
+  );
+}
+
+function RationaleBadge({ text, stale }: { text: string; stale: boolean }) {
+  const label = stale ? `Why (edited since): ${text}` : `Why: ${text}`;
+
+  return (
+    <span
+      className={`rationale-badge${stale ? " is-stale" : ""}`}
+      title={label}
+      aria-label={label}
+      role="img"
+    >
+      {stale ? "?" : "i"}
+    </span>
+  );
+}
 
 export type TableNodeData = { table: Table; proposed?: boolean };
 export type TableFlowNode = Node<TableNodeData, "table">;
@@ -30,8 +88,12 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
   const setFieldType = useSchemaStore((state) => state.setFieldType);
   const selectField = useSchemaStore((state) => state.selectField);
   const selectedFieldId = useSchemaStore((state) => state.selection.fieldId);
+  const reviewMode = useSchemaStore((state) => state.reviewMode);
 
   const selected = selectedFieldId === field.id;
+  const origin = originOf(field);
+  const touched = isTouched(field);
+  const rationale = field.provenance?.rationale;
 
   // At most one inline editor open at a time: the name or the type.
   const [editing, setEditing] = useState<"name" | "type" | null>(null);
@@ -61,7 +123,12 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
 
   return (
     <div
-      className={`table-node__field${selected ? " is-selected" : ""}`}
+      className={`table-node__field${selected ? " is-selected" : ""}${
+        reviewMode ? " is-reviewed" : ""
+      }${reviewMode && touched ? " is-touched" : ""}`}
+      {...(reviewMode
+        ? { "data-origin": origin, title: provenanceLabel(origin, { touched }) }
+        : {})}
       onClick={() => selectField(table.id, field.id)}
     >
       {/* Field-level connection handles: relationships attach to a field, not the table. */}
@@ -106,6 +173,9 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
             {field.name}
           </span>
           {field.fk ? <span className="table-node__fk">FK</span> : null}
+          {reviewMode && rationale ? (
+            <RationaleBadge text={rationale.text} stale={isStaleRationale(field)} />
+          ) : null}
           {editing === "type" ? (
             <>
               <input
@@ -161,6 +231,7 @@ function FieldRow({ table, field }: { table: Table; field: Field }) {
 
 function TableTitle({ table }: { table: Table }) {
   const renameTable = useSchemaStore((state) => state.renameTable);
+  const reviewMode = useSchemaStore((state) => state.reviewMode);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(table.name);
 
@@ -203,8 +274,18 @@ function TableTitle({ table }: { table: Table }) {
         setEditing(true);
       }}
     >
-      <span>{table.name}</span>
-      <span className="table-node__count">{table.fields.length}</span>
+      <span className="table-node__title-text">
+        {reviewMode ? (
+          <ProvenanceMarker origin={tableOrigin(table)} touched={isTouched(table)} />
+        ) : null}
+        {table.name}
+      </span>
+      <span className="table-node__title-meta">
+        {reviewMode && table.provenance?.rationale ? (
+          <RationaleBadge text={table.provenance.rationale.text} stale={isStaleRationale(table)} />
+        ) : null}
+        <span className="table-node__count">{table.fields.length}</span>
+      </span>
     </div>
   );
 }

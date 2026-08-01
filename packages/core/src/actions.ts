@@ -176,7 +176,25 @@ function stamp(actor: Origin): Provenance {
  */
 function markTouched(target: { provenance?: Provenance | undefined }, actor: Origin): void {
   const provenance = target.provenance;
-  if (!provenance || provenance.origin === actor) {
+  if (!provenance) {
+    return;
+  }
+
+  // Once an entity carries a rationale, staleness is judged against whoever wrote that
+  // explanation — and only the copilot ever writes one — so authorship decides in both
+  // directions and origin stops mattering.
+  //
+  // Origin alone is not enough: the copilot can explain an entity it did not create (a legacy or
+  // imported column), which lands as `origin: "user"`. Under an origin-only rule a user edit to
+  // that column matched its own origin, left `touched` false, and let a now-wrong explanation
+  // keep presenting itself as current — the exact failure this feature exists to prevent. Found
+  // by driving the real app, not by the suite.
+  if (provenance.rationale !== undefined) {
+    provenance.touched = actor !== "ai";
+    return;
+  }
+
+  if (provenance.origin === actor) {
     return;
   }
   provenance.touched = true;

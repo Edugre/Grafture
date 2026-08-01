@@ -360,6 +360,16 @@ export function PencilIcon(props: IconProps) {
   );
 }
 
+/** Review mode: an eye, for "show me where this came from". */
+export function ProvenanceIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
+
 export function UndoIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

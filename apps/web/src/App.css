@@ -488,6 +488,124 @@
     var(--shadow-node);
 }
 
+/* ---- Provenance markers (review mode only) ----
+   Background and border on these nodes already carry transient state — --surface-hover is the
+   field-selection background, the accent ring is node selection — so provenance uses a separate,
+   quieter channel: an inset left edge on rows and a small dot on the title. Hue is never alone:
+   origins differ in shape too (filled dot / square / hollow), "edited since" adds a dashed
+   outline, and every marker carries a title + aria-label saying the same thing in words. */
+
+/* A pseudo-element rather than an inset shadow or a background: the row's `background` is already
+   the field-selection channel, so an edge painted there would disappear the moment the row is
+   selected — exactly when someone is looking at it. */
+.table-node__field.is-reviewed[data-origin="ai"]::before,
+.table-node__field.is-reviewed[data-origin="imported"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+.table-node__field.is-reviewed[data-origin="ai"]::before {
+  background: var(--prov-ai);
+}
+
+.table-node__field.is-reviewed[data-origin="imported"]::before {
+  background: var(--prov-imported);
+}
+
+/* Edited since it was created: the bar breaks up. A solid bar would read as "untouched as made",
+   which is exactly the claim that stops being true after a hand edit — and a touched field with
+   no rationale has no badge to carry that meaning instead. */
+.table-node__field.is-reviewed.is-touched[data-origin="ai"]::before {
+  background: repeating-linear-gradient(to bottom, var(--prov-ai) 0 3px, transparent 3px 6px);
+}
+
+.table-node__field.is-reviewed.is-touched[data-origin="imported"]::before {
+  background: repeating-linear-gradient(to bottom, var(--prov-imported) 0 3px, transparent 3px 6px);
+}
+
+/* `user` rows are left unmarked on purpose. In review mode the question is "what did I not
+   write", so marking every hand-authored row would be noise that hides the answer. */
+
+.provenance-dot {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  vertical-align: middle;
+  border-radius: 50%;
+  border: 1.5px solid var(--prov-user);
+  background: transparent;
+}
+
+.provenance-dot[data-origin="ai"] {
+  border-color: var(--prov-ai);
+  background: var(--prov-ai);
+}
+
+/* Square, not round — shape carries the distinction where hue alone would not. */
+.provenance-dot[data-origin="imported"] {
+  border-radius: 2px;
+  border-color: var(--prov-imported);
+  background: var(--prov-imported);
+}
+
+/* Half-filled: parts of this table have different origins. */
+.provenance-dot[data-origin="mixed"] {
+  border-color: var(--prov-ai);
+  background: linear-gradient(90deg, var(--prov-ai) 50%, transparent 50%);
+}
+
+.provenance-dot.is-touched {
+  outline: 1px dashed var(--prov-touched);
+  outline-offset: 1.5px;
+}
+
+.rationale-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent-text);
+}
+
+/* Stale: the entity changed after this explanation was written. Dashed and drained of colour, and
+   the glyph flips i → ? so the state reads without relying on either. */
+.rationale-badge.is-stale {
+  border-style: dashed;
+  border-color: var(--prov-touched);
+  background: transparent;
+  color: var(--text-faint);
+}
+
+.table-node__title-text,
+.table-node__title-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.table-node__title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-node__title-input {
   width: 100%;
   height: 44px;
@@ -694,6 +812,35 @@
   box-shadow: var(--shadow-node);
   color: var(--text-muted);
   cursor: pointer;
+}
+
+/* Edge labels are tight, so provenance rides the existing cardinality chip: its border takes the
+   origin colour and the "why" glyph appears inside it, rather than adding a second floating
+   element to an already-busy area. The full label text lives in the chip's title/aria-label. */
+.relationship-label.is-reviewed[data-origin="ai"] {
+  border-color: var(--prov-ai);
+}
+
+.relationship-label.is-reviewed[data-origin="imported"] {
+  border-color: var(--prov-imported);
+}
+
+.relationship-label.is-reviewed.is-stale {
+  border-style: dashed;
+  border-color: var(--prov-touched);
+}
+
+.relationship-label__why {
+  margin-left: 5px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.canvas-tools__icon.is-active {
+  background: var(--accent-bg);
+  color: var(--accent-text);
 }
 
 .relationship-label:hover,

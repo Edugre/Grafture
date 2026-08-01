@@ -21,6 +21,7 @@ import {
   MinimizeIcon,
   MinusIcon,
   PlusIcon,
+  ProvenanceIcon,
   RedoIcon,
   UndoIcon,
   UnlockIcon,
@@ -96,6 +97,8 @@ export function CanvasPanel({
   const removeRelationship = useSchemaStore((state) => state.removeRelationship);
   const undo = useSchemaStore((state) => state.undo);
   const redo = useSchemaStore((state) => state.redo);
+  const reviewMode = useSchemaStore((state) => state.reviewMode);
+  const setReviewMode = useSchemaStore((state) => state.setReviewMode);
   const canUndo = useSchemaStore((state) => state.canUndo());
   const canRedo = useSchemaStore((state) => state.canRedo());
 
@@ -183,6 +186,7 @@ export function CanvasPanel({
           data: {
             relationshipId: relationship.id,
             cardinality: relationship.cardinality,
+            provenance: relationship.provenance,
           },
           selected: existing?.selected ?? false,
         };
@@ -335,6 +339,17 @@ export function CanvasPanel({
           >
             <PlusIcon size={15} />
             <span>Table</span>
+          </button>
+          <span className="canvas-tools__divider" />
+          <button
+            type="button"
+            className={`canvas-tools__icon${reviewMode ? " is-active" : ""}`}
+            onClick={() => setReviewMode(!reviewMode)}
+            title={reviewMode ? "Hide where things came from" : "Show where things came from"}
+            aria-label="Toggle provenance review mode"
+            aria-pressed={reviewMode}
+          >
+            <ProvenanceIcon size={15} />
           </button>
           <span className="canvas-tools__divider" />
           <button
