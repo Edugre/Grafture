@@ -15,6 +15,8 @@ ROADMAP2.md
 DESIGN_FOLLOWUPS.md
 # Local Claude Code launch config (machine-specific paths)
 .claude/
+# Local design-tool run log (per-machine rotation state, not project config)
+.hallmark/
 # Local scratch data (e.g. full raw HRSA/OPAIS dumps) — kept out of the repo
 local-data/
 # Generated knowledge graph (rebuildable from source; contains a large HTML bundle)

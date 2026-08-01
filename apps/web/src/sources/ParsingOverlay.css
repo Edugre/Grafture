@@ -1,0 +1,130 @@
+/* Hallmark · component: panel loading state (sources panel file parsing)
+ * genre: modern-minimal · theme: Grafture system (index.css tokens)
+ * Shares its rail with the New Project modal via ui/Pipeline.css; this file is the panel-scoped
+ * surround. Follows the panel's existing drag-overlay pattern (absolute inset + tinted backdrop)
+ * rather than a scrim dialog — a centred modal inside a ~300px rail would be the wrong shape.
+ * motion: rail-fill · dot-pulse · overlay-in
+ */
+
+.parsing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12; /* above the drag overlay (10) — a drop that lands mid-parse must not cover this */
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14px;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
+  backdrop-filter: blur(2px);
+  animation: parsing-overlay-in var(--dur-overlay) var(--ease-out) both;
+}
+
+@keyframes parsing-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.parsing-overlay__card {
+  /* Tighter than the modal's 18px: the panel is narrow, so file names wrap and the list gets
+     tall fast. The shared rail reads --pipeline-gap to keep its segments meeting the dots. */
+  --pipeline-gap: 15px;
+  width: 100%;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  animation: parsing-overlay-card-in var(--dur-overlay) var(--ease-out) both;
+}
+
+@keyframes parsing-overlay-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.parsing-overlay__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 16px;
+  font-size: var(--type-body-md);
+  line-height: var(--leading-body-md);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.parsing-overlay__count {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text-faint);
+}
+
+.parsing-overlay__foot {
+  margin: 16px 0 0;
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  color: var(--text-faint);
+}
+
+.parsing-overlay__dismiss {
+  width: 100%;
+  height: 34px;
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--type-body-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--dur-hover) var(--ease-out),
+    border-color var(--dur-hover) var(--ease-out);
+}
+
+.parsing-overlay__dismiss:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-faint);
+}
+
+.parsing-overlay__dismiss:active {
+  transform: translateY(1px);
+}
+
+/* Focus ring comes from the global `:focus-visible` baseline in index.css — this only stops the
+   button's own transition from fading it in. */
+.parsing-overlay__dismiss:focus-visible {
+  transition: none;
+}
+
+/* Screen-reader-only live region — the visual list is redundant to announce in full. */
+.parsing-overlay__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parsing-overlay,
+  .parsing-overlay__card {
+    animation-duration: 0.01ms;
+  }
+
+  .parsing-overlay__dismiss {
+    transition-duration: 0.01ms;
+  }
+}

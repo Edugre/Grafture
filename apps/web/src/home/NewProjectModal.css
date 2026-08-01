@@ -1,6 +1,11 @@
 /* New Project modal (handoff: design_handoff_new_project_modal).
    Handoff hex maps onto the app's design tokens for light/dark parity:
-   accent #7C5CE0 → --accent, tint #F1EEFC → --accent-bg, etc. */
+   accent #7C5CE0 → --accent, tint #F1EEFC → --accent-bg, etc.
+
+   Hallmark · component: modal loading state · genre: modern-minimal
+   The card has two bodies — the form and CreateProgress — that swap inside .npm-swap while the
+   header stays put. Card height is animated in JS (NewProjectModal.tsx, useLayoutEffect on stage)
+   because auto→auto isn't interpolable; everything else here is transform/opacity only. */
 
 .npm-scrim {
   position: fixed;
@@ -12,7 +17,7 @@
   padding: 32px;
   background: rgba(23, 26, 31, 0.34);
   backdrop-filter: blur(1.5px);
-  animation: npm-fade 0.14s ease;
+  animation: npm-fade var(--dur-hover) var(--ease-out);
 }
 
 .npm-card {
@@ -28,7 +33,7 @@
     0 24px 60px -12px rgba(23, 26, 31, 0.32),
     0 0 0 1px rgba(23, 26, 31, 0.02);
   overflow: hidden;
-  animation: npm-pop 0.16s ease;
+  animation: npm-pop 0.16s var(--ease-out);
 }
 
 /* Dialog container is `tabIndex={-1}` and only ever focused programmatically on
@@ -48,6 +53,24 @@
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.985);
+  }
+}
+
+/* ---- Body swap (form ⇄ progress) ----
+   The outgoing body is already gone by the time this mounts (React keys the swap), so the
+   crossfade is a one-sided fade-in riding the card's height transition. */
+.npm-swap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: npm-swap-in var(--dur-overlay) var(--ease-out) both;
+}
+
+@keyframes npm-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 
@@ -105,8 +128,8 @@
   color: var(--text-faint);
   cursor: pointer;
   transition:
-    background 0.12s ease,
-    color 0.12s ease;
+    background var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out);
 }
 
 .npm-close:hover {
@@ -227,6 +250,7 @@
 }
 
 .npm-filerow__badge {
+  position: relative;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -237,6 +261,64 @@
   background: var(--surface-hover);
   border: 1px solid var(--border);
   color: var(--text-secondary);
+  transition:
+    background var(--dur-overlay) var(--ease-out),
+    border-color var(--dur-overlay) var(--ease-out),
+    color var(--dur-overlay) var(--ease-out);
+}
+
+/* ---- Per-file parse states ----
+   A file that fails fails on its own row, next to its own name; the rest still land. This is
+   the point of parsing sequentially — the row is the unit of both progress and error. */
+.npm-filerow[data-state="queued"] {
+  opacity: 0.62;
+}
+
+.npm-filerow[data-state="parsing"] .npm-filerow__badge,
+.npm-filerow[data-state="queued"] .npm-filerow__badge {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+
+/* The same breathing halo the create-progress dots use, so the two loading moments read as one
+   language rather than two unrelated widgets. */
+.npm-filerow[data-state="parsing"] .npm-filerow__badge::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 0 var(--accent);
+  animation: npm-parse-pulse 1.7s var(--ease-in-out) infinite;
+}
+
+@keyframes npm-parse-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 92, 224, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(124, 92, 224, 0);
+  }
+}
+
+.npm-filerow[data-state="parsing"] .npm-filerow__meta {
+  color: var(--accent-text);
+}
+
+.npm-filerow[data-state="failed"] {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.npm-filerow[data-state="failed"] .npm-filerow__badge {
+  background: transparent;
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.npm-filerow[data-state="failed"] .npm-filerow__meta {
+  color: var(--danger-text);
 }
 
 .npm-filerow__body {
@@ -258,7 +340,11 @@
 
 .npm-filerow__meta {
   font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
   color: var(--text-faint);
+  /* Failure text lands here too, and parse errors carry file names — let it wrap mid-token
+     rather than push the row into a horizontal scroll. */
+  overflow-wrap: anywhere;
 }
 
 .npm-filerow__remove {
@@ -274,8 +360,8 @@
   color: var(--text-faint);
   cursor: pointer;
   transition:
-    background 0.12s ease,
-    color 0.12s ease;
+    background var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out);
 }
 
 .npm-filerow__remove:hover {
@@ -283,16 +369,9 @@
   color: var(--text-secondary);
 }
 
-.npm-note {
-  margin: 10px 0 0;
-  font-size: var(--type-body-xs);
-  line-height: 15px;
-  color: var(--text-muted);
-}
-
-.npm-note--error {
-  color: var(--danger-text);
-}
+/* .npm-note / .npm-note--error removed: the merged "Parsing files locally… / <all errors joined>"
+   line they styled is gone. Parse state and parse failures now live on the file row they belong
+   to (see the [data-state] block above). */
 
 /* ---- Inputs ---- */
 .npm-input,
@@ -305,8 +384,8 @@
   font-size: 13px;
   color: var(--text);
   transition:
-    border-color 0.12s ease,
-    box-shadow 0.12s ease;
+    border-color var(--dur-hover) var(--ease-out),
+    box-shadow var(--dur-hover) var(--ease-out);
 }
 
 .npm-input {
@@ -352,7 +431,7 @@
   color: var(--accent-text);
   font-size: var(--type-body-xs);
   cursor: pointer;
-  transition: filter 0.12s ease;
+  transition: filter var(--dur-hover) var(--ease-out);
 }
 
 .npm-chip:hover {
@@ -392,9 +471,9 @@
   font-weight: 500;
   cursor: pointer;
   transition:
-    background 0.12s ease,
-    filter 0.12s ease,
-    opacity 0.12s ease;
+    background var(--dur-hover) var(--ease-out),
+    filter var(--dur-hover) var(--ease-out),
+    opacity var(--dur-hover) var(--ease-out);
 }
 
 .npm-btn--ghost {
@@ -420,7 +499,115 @@
   border-color: var(--accent-hover);
 }
 
-.npm-btn--primary:disabled {
+.npm-btn--primary:active,
+.npm-btn--primary.is-active,
+.npm-btn--ghost:active,
+.npm-btn--ghost.is-active {
+  transform: translateY(1px);
+}
+
+.npm-btn:disabled,
+.npm-btn[disabled] {
   opacity: 0.5;
-  pointer-events: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.npm-btn:disabled:hover,
+.npm-btn[disabled]:hover {
+  filter: none;
+  background: var(--surface);
+}
+
+.npm-btn--primary:disabled:hover {
+  background: var(--accent);
+}
+
+/* ---- Focus ----
+   The real rings come from the global `:focus-visible` baseline in index.css; nothing here
+   overrides them. These are only the .is-focus mirrors, which let the preview wrapper render a
+   focused control without stealing focus from the page. `transition: none` matches the baseline's
+   instant appearance — a ring that fades in is a ring that isn't there when you need it. */
+.npm-btn.is-focus,
+.npm-close.is-focus,
+.npm-chip.is-focus,
+.npm-dropzone.is-focus,
+.npm-filerow__remove.is-focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transition: none;
+}
+
+/* Hover mirrors for the preview wrapper — same declarations as the real :hover rules. */
+.npm-close.is-hover,
+.npm-filerow__remove.is-hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.npm-btn--ghost.is-hover {
+  background: var(--surface-hover);
+}
+
+.npm-btn--primary.is-hover {
+  filter: brightness(0.94);
+}
+
+.npm-close:disabled,
+.npm-filerow__remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.npm-close:disabled:hover,
+.npm-filerow__remove:disabled:hover {
+  background: transparent;
+  color: var(--text-faint);
+}
+
+/* The footer summary carries the parse count; tint it while files are still settling so the
+   number reads as live rather than as a static caption. */
+.npm-footer__summary.is-parsing {
+  color: var(--accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .npm-scrim,
+  .npm-card,
+  .npm-swap {
+    animation-duration: 0.01ms;
+  }
+
+  /* The parse halo is the only thing that can't degrade to a crossfade — it becomes a static
+     accent ring, which still marks exactly one row as the working one. */
+  .npm-filerow[data-state="parsing"] .npm-filerow__badge::after {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--accent-border);
+  }
+
+  .npm-btn,
+  .npm-close,
+  .npm-chip,
+  .npm-dropzone,
+  .npm-filerow__badge,
+  .npm-filerow__remove {
+    transition-duration: 0.01ms;
+  }
+}
+
+@media (max-width: 520px) {
+  .npm-scrim {
+    padding: 12px;
+  }
+
+  .npm-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .npm-footer__actions .npm-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }

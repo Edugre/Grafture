@@ -1,0 +1,164 @@
+/* Hallmark · component: pipeline (shared loading visual)
+ * genre: modern-minimal · theme: Grafture system (index.css tokens)
+ * signature: the rail fills behind steps that genuinely finished — never advanced by a timer
+ * states: pending · active · done · failed
+ * motion: rail-fill · dot-pulse
+ */
+
+.pipeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pipeline-gap, 18px);
+}
+
+.pipeline__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+/* ---- Rail ----
+   One segment per step, spanning from the bottom of this step's dot (top: 18px) into the row gap
+   so it meets the next dot exactly (bottom: -gap). Drawn per step rather than as a single
+   absolute bar so it can't overshoot when a step's detail wraps to several lines. */
+.pipeline__step:not(:last-child)::before,
+.pipeline__step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 18px;
+  bottom: calc(var(--pipeline-gap, 18px) * -1);
+  width: 2px;
+  border-radius: 1px;
+}
+
+.pipeline__step:not(:last-child)::before {
+  background: var(--border-subtle);
+}
+
+/* The fill rides on top of the track and scales in — transform only, no layout or colour work. */
+.pipeline__step:not(:last-child)::after {
+  background: var(--accent);
+  transform-origin: top center;
+  transform: scaleY(0);
+  transition: transform var(--dur-arrange) var(--ease-out);
+}
+
+.pipeline__step[data-state="done"]:not(:last-child)::after {
+  transform: scaleY(1);
+}
+
+/* A failed step's outgoing segment stays grey: nothing downstream of it succeeded. */
+
+/* ---- Dots ---- */
+.pipeline__dot {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: background var(--dur-overlay) var(--ease-out);
+}
+
+.pipeline__step[data-state="pending"] .pipeline__dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--border);
+}
+
+.pipeline__step[data-state="active"] .pipeline__dot,
+.pipeline__step[data-state="done"] .pipeline__dot {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.pipeline__step[data-state="failed"] .pipeline__dot {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* Breathing halo on the working step. This is the ONLY thing that moves while we wait — it says
+   "alive", it does not say "63% complete". */
+.pipeline__step[data-state="active"] .pipeline__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pipeline-pulse 1.7s var(--ease-in-out) infinite;
+}
+
+@keyframes pipeline-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+
+/* ---- Step text ---- */
+.pipeline__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 1px;
+  min-width: 0;
+}
+
+.pipeline__label {
+  font-size: var(--type-body-md);
+  line-height: var(--leading-body-md);
+  font-weight: 500;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  transition: color var(--dur-overlay) var(--ease-out);
+}
+
+.pipeline__step[data-state="pending"] .pipeline__label {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.pipeline__step[data-state="failed"] .pipeline__label {
+  color: var(--danger-text);
+}
+
+.pipeline__detail {
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  letter-spacing: -0.01em;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+.pipeline__step[data-state="failed"] .pipeline__detail {
+  color: var(--danger-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline__step::after,
+  .pipeline__dot,
+  .pipeline__label {
+    transition-duration: 0.01ms;
+  }
+
+  /* The halo can't survive as motion, so it becomes a static ring — the "working" step is still
+     the one distinguished from its neighbours. */
+  .pipeline__step[data-state="active"] .pipeline__dot::after {
+    animation: none;
+    inset: -4px;
+    background: none;
+    box-shadow: 0 0 0 2px var(--accent-border);
+  }
+}

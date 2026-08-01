@@ -1,0 +1,97 @@
+/* Hallmark · component: modal loading state (create project)
+ * genre: modern-minimal · theme: Grafture system (index.css tokens, preserved)
+ * The rail/dot/step visual lives in ui/Pipeline.css — shared with the sources panel's parsing
+ * overlay. This file is only the surround: title, note, error and actions.
+ * states: pending · active · done · failed (+ 8 states on the actions, see .npm-btn)
+ */
+
+.cp {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 24px 22px;
+}
+
+.cp__title {
+  margin: 0;
+  font-size: var(--type-body-md);
+  line-height: var(--leading-body-md);
+  color: var(--text-muted);
+}
+
+/* The user's own project name is the only strong thing in the block — it anchors the sequence to
+   something they typed, not to a generic "Please wait". */
+.cp__title-name {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.cp__pipeline {
+  margin-top: 20px;
+}
+
+/* ---- Note + error ---- */
+.cp__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 20px 0 0;
+  padding: 9px 11px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+}
+
+.cp__note > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.cp__error {
+  margin: 20px 0 0;
+  padding: 9px 11px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Actions ---- */
+.cp__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+/* Screen-reader-only live region — the visual list is redundant to announce in full. */
+.cp__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .cp {
+    padding: 22px 18px 18px;
+  }
+
+  .cp__actions {
+    margin-top: 18px;
+  }
+
+  .cp__actions .npm-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
