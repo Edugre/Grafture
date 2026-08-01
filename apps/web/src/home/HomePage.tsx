@@ -96,8 +96,9 @@ export function HomePage({
     onEnterEditor();
   };
 
-  const derive = (input: DeriveInput) => {
-    setModalOpen(false);
+  // Returns a promise so the modal can hold its progress view open for the duration and surface a
+  // failure in place (with a retry) instead of closing onto a project that was never written.
+  const derive = async (input: DeriveInput) => {
     // When auto-draft is on AND there are files to draft from, send a framed prompt and let the
     // Copilot draft a ghost schema. With no files there's nothing to derive, so fall back to
     // today's behavior: seed the raw description into the input to send manually (or nothing).
@@ -109,9 +110,9 @@ export function HomePage({
           : undefined;
     // Await the new project so its sources are in the store before the editor (and any auto-draft)
     // reads them, then enter.
-    void createProject({ name: input.name, sources: input.sources }).then(() =>
-      onEnterEditor(kickoff),
-    );
+    await createProject({ name: input.name, sources: input.sources });
+    setModalOpen(false);
+    onEnterEditor(kickoff);
   };
 
   // Import an existing schema from a .sql file: parse locally (nothing is uploaded), create the
