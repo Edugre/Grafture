@@ -133,15 +133,32 @@ projects, and every pre-existing test stays valid.
 Note for PR-3: `exactOptionalPropertyTypes` is on, so any helper taking a provenance-bearing
 entity must declare `provenance?: Provenance | undefined` explicitly.
 
-### PR-2 — core: rationale attachment
+### PR-2 — core: rationale attachment — **DONE**
 
-- Action schemas for `add_relationship`, `set_cardinality`, `set_pk`, `set_type`, `add_table`
-  gain an optional `rationale` object — **declared first in the zod object literal** so the
-  generated tool schema puts it ahead of the decision fields.
-- `applyActions` attaches it only when `actor === "ai"`; a rationale supplied by a user-actor call
-  is dropped (not rejected — it is meaningless, not invalid).
-- **Tests:** rationale attaches on AI actions, is ignored on user actions, survives a later
-  `touched` transition.
+- `add_table`, `add_relationship`, `set_pk`, `set_type`, `set_cardinality` take an optional
+  `rationale: { text, evidence? }`, declared first in each zod literal.
+- **Correction to the original bullet:** the zod key order does _not_ drive the emitted field
+  order. The response tool types `actions` loosely as `object[]` (`responseTool.ts`), so nothing
+  derives a JSON Schema from these zod objects and the model never sees this ordering. The zod
+  order documents intent only — **the mechanism that actually puts `rationale` ahead of the
+  decision is the example ordering in the system prompt, which is PR-4.** PR-4 is therefore load-
+  bearing for the reasoning claim, not just for phrasing.
+- `turnId` is _not_ part of the action. It is supplied by the caller via
+  `ApplyActionsOptions.turnId` — a model asked for an id it cannot know would invent one.
+- `text` is `z.string().min(1)`, so a blank rationale rejects the whole action rather than storing
+  an empty explanation.
+- Attached only when `actor === "ai"`; on any other actor it is dropped while the action itself
+  still applies.
+- **Writing a rationale resets `touched` to false**, and runs after `markTouched`. `touched` means
+  "drifted from the last authoritative explanation", and a rationale written now _is_ that
+  explanation. Without the reset, the copilot re-deciding something the user had edited would
+  render its own fresh reasoning as stale.
+- An entity with **no** provenance gets one materialized as `origin: "user"` rather than losing the
+  rationale. This narrows PR-1's "leave legacy entities alone" rule to the no-rationale case:
+  silently dropping the explanation is the exact failure this feature exists to prevent, and
+  `user` is the already-documented reading of absent provenance rather than a new inference.
+- A later rationale replaces the earlier one; they do not accumulate.
+- 11 tests in `packages/core/test/rationale.test.ts`. Suite green (262 core / 264 web).
 
 ### PR-3 — store: actor plumbing + history
 
