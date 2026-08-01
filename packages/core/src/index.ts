@@ -66,10 +66,22 @@ export {
   describeTargetForPrompt,
   getTargetProfile,
 } from "./target/index.js";
-export type { Cardinality, Field, Relationship, Schema, Table } from "./model.js";
+export type {
+  Cardinality,
+  Field,
+  Origin,
+  Provenance,
+  Rationale,
+  Relationship,
+  Schema,
+  Table,
+} from "./model.js";
 export {
   CardinalitySchema,
   FieldSchema,
+  OriginSchema,
+  ProvenanceSchema,
+  RationaleSchema,
   RelationshipSchema,
   SchemaSchema,
   TableSchema,

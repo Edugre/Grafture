@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   CardinalitySchema,
   type Field,
+  type Origin,
+  type Provenance,
   type Relationship,
   type Schema,
   type Table,
@@ -120,10 +122,36 @@ export type ApplyResult = {
 
 export type ApplyActionsOptions = {
   makeId?: () => string;
+  /**
+   * Who is applying these actions. Manual edits and copilot output both flow through
+   * `applyActions`, so it cannot infer the actor and must not guess — the caller supplies it.
+   * Defaults to `"user"`, which is the safe reading: an unattributed edit is the user's.
+   */
+  actor?: Origin;
 };
 
 function defaultMakeId(): string {
   return crypto.randomUUID();
+}
+
+function stamp(actor: Origin): Provenance {
+  return { origin: actor, touched: false };
+}
+
+/**
+ * Record that an entity was modified by someone other than whoever created it. That difference —
+ * not merely "was edited" — is the signal that invalidates a rationale: the copilot revising its
+ * own proposal leaves the explanation true, while a hand edit to the same entity does not.
+ *
+ * Entities with no provenance (built before this existed, or imported) are left alone rather than
+ * back-filled: inventing an origin we never observed would be a worse record than none.
+ */
+function markTouched(target: { provenance?: Provenance | undefined }, actor: Origin): void {
+  const provenance = target.provenance;
+  if (!provenance || provenance.origin === actor) {
+    return;
+  }
+  provenance.touched = true;
 }
 
 function cloneSchema(schema: Schema): Schema {
@@ -240,6 +268,7 @@ export function applyActions(
   opts?: ApplyActionsOptions,
 ): ApplyResult {
   const makeId = opts?.makeId ?? defaultMakeId;
+  const actor: Origin = opts?.actor ?? "user";
 
   if (!Array.isArray(rawActions)) {
     return {
@@ -294,6 +323,7 @@ export function applyActions(
           type: field.type,
           pk: field.pk,
           fk: field.fk,
+          provenance: stamp(actor),
         }));
 
         working.tables.push({
@@ -302,6 +332,7 @@ export function applyActions(
           x: position.x,
           y: position.y,
           fields,
+          provenance: stamp(actor),
         });
 
         applied.push({ op: action.op, tableIds: [tableId] });
@@ -332,6 +363,7 @@ export function applyActions(
           type: action.type,
           pk: action.pk,
           fk: action.fk,
+          provenance: stamp(actor),
         });
 
         applied.push({ op: action.op, tableIds: [table.id] });
@@ -402,6 +434,7 @@ export function applyActions(
         }
 
         table.name = action.new_name;
+        markTouched(table, actor);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -443,6 +476,7 @@ export function applyActions(
         }
 
         field.name = action.new_name;
+        markTouched(field, actor);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -500,6 +534,7 @@ export function applyActions(
           toTable: toTable.id,
           toField: toField.id,
           cardinality: action.cardinality,
+          provenance: stamp(actor),
         });
         // The from-side column now sources a relationship — keep the FK badge in sync.
         fromField.fk = true;
@@ -591,6 +626,7 @@ export function applyActions(
         }
 
         field.pk = action.pk;
+        markTouched(field, actor);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -615,6 +651,7 @@ export function applyActions(
         }
 
         field.type = action.type;
+        markTouched(field, actor);
         applied.push({ op: action.op, tableIds: [table.id] });
         break;
       }
@@ -666,6 +703,7 @@ export function applyActions(
         }
 
         relationship.cardinality = action.cardinality;
+        markTouched(relationship, actor);
 
         applied.push({
           op: action.op,
