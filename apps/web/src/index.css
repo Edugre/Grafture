@@ -311,6 +311,11 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
+  /* `clip`, never `hidden`: both stop the page scrolling sideways, but `hidden` makes the
+     element a scroll container, which silently breaks `position: sticky` on descendants and
+     lets programmatic scrolling drift the viewport. This is the floor that keeps a too-wide
+     child from turning the whole document into a horizontal scroller. */
+  overflow-x: clip;
 }
 
 body {

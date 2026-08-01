@@ -6,9 +6,14 @@
   background: var(--bg-app);
 }
 
+/* The live column sizes are set inline from the panel-collapse state in App.tsx (both panels
+   start collapsed, so the resting shell is 48px + canvas + 48px). This rule is the pre-hydration
+   fallback only — it uses the same viewport caps so the first paint can't overflow either.
+   `minmax(0, 1fr)` rather than `1fr`: a bare 1fr floors at max-content, so a wide canvas child
+   would push the grid past the viewport instead of scrolling inside its own column. */
 .app-shell {
   display: grid;
-  grid-template-columns: 288px 1fr 372px;
+  grid-template-columns: min(288px, 34vw) minmax(0, 1fr) min(372px, 40vw);
   flex: 1;
   min-height: 0;
 }
@@ -749,7 +754,7 @@
   cursor: pointer;
   line-height: 1;
   opacity: 0;
-  transition: opacity 0.1s ease;
+  transition: opacity var(--dur-hover) var(--ease-out);
 }
 
 /* Reveal on hover, on keyboard focus, and unconditionally on coarse pointers —

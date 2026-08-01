@@ -82,9 +82,14 @@ export function App() {
               <div
                 className="app-shell"
                 style={{
-                  gridTemplateColumns: `${sourcesCollapsed ? "48px" : "288px"} 1fr ${
-                    copilotCollapsed ? "48px" : "372px"
-                  }`,
+                  // Expanded panels are capped against the viewport, not fixed: 288 + 372 of
+                  // chrome overflows anything under ~700px wide, and the canvas is the column
+                  // that must not be squeezed out. Collapsed rails are already narrow enough to
+                  // need no cap. `min()` keeps the desktop widths exact and only bites when the
+                  // window is genuinely too small to honour them.
+                  gridTemplateColumns: `${
+                    sourcesCollapsed ? "48px" : "min(288px, 34vw)"
+                  } minmax(0, 1fr) ${copilotCollapsed ? "48px" : "min(372px, 40vw)"}`,
                 }}
               >
                 <SourcesPanel
