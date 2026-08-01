@@ -661,6 +661,10 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           commitSnapshot((state) => {
             state.schema = parsed.data;
             state.draft = null;
+            // Same rule as the chat path: accepting a copilot proposal is exactly the moment
+            // "who made this, and why" is worth the screen space. The auto-draft never goes
+            // through `runActions`, so it cannot inherit that from there.
+            state.reviewMode = true;
           });
           return { ok: true };
         },

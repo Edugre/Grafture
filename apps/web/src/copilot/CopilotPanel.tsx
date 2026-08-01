@@ -279,6 +279,10 @@ export function CopilotPanel({
     // proposes against this evolving copy across rounds; the store is never touched here.
     let working: Schema = useSchemaStore.getState().schema;
     const makeId = () => crypto.randomUUID();
+    // This path applies through core directly rather than the store — it must therefore declare
+    // the actor itself. Without it the draft takes the "user" default, and the whole auto-drafted
+    // schema would land unattributed with every rationale silently dropped.
+    const turnId = nextMessageId();
     let attempt = 0;
 
     try {
@@ -305,7 +309,7 @@ export function CopilotPanel({
           };
         },
         apply: (actions) => {
-          const r = applyActions(working, actions, { makeId });
+          const r = applyActions(working, actions, { makeId, actor: "ai", turnId });
           working = r.schema;
           return {
             applied: r.applied.length > 0 ? summarizeAppliedActions(working, r.applied) : [],

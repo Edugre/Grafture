@@ -159,6 +159,10 @@ describe("provenance through the store", () => {
       const accepted = store.getState().acceptDraft();
       expect(accepted.ok).toBe(true);
 
+      // Accepting a copilot proposal turns review mode on, exactly as an applied chat turn does.
+      // The auto-draft path never goes through runActions, so it cannot inherit that from there.
+      expect(store.getState().reviewMode).toBe(true);
+
       // SchemaSchema.safeParse runs over the draft before the swap — provenance must survive it.
       expect(firstTable(store.getState().schema).provenance).toEqual({
         origin: "ai",

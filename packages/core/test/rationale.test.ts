@@ -455,3 +455,81 @@ describe("rationale staleness is judged against the explanation, not the origin"
     expect(field(schema, "orders", "customer_id").provenance?.touched).toBe(false);
   });
 });
+
+describe("touched is monotonic — an AI edit never un-stales an explanation", () => {
+  /**
+   * Regression (code review): `markTouched` used to assign `touched = actor !== "ai"`, which
+   * *cleared* the flag on any AI edit — including ops carrying no new reasoning at all. A user
+   * invalidated an explanation, the copilot then renamed the column, and the stale rationale
+   * re-presented itself as current with nothing fresh behind it.
+   */
+  function explainedThenEditedByUser(): Schema {
+    const makeId = makeTestIds();
+    const { schema: explained } = applyActions(
+      seed("ai"),
+      [
+        {
+          op: "set_pk",
+          table: "orders",
+          field: "customer_id",
+          pk: true,
+          rationale: { text: "distinct across all sampled rows" },
+        },
+      ],
+      { makeId, actor: "ai" },
+    );
+    const { schema } = applyActions(
+      explained,
+      [{ op: "set_pk", table: "orders", field: "customer_id", pk: false }],
+      { makeId, actor: "user" },
+    );
+    expect(field(schema, "orders", "customer_id").provenance?.touched).toBe(true);
+    return schema;
+  }
+
+  const aiEditsWithoutNewReasoning: Array<[string, Record<string, unknown>]> = [
+    [
+      "rename_field",
+      { op: "rename_field", table: "orders", field: "customer_id", new_name: "cust_id" },
+    ],
+    ["set_type", { op: "set_type", table: "orders", field: "customer_id", type: "bigint" }],
+    ["set_pk", { op: "set_pk", table: "orders", field: "customer_id", pk: true }],
+  ];
+
+  for (const [op, action] of aiEditsWithoutNewReasoning) {
+    it(`stays stale when the copilot applies ${op} with no fresh rationale`, () => {
+      const makeId = makeTestIds();
+      const { schema } = applyActions(explainedThenEditedByUser(), [action], {
+        makeId,
+        actor: "ai",
+      });
+      const target = table(schema, "orders").fields.find(
+        (candidate) => candidate.name === "cust_id" || candidate.name === "customer_id",
+      );
+
+      expect(target?.provenance?.touched).toBe(true);
+      expect(target?.provenance?.rationale?.text).toBe("distinct across all sampled rows");
+    });
+  }
+
+  it("becomes current again only when the copilot writes a NEW rationale", () => {
+    const makeId = makeTestIds();
+    const { schema } = applyActions(
+      explainedThenEditedByUser(),
+      [
+        {
+          op: "set_pk",
+          table: "orders",
+          field: "customer_id",
+          pk: true,
+          rationale: { text: "re-checked: still unique after the edit" },
+        },
+      ],
+      { makeId, actor: "ai" },
+    );
+
+    const provenance = field(schema, "orders", "customer_id").provenance;
+    expect(provenance?.touched).toBe(false);
+    expect(provenance?.rationale?.text).toBe("re-checked: still unique after the edit");
+  });
+});

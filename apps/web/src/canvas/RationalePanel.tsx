@@ -91,7 +91,17 @@ export function RationalePanel() {
         </div>
       ) : null}
 
-      <p className="rationale-panel__meta">{provenanceLabel(origin)}</p>
+      {/*
+        Attribute the *explanation*, not the entity. Only the copilot ever writes a rationale, so
+        that line is always true — whereas `origin` may be "user" for something the copilot merely
+        explained (a legacy or imported column it later reasoned about), and printing "Created by
+        you" under the copilot's own reasoning contradicts the badge above it. The origin is added
+        only when it says something the first line doesn't.
+      */}
+      <p className="rationale-panel__meta">
+        Explained by the AI copilot
+        {origin === "ai" ? null : ` · ${provenanceLabel(origin).toLowerCase()}`}
+      </p>
     </aside>
   );
 }

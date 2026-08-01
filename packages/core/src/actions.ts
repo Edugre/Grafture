@@ -181,16 +181,23 @@ function markTouched(target: { provenance?: Provenance | undefined }, actor: Ori
   }
 
   // Once an entity carries a rationale, staleness is judged against whoever wrote that
-  // explanation — and only the copilot ever writes one — so authorship decides in both
-  // directions and origin stops mattering.
+  // explanation — and only the copilot ever writes one — so origin stops mattering.
   //
   // Origin alone is not enough: the copilot can explain an entity it did not create (a legacy or
   // imported column), which lands as `origin: "user"`. Under an origin-only rule a user edit to
   // that column matched its own origin, left `touched` false, and let a now-wrong explanation
   // keep presenting itself as current — the exact failure this feature exists to prevent. Found
   // by driving the real app, not by the suite.
+  //
+  // `touched` is only ever *set* here, never cleared — it is monotonic per `ProvenanceSchema`.
+  // Clearing it on any AI edit would un-stale an explanation the user had already invalidated,
+  // for ops that carry no new reasoning at all (a `rename_field`, a bare `set_type`). Only
+  // `attachRationale` clears it, because only a freshly written explanation makes the entity
+  // current again.
   if (provenance.rationale !== undefined) {
-    provenance.touched = actor !== "ai";
+    if (actor !== "ai") {
+      provenance.touched = true;
+    }
     return;
   }
 

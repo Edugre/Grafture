@@ -304,7 +304,9 @@ function TableTitle({ table }: { table: Table }) {
         {reviewMode ? (
           <ProvenanceMarker origin={tableOrigin(table)} touched={isTouched(table)} />
         ) : null}
-        {table.name}
+        {/* The name needs its own element: `text-overflow` does not apply to a bare text node
+            inside a flex container, so an unwrapped name hard-clips mid-glyph. */}
+        <span className="table-node__title-name">{table.name}</span>
       </span>
       <span className="table-node__title-meta">
         {reviewMode && table.provenance?.rationale ? (

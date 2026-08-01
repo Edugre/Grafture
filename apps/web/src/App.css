@@ -619,7 +619,14 @@
   min-width: 0;
 }
 
+/* The ellipsis lives on the name element, not the flex wrapper: `text-overflow` has no effect on
+   an anonymous flex item, so a long name would hard-clip mid-glyph instead of truncating. */
 .table-node__title-text {
+  overflow: hidden;
+}
+
+.table-node__title-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
