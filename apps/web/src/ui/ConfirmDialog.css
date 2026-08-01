@@ -42,15 +42,16 @@
 
 .confirm-title {
   margin: 0;
-  font-size: 16px;
-  line-height: 22px;
+  /* Modal title — brand kit §5.3 puts this at type.heading.md. */
+  font-size: var(--type-heading-md);
+  line-height: var(--leading-heading-md);
   font-weight: 600;
   color: var(--text);
 }
 
 .confirm-message {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--type-body-md);
   line-height: 19px;
   color: var(--text-muted);
 }
@@ -72,7 +73,7 @@
   padding: 0 16px;
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--type-body-md);
   font-weight: 500;
   cursor: pointer;
   transition:

@@ -11,7 +11,7 @@
   max-width: 220px;
   height: 34px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: var(--type-body-md);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -50,7 +50,7 @@
 .projects-bar__actions button {
   height: 34px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: var(--type-body-md);
   font-weight: 500;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);

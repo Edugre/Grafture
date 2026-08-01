@@ -19,7 +19,7 @@
 
 .copilot-header__title {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--type-heading-md);
   line-height: 22px;
   font-weight: 600;
   color: var(--text);
@@ -66,7 +66,7 @@
   background: transparent;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--type-body-md);
   font-weight: 500;
   cursor: pointer;
 }
@@ -150,7 +150,7 @@
 
 .copilot-cta__title {
   margin: 18px 0 0;
-  font-size: 17px;
+  font-size: var(--type-heading-md);
   line-height: 24px;
   font-weight: 600;
   color: var(--text);
@@ -159,7 +159,7 @@
 .copilot-cta__body {
   margin: 8px 0 0;
   max-width: 264px;
-  font-size: 13px;
+  font-size: var(--type-body-md);
   line-height: 20px;
   color: var(--text-muted);
 }
@@ -175,7 +175,7 @@
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 13px;
+  font-size: var(--type-body-md);
   font-weight: 500;
   cursor: pointer;
 }
@@ -190,7 +190,7 @@
   border: none;
   background: none;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
   cursor: pointer;
 }
@@ -205,14 +205,14 @@
   gap: 6px;
   margin-top: 22px;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
 }
 
 .copilot-placeholder {
   margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--type-body-md);
   line-height: 1.5;
 }
 
@@ -256,7 +256,7 @@
 .copilot-bubble {
   max-width: 80%;
   padding: 10px 13px;
-  font-size: 15px;
+  font-size: var(--type-body-lg);
   line-height: 22px;
   white-space: pre-wrap;
 }
@@ -271,7 +271,7 @@
 .copilot-body {
   flex: 1;
   min-width: 0;
-  font-size: 15px;
+  font-size: var(--type-body-lg);
   line-height: 22px;
   color: var(--text);
 }
@@ -287,7 +287,7 @@
   gap: 8px;
   border-radius: var(--radius-sm);
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
 }
 
@@ -314,7 +314,7 @@
   background: transparent;
   text-align: left;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text);
   cursor: pointer;
@@ -355,7 +355,7 @@
 }
 
 .copilot-applied__item {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 18px;
   color: var(--text-muted);
 }
@@ -386,7 +386,7 @@
 }
 
 .copilot-chip--notice .copilot-markdown {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
 }
 
@@ -422,7 +422,7 @@
 .copilot-markdown h3,
 .copilot-markdown h4 {
   margin: 12px 0 6px;
-  font-size: 15px;
+  font-size: var(--type-body-lg);
   font-weight: 600;
   color: var(--text);
 }
@@ -433,7 +433,7 @@
 
 .copilot-markdown code {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--type-mono-sm);
   background: var(--code-chip-bg);
   border-radius: var(--radius-sm);
   padding: 1px 4px;
@@ -456,7 +456,7 @@
 .copilot-markdown table {
   border-collapse: collapse;
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
 }
 
 .copilot-markdown th,
@@ -548,7 +548,7 @@
   background: transparent;
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--type-body-md);
   line-height: 20px;
   resize: none;
   outline: none;
@@ -601,7 +601,7 @@
   background: transparent;
   outline: none;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--type-body-md);
   line-height: 20px;
   cursor: not-allowed;
 }
@@ -619,7 +619,7 @@
 
 .copilot-compose__cancel {
   padding: 5px 12px;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: transparent;

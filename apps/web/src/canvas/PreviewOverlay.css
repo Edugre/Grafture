@@ -106,7 +106,7 @@
 
 .preview-caption__title {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-mono-md);
   line-height: 18px;
   color: var(--text);
   overflow: hidden;
@@ -115,7 +115,7 @@
 }
 
 .preview-caption__stat {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-muted);
   overflow: hidden;
