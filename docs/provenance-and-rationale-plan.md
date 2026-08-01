@@ -337,11 +337,10 @@ edges, and a blue-bordered relationship chip.
    recurring input cost is ~zero. `set_type` was scoped to deviating/conflicting types only, which
    was the op that would have inflated output most. **Output cost is still unmeasured** and needs a
    live run.
-4. ~~**Does the model actually comply?**~~ **Resolved by a live run** — the user exercised the
-   copilot against real sources and reported it working. Worth re-checking whenever
-   `RATIONALE_GUIDANCE` or the model changes, since nothing offline can verify it: the only
-   automated hook would be extending `evals.live.test.ts` to assert that qualifying actions carry a
-   citation, which it does not do today.
+4. ~~**Does the model actually comply?**~~ **Confirmed once by a live run** — the user exercised
+   the copilot against real sources and reported it working. But nothing re-checks it, so a change
+   to `RATIONALE_GUIDANCE` or to the model could degrade rationale quality with the suite green.
+   Written up as a standing gap, with the fix sketched: **`docs/rationale-compliance-eval-gap.md`**.
 
 ## Risks
 
