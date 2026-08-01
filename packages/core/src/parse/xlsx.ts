@@ -47,7 +47,7 @@ export function parseXlsx(
   try {
     workbook = XLSX.read(toArrayBuffer(input), { type: "array" });
   } catch {
-    throw new ParseError(`Unable to read workbook "${name}"`);
+    throw new ParseError("Couldn’t read this workbook — the file may be corrupt", name);
   }
 
   const nonEmptySheets: Array<{ name: string; rows: string[][] }> = [];

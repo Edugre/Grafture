@@ -14,7 +14,7 @@ export async function readAndParseFile(
   const kind = detectSourceKind(file.name);
 
   if (!kind) {
-    throw new ParseError(`Unsupported file type: ${file.name}`);
+    throw new ParseError("Unsupported file type — expected .csv, .xlsx or .json", file.name);
   }
 
   const content = kind === "xlsx" ? await file.arrayBuffer() : await file.text();
