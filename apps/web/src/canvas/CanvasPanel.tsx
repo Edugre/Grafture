@@ -11,6 +11,7 @@ import type { Connection, EdgeChange, NodeChange, ReactFlowInstance } from "@xyf
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { HistoryBox, useHistoryShortcuts } from "../history/index.js";
 import { useSchemaStore } from "../store/index.js";
 import { useSuggestions } from "../suggest/index.js";
 import {
@@ -102,6 +103,10 @@ export function CanvasPanel({
   const setReviewMode = useSchemaStore((state) => state.setReviewMode);
   const canUndo = useSchemaStore((state) => state.canUndo());
   const canRedo = useSchemaStore((state) => state.canRedo());
+
+  // ⌘Z / ⌘⇧Z. Bound from here because the canvas mounts exactly when the editor is open, but the
+  // listener is document-level so the shortcut also works from the sources and copilot panels.
+  useHistoryShortcuts();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<TableFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipFlowEdge>([]);
@@ -358,7 +363,7 @@ export function CanvasPanel({
             className="canvas-tools__icon"
             onClick={undo}
             disabled={!canUndo}
-            title="Undo"
+            title="Undo (⌘Z)"
             aria-label="Undo"
           >
             <UndoIcon size={15} />
@@ -368,11 +373,12 @@ export function CanvasPanel({
             className="canvas-tools__icon"
             onClick={redo}
             disabled={!canRedo}
-            title="Redo"
+            title="Redo (⌘⇧Z)"
             aria-label="Redo"
           >
             <RedoIcon size={15} />
           </button>
+          <HistoryBox />
           {tableCount > 0 ? (
             <>
               <span className="canvas-tools__divider" />

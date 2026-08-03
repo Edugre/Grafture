@@ -75,7 +75,10 @@ caller declares it**: the copilot passes `"ai"`, building a table from a parsed 
   touches state. **Invalid actions are rejected and surfaced to the user, never silently
   dropped.** (The prototype silently no-oped on bad field names — do not reproduce that.)
 - All canvas mutations go through the store's typed commands so undo/redo stays correct.
-  Never mutate diagram state directly.
+  Never mutate diagram state directly. **Every command also names its history step** — a
+  `{ label, actor }` pushed with the snapshot, which is what the history box lists. A step with
+  no name is a step the user cannot recognise, so a new command must supply one; label from what
+  `applyActions` applied, never from what was requested.
 - Core logic (parsers, exporters, `applyActions`) requires vitest tests. Don't land core
   changes without them.
 - Keep `packages/core` free of React and of any network/server code.

@@ -1,4 +1,4 @@
-import type { Schema, Source } from "@grafture/core";
+import type { Origin, Schema, Source } from "@grafture/core";
 
 export type Selection = {
   tableId?: string;
@@ -11,9 +11,29 @@ export type StoreSnapshot = {
   selection: Selection;
 };
 
+/**
+ * One undoable step. `snapshot` is the state **before** the change; `label`/`actor`/`at` describe
+ * the change that was applied on top of it. Keeping the description glued to the step is what lets
+ * the history box name each entry — a bare stack of snapshots can only say "100 steps".
+ */
+export type HistoryEntry = {
+  snapshot: StoreSnapshot;
+  label: string;
+  /**
+   * One line per action behind a batched step, so a row the label can only call "7 changes" can be
+   * expanded into what it actually did. Empty on single-action steps.
+   */
+  details: string[];
+  actor: Origin;
+  at: number;
+};
+
+/** What a step is, minus the snapshot: everything the history box renders. */
+export type HistoryStep = Pick<HistoryEntry, "label" | "details" | "actor" | "at">;
+
 export type HistoryController = {
-  past: StoreSnapshot[];
-  future: StoreSnapshot[];
+  past: HistoryEntry[];
+  future: HistoryEntry[];
   coalesceKey: string | null;
 };
 
@@ -62,14 +82,14 @@ export function willCoalesce(history: HistoryController, coalesceKey: string): b
 
 export function pushHistory(
   history: HistoryController,
-  snapshot: StoreSnapshot,
+  entry: HistoryEntry,
   coalesceKey?: string,
 ): void {
   if (coalesceKey !== undefined && history.coalesceKey === coalesceKey) {
     return;
   }
 
-  history.past.push(snapshot);
+  history.past.push(entry);
   if (history.past.length > HISTORY_LIMIT) {
     history.past.shift();
   }
@@ -89,24 +109,29 @@ export function canRedo(history: HistoryController): boolean {
   return history.future.length > 0;
 }
 
-export function undo(history: HistoryController, current: StoreSnapshot): StoreSnapshot | null {
+/**
+ * Move the top step from past to future. The label travels with it: the entry's snapshot swaps
+ * for the current state (so redo can walk back), but the description stays attached to the change
+ * it names, in either stack.
+ */
+export function undo(history: HistoryController, current: StoreSnapshot): HistoryEntry | null {
   const previous = history.past.pop();
   if (!previous) {
     return null;
   }
 
-  history.future.push(current);
+  history.future.push({ ...previous, snapshot: current });
   history.coalesceKey = null;
   return previous;
 }
 
-export function redo(history: HistoryController, current: StoreSnapshot): StoreSnapshot | null {
+export function redo(history: HistoryController, current: StoreSnapshot): HistoryEntry | null {
   const next = history.future.pop();
   if (!next) {
     return null;
   }
 
-  history.past.push(current);
+  history.past.push({ ...next, snapshot: current });
   history.coalesceKey = null;
   return next;
 }
