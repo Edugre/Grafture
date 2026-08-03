@@ -12,8 +12,10 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 import type { ChatMessage } from "../copilot/messages.js";
+import { describeChange } from "./changeLabel.js";
 import {
   type HistoryController,
+  type HistoryEntry,
   type Selection,
   type StoreSnapshot,
   canRedo,
@@ -142,12 +144,24 @@ export type SchemaStore = {
 
   undo: () => void;
   redo: () => void;
+  /**
+   * Walk several steps at once: negative undoes, positive redoes. This is what clicking an entry
+   * in the history box does — jumping to a step is n undos or n redos, so it takes exactly the
+   * same path as the buttons rather than restoring a snapshot out of band.
+   */
+  travel: (steps: number) => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+
+  /**
+   * The undo/redo stacks, each step carrying a label and the actor that made it, so the history
+   * box can list what happened instead of only how much did. **Read-only for the UI** — it is
+   * mutated only by the commands above, which is what keeps undo/redo correct.
+   */
+  history: HistoryController;
 };
 
 type SchemaStoreInternal = SchemaStore & {
-  _history: HistoryController;
   _makeId: () => string;
 };
 
@@ -249,12 +263,25 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
 
   return create<SchemaStoreInternal>()(
     immer((set, get) => {
-      const commitSnapshot = (mutate: (draft: SchemaStoreInternal) => void): void => {
+      /**
+       * Push one labelled history step, then mutate. `label`/`actor` describe the change about to
+       * be made — every command names its own step, because the store is the only place that
+       * knows both what happened and who asked for it.
+       */
+      const commitSnapshot = (
+        step: Pick<HistoryEntry, "label" | "actor"> & Partial<Pick<HistoryEntry, "details">>,
+        mutate: (draft: SchemaStoreInternal) => void,
+      ): void => {
         const before = captureSnapshot(get());
 
         set((draft) => {
-          clearCoalesce(draft._history);
-          pushHistory(draft._history, before);
+          clearCoalesce(draft.history);
+          pushHistory(draft.history, {
+            details: [],
+            ...step,
+            snapshot: before,
+            at: Date.now(),
+          });
           mutate(draft);
         });
       };
@@ -275,10 +302,12 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         }
 
         const before = captureSnapshot(state);
+        const { label, details } = describeChange(state.schema, result.schema, result.applied);
+        const actor = opts?.actor ?? "user";
 
         set((draft) => {
-          clearCoalesce(draft._history);
-          pushHistory(draft._history, before);
+          clearCoalesce(draft.history);
+          pushHistory(draft.history, { snapshot: before, label, details, actor, at: Date.now() });
           draft.schema = result.schema;
         });
 
@@ -294,7 +323,7 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         reviewMode: false,
         rationaleFocus: null,
         draft: null,
-        _history: createHistoryController(),
+        history: createHistoryController(),
         _makeId: makeId,
 
         runActions: runValidatedActions,
@@ -502,7 +531,8 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           const state = get();
           const coalesceKey = `move:${tableId}`;
           // Mid-drag the snapshot would be coalesced away; don't build it at all.
-          const before = willCoalesce(state._history, coalesceKey) ? null : captureSnapshot(state);
+          const before = willCoalesce(state.history, coalesceKey) ? null : captureSnapshot(state);
+          const name = findTableById(state.schema, tableId)?.name ?? "table";
 
           set((draft) => {
             const table = findTableById(draft.schema, tableId);
@@ -511,7 +541,17 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             }
 
             if (before) {
-              pushHistory(draft._history, before, coalesceKey);
+              pushHistory(
+                draft.history,
+                {
+                  snapshot: before,
+                  label: `Move ${name}`,
+                  details: [],
+                  actor: "user",
+                  at: Date.now(),
+                },
+                coalesceKey,
+              );
             }
             table.x = x;
             table.y = y;
@@ -523,7 +563,12 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             return;
           }
 
-          commitSnapshot((draft) => {
+          const label =
+            positions.length === 1
+              ? `Move ${findTableById(get().schema, positions[0]!.tableId)?.name ?? "table"}`
+              : `Move ${positions.length} tables`;
+
+          commitSnapshot({ label, actor: "user" }, (draft) => {
             for (const { tableId, x, y } of positions) {
               const table = findTableById(draft.schema, tableId);
               if (table) {
@@ -539,7 +584,8 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           // Coalesce a continuous drag-resize into a single undo step, and skip the snapshot
           // entirely once coalescing has started.
           const coalesceKey = `resize:${tableId}`;
-          const before = willCoalesce(state._history, coalesceKey) ? null : captureSnapshot(state);
+          const before = willCoalesce(state.history, coalesceKey) ? null : captureSnapshot(state);
+          const name = findTableById(state.schema, tableId)?.name ?? "table";
 
           set((draft) => {
             const table = findTableById(draft.schema, tableId);
@@ -548,14 +594,24 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             }
 
             if (before) {
-              pushHistory(draft._history, before, coalesceKey);
+              pushHistory(
+                draft.history,
+                {
+                  snapshot: before,
+                  label: `Resize ${name}`,
+                  details: [],
+                  actor: "user",
+                  at: Date.now(),
+                },
+                coalesceKey,
+              );
             }
             table.width = width;
           });
         },
 
         addSource: (source) => {
-          commitSnapshot((draft) => {
+          commitSnapshot({ label: `Add source ${source.name}`, actor: "imported" }, (draft) => {
             draft.sources.push(source);
           });
         },
@@ -566,7 +622,11 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           }
           // One snapshot for the whole batch: a JSON file that unnests into N+1 sources must
           // be one undo step, not N+1.
-          commitSnapshot((draft) => {
+          const label =
+            sources.length === 1
+              ? `Add source ${sources[0]!.name}`
+              : `Add ${sources.length} sources`;
+          commitSnapshot({ label, actor: "imported" }, (draft) => {
             draft.sources.push(...sources);
           });
         },
@@ -575,7 +635,8 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
         // exist only as part of that file, and a child whose parent is gone loses the lineage its
         // `_parentId` link depends on. Mirrors `addSources` — one file in, one file out, one undo.
         removeSource: (sourceId) => {
-          commitSnapshot((draft) => {
+          const name = get().sources.find((source) => source.id === sourceId)?.name ?? "source";
+          commitSnapshot({ label: `Remove source ${name}`, actor: "user" }, (draft) => {
             draft.sources = draft.sources.filter(
               (source) => source.id !== sourceId && source.derivedFrom?.parentId !== sourceId,
             );
@@ -658,14 +719,21 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             });
             return { ok: false, error };
           }
-          commitSnapshot((state) => {
-            state.schema = parsed.data;
-            state.draft = null;
-            // Same rule as the chat path: accepting a copilot proposal is exactly the moment
-            // "who made this, and why" is worth the screen space. The auto-draft never goes
-            // through `runActions`, so it cannot inherit that from there.
-            state.reviewMode = true;
-          });
+          const added = parsed.data.tables.length - get().schema.tables.length;
+          commitSnapshot(
+            {
+              label: added > 0 ? `Accept AI draft (${added} tables)` : "Accept AI draft",
+              actor: "ai",
+            },
+            (state) => {
+              state.schema = parsed.data;
+              state.draft = null;
+              // Same rule as the chat path: accepting a copilot proposal is exactly the moment
+              // "who made this, and why" is worth the screen space. The auto-draft never goes
+              // through `runActions`, so it cannot inherit that from there.
+              state.reviewMode = true;
+            },
+          );
           return { ok: true };
         },
 
@@ -687,7 +755,7 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
             state.reviewMode = false;
             state.rationaleFocus = null;
             state.draft = null;
-            state._history = createHistoryController();
+            state.history = createHistoryController();
           });
         },
 
@@ -722,14 +790,14 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           const current = captureSnapshot(get());
 
           set((draft) => {
-            const restored = undo(draft._history, current);
+            const restored = undo(draft.history, current);
             if (!restored) {
               return;
             }
 
-            draft.schema = restored.schema;
-            draft.sources = restored.sources;
-            draft.selection = restored.selection;
+            draft.schema = restored.snapshot.schema;
+            draft.sources = restored.snapshot.sources;
+            draft.selection = restored.snapshot.selection;
           });
         },
 
@@ -737,19 +805,29 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           const current = captureSnapshot(get());
 
           set((draft) => {
-            const restored = redo(draft._history, current);
+            const restored = redo(draft.history, current);
             if (!restored) {
               return;
             }
 
-            draft.schema = restored.schema;
-            draft.sources = restored.sources;
-            draft.selection = restored.selection;
+            draft.schema = restored.snapshot.schema;
+            draft.sources = restored.snapshot.sources;
+            draft.selection = restored.snapshot.selection;
           });
         },
 
-        canUndo: () => canUndo(get()._history),
-        canRedo: () => canRedo(get()._history),
+        // Repeated single steps rather than one long jump: each hop swaps a snapshot into the
+        // opposite stack, so walking them one at a time is what leaves both stacks — and the
+        // labels the history box reads off them — consistent at the destination.
+        travel: (steps) => {
+          const move = steps < 0 ? get().undo : get().redo;
+          for (let taken = 0; taken < Math.abs(steps); taken += 1) {
+            move();
+          }
+        },
+
+        canUndo: () => canUndo(get().history),
+        canRedo: () => canRedo(get().history),
       };
     }),
   );
