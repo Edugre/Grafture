@@ -12,6 +12,7 @@ describe("isSelectableOpenAiModel", () => {
     expect(isSelectableOpenAiModel("gpt-4.1")).toBe(true);
     expect(isSelectableOpenAiModel("gpt-4o")).toBe(true);
     expect(isSelectableOpenAiModel("gpt-5")).toBe(true);
+    expect(isSelectableOpenAiModel("gpt-5.6-sol")).toBe(true);
     expect(isSelectableOpenAiModel("o1")).toBe(true);
     expect(isSelectableOpenAiModel("o3")).toBe(true);
     expect(isSelectableOpenAiModel("o4-mini")).toBe(true);
@@ -61,6 +62,6 @@ describe("mergeModels with the OpenAI catalog", () => {
     // Live entry wins on id; the rest of the catalog is appended.
     expect(merged.find((model) => model.id === "gpt-4.1")?.displayName).toBe("GPT-4.1 (live)");
     expect(merged.filter((model) => model.id === "gpt-4.1")).toHaveLength(1);
-    expect(merged.some((model) => model.id === "gpt-5")).toBe(true);
+    expect(merged.some((model) => model.id === "gpt-5.6-terra")).toBe(true);
   });
 });
