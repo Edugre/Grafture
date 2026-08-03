@@ -4,7 +4,7 @@ import type { ModelInfo } from "@grafture/core";
  * The OpenAI model used when no preference is saved. A capable, current chat model; the Settings
  * picker is how users opt into other tiers (reasoning models, mini variants).
  */
-export const OPENAI_DEFAULT_MODEL = "gpt-4.1";
+export const OPENAI_DEFAULT_MODEL = "gpt-5.6-terra";
 
 /**
  * Curated fallback catalog, shown when the live Models API can't be reached (no key, offline, or
@@ -13,11 +13,14 @@ export const OPENAI_DEFAULT_MODEL = "gpt-4.1";
  * is filtered to the same chat-capable families ({@link isSelectableOpenAiModel}).
  */
 export const OPENAI_MODEL_CATALOG: ModelInfo[] = [
-  { id: "gpt-5", displayName: "GPT-5" },
+  { id: "gpt-5.6-sol", displayName: "GPT-5.6 Sol" },
+  { id: "gpt-5.6-terra", displayName: "GPT-5.6 Terra" },
+  { id: "gpt-5.6-luna", displayName: "GPT-5.6 Luna" },
+  { id: "gpt-5.5", displayName: "GPT-5.5" },
+  { id: "gpt-5.4-mini", displayName: "GPT-5.4 mini" },
+  { id: "gpt-5.4-nano", displayName: "GPT-5.4 nano" },
   { id: "gpt-4.1", displayName: "GPT-4.1" },
-  { id: "gpt-4o", displayName: "GPT-4o" },
   { id: "o3", displayName: "o3" },
-  { id: "o4-mini", displayName: "o4-mini" },
 ];
 
 /**
