@@ -266,3 +266,25 @@ export function resolveSteps(
     };
   });
 }
+
+/**
+ * Do two resolutions describe the same tour? Used to decide whether a re-resolve is worth taking —
+ * comparing the rendered shape rather than object identity, so an equivalent re-run is a no-op
+ * instead of a state write that restarts the measurement loop.
+ */
+export function sameSequence(a: readonly ResolvedStep[], b: readonly ResolvedStep[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((step, i) => {
+      const other = b[i];
+      return (
+        other !== undefined &&
+        step.target === other.target &&
+        step.eyebrow === other.eyebrow &&
+        step.title === other.title &&
+        step.body === other.body &&
+        step.note === other.note
+      );
+    })
+  );
+}

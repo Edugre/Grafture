@@ -10,7 +10,12 @@ import {
   sameRect,
   spotlightRect,
 } from "../src/onboarding/placement.js";
-import { TOUR_STEPS, resolveSteps, type TourContext } from "../src/onboarding/steps.js";
+import {
+  TOUR_STEPS,
+  resolveSteps,
+  sameSequence,
+  type TourContext,
+} from "../src/onboarding/steps.js";
 
 const SHELL = { left: 40, top: 20, width: 1440, height: 900 };
 
@@ -90,6 +95,21 @@ describe("placeModal", () => {
     const spot = { left: 16, top: 40, width: 200, height: 60 };
 
     expect(placeModal(spot, { width: 1440, height: 200 }).top).toBe(24);
+  });
+
+  it("keeps an untargeted card's footer on screen in a short window", () => {
+    // The regression this guards: untargeted steps hardcoded top:300, so on a ~560px-tall window
+    // the Welcome and Done cards put Skip and Start below the shell's bottom edge — and `.tour`
+    // clips rather than scrolls, so the primary action was simply unreachable.
+    for (const height of [420, 560, 700]) {
+      const { top } = placeModal(null, { width: 1440, height });
+      expect(top + MODAL_MAX_HEIGHT, `footer at ${height}px tall`).toBeLessThanOrEqual(height - 24);
+      expect(top, `top at ${height}px tall`).toBeGreaterThanOrEqual(24);
+    }
+  });
+
+  it("leaves an untargeted card in the upper third when the shell is tall enough", () => {
+    expect(placeModal(null, { width: 1440, height: 900 }).top).toBe(300);
   });
 
   it("narrows the card, and keeps it on screen, when the shell can't hold it", () => {
@@ -315,5 +335,29 @@ describe("resolveSteps", () => {
       expect(resolved[0]?.eyebrow).toBe("Welcome");
       expect(resolved[resolved.length - 1]?.eyebrow).toBe("Done");
     }
+  });
+});
+
+describe("sameSequence", () => {
+  it("recognises an equivalent re-resolve so it can be skipped", () => {
+    // The tour re-resolves while the user is on step one, because the project may still be loading
+    // out of IndexedDB. Every one of those re-resolves must be a no-op once the answer settles, or
+    // the measurement loop restarts on a loop.
+    expect(sameSequence(resolveSteps(LOADED), resolveSteps(LOADED))).toBe(true);
+    expect(sameSequence(resolveSteps(EMPTY), resolveSteps(EMPTY))).toBe(true);
+  });
+
+  it("sees the difference the load race actually produces", () => {
+    expect(sameSequence(resolveSteps(EMPTY), resolveSteps(LOADED))).toBe(false);
+  });
+
+  it("catches a copy swap that leaves the length alone", () => {
+    // Welcome's variant swaps title/body/note but not the step count — a length check alone would
+    // call the empty and loaded welcome steps identical.
+    const loaded = resolveSteps(LOADED).slice(0, 1);
+    const empty = resolveSteps(EMPTY).slice(0, 1);
+
+    expect(loaded).toHaveLength(empty.length);
+    expect(sameSequence(loaded, empty)).toBe(false);
   });
 });

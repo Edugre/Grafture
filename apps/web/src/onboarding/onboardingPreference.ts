@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
 
 /**
- * Whether the first-run tour has been seen, and how far the user got. Device-local, persisted to
- * localStorage like the theme, rerank, and auto-draft preferences — the open core has no account to
- * hang it off, and a tour is per-browser anyway.
+ * Whether the first-run tour has been seen. Device-local, persisted to localStorage like the theme,
+ * rerank, and auto-draft preferences — the open core has no account to hang it off, and a tour is
+ * per-browser anyway. One value: `grafture:onboarding` is "done" once the tour has been skipped or
+ * completed, and that gates the auto-open.
  *
- * Two values, written together:
- *   `grafture:onboarding`           — "done" once skipped or completed. Gates the auto-open.
- *   `grafture:onboarding-last-step` — the step *index* reached when skipped, so Replay resumes there.
- *
- * Completion clears the step: finishing the tour means the next replay starts from the top.
+ * There was a second key here recording the step reached on a skip, meant for resume-on-replay. It
+ * could never be read: marking the tour seen also sets the done flag, so the tour does not reopen,
+ * and the only path that reopens it — `resetOnboarding` — clears the step and starts from the top,
+ * which is what "Replay tutorial" should do anyway. Write-only state that documents behaviour the
+ * code cannot produce is worse than no state, so it is gone. The key is removed on the next write
+ * so browsers that already have one don't carry it forever.
  */
 
 const DONE_KEY = "grafture:onboarding";
-const STEP_KEY = "grafture:onboarding-last-step";
+/** Only ever removed — see the note above. */
+const LEGACY_STEP_KEY = "grafture:onboarding-last-step";
 const REPLAY_EVENT = "grafture:onboarding-replay";
 
 export function readOnboardingCompleted(): boolean {
@@ -26,29 +29,11 @@ export function readOnboardingCompleted(): boolean {
   }
 }
 
-/** The 0-based step index to resume on, clamped by the caller against the current step count. */
-export function readOnboardingLastIndex(): number {
-  try {
-    const raw = window.localStorage.getItem(STEP_KEY);
-    const parsed = raw === null ? Number.NaN : Number.parseInt(raw, 10);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Mark the tour done. `lastIndex` is the step index the user was on when they skipped; omit it (or
- * pass 0) when they reached the end, which is what makes a later replay start from step one.
- */
-export function markOnboardingSeen(lastIndex = 0): void {
+/** Mark the tour done, whether it was skipped or finished. */
+export function markOnboardingSeen(): void {
   try {
     window.localStorage.setItem(DONE_KEY, "done");
-    if (lastIndex > 0) {
-      window.localStorage.setItem(STEP_KEY, String(lastIndex));
-    } else {
-      window.localStorage.removeItem(STEP_KEY);
-    }
+    window.localStorage.removeItem(LEGACY_STEP_KEY);
   } catch {
     // Ignore storage failures — the tour still closes for this session.
   }
@@ -62,7 +47,7 @@ export function markOnboardingSeen(lastIndex = 0): void {
 export function resetOnboarding(): void {
   try {
     window.localStorage.removeItem(DONE_KEY);
-    window.localStorage.removeItem(STEP_KEY);
+    window.localStorage.removeItem(LEGACY_STEP_KEY);
   } catch {
     // Ignore — the event below still reopens the tour for this session.
   }

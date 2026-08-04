@@ -7,11 +7,16 @@ import "./OnboardingTour.css";
 import {
   markOnboardingSeen,
   readOnboardingCompleted,
-  readOnboardingLastIndex,
   useOnboardingReplays,
 } from "./onboardingPreference.js";
 import { type Rect, formatCounter, placeModal, sameRect, spotlightRect } from "./placement.js";
-import { type ResolvedStep, type TourContext, type TourStage, resolveSteps } from "./steps.js";
+import {
+  type ResolvedStep,
+  type TourContext,
+  type TourStage,
+  resolveSteps,
+  sameSequence,
+} from "./steps.js";
 
 /**
  * How long a step's anchor may stay missing before the tour moves on. This is now only a safety
@@ -77,18 +82,20 @@ export function OnboardingTour({
   contextRef.current = { hasSources, hasRelationships, hasSuggestions: hasSources };
 
   const [open, setOpen] = useState(() => !readOnboardingCompleted());
-  // Resolved once, when the tour opens, and frozen for its duration — a sequence that restructured
-  // because the user dropped a file mid-tour would renumber the card they are reading.
+  // Frozen once the tour is under way — a sequence that restructured because the user dropped a
+  // file mid-tour would renumber the card they are reading. See the re-resolve effect below for the
+  // one window where it is still allowed to change.
   const [steps, setSteps] = useState<ResolvedStep[]>(() => resolveSteps(contextRef.current));
-  const [index, setIndex] = useState(() =>
-    Math.max(0, Math.min(steps.length - 1, readOnboardingLastIndex())),
-  );
-  const [spot, setSpot] = useState<Rect | null>(null);
+  const [index, setIndex] = useState(0);
   const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
-  // True from the moment a step is entered until its anchor has been measured. The card stays
-  // unmounted while it is set, so a step is never *displayed* against the wrong spotlight — the
-  // failure the grace window used to create every time it skipped one.
-  const [pending, setPending] = useState(true);
+  /**
+   * The last step the loop successfully measured, and where. **The card renders from this, not from
+   * `index`** — which is what keeps geometry and copy in lockstep. `index` is where the tour is
+   * heading; `placement` is what it has actually placed. Between the two, the card keeps showing the
+   * step it has coordinates for, so a step is never painted against the previous step's spotlight
+   * and a step being skipped is never painted at all.
+   */
+  const [placement, setPlacement] = useState<{ index: number; spot: Rect | null } | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
   // Which way the user was heading, so a missing anchor is skipped *past* rather than bounced off.
@@ -105,15 +112,12 @@ export function OnboardingTour({
     [steps.length],
   );
 
-  const close = useCallback(
-    (completed: boolean) => {
-      markOnboardingSeen(completed ? 0 : indexRef.current);
-      setOpen(false);
-      setSpot(null);
-      onStage(null);
-    },
-    [onStage],
-  );
+  const close = useCallback(() => {
+    markOnboardingSeen();
+    setOpen(false);
+    setPlacement(null);
+    onStage(null);
+  }, [onStage]);
 
   const go = useCallback(
     (direction: 1 | -1) => {
@@ -125,7 +129,7 @@ export function OnboardingTour({
 
   const next = useCallback(() => {
     if (indexRef.current >= lastIndex) {
-      close(true);
+      close();
       return;
     }
     go(1);
@@ -140,10 +144,30 @@ export function OnboardingTour({
       directionRef.current = 1;
       setSteps(resolveSteps(contextRef.current));
       setIndex(0);
-      setPending(true);
+      setPlacement(null);
       setOpen(true);
     }
   }, [replays]);
+
+  /*
+   * Re-resolve while the user is still on the welcome step.
+   *
+   * `HomePage.open` calls `openProject(id)` and enters the editor in the same tick, and
+   * `openProject` is fire-and-forget — it awaits a flush and an IndexedDB read before the store is
+   * populated (`persistence/useProjects.ts`). So on a fresh load, opening a project that *has*
+   * files mounts this component against an empty store, and a first resolve there would hand a
+   * ten-step project the seven-step empty tour. The window is milliseconds; re-resolving until the
+   * user leaves step one covers it without ever renumbering a card someone is reading.
+   */
+  useEffect(() => {
+    if (!open || index !== 0) {
+      return;
+    }
+    setSteps((current) => {
+      const resolved = resolveSteps(contextRef.current);
+      return sameSequence(current, resolved) ? current : resolved;
+    });
+  }, [open, index, hasSources, hasRelationships]);
 
   // Ask the editor to open whatever this step points at. Steps that declare no stage leave the
   // arrangement alone rather than collapsing it again — the canvas steps read fine either way, and
@@ -192,8 +216,11 @@ export function OnboardingTour({
 
       if (!current.target) {
         missingSince = null;
-        setSpot((previous) => (previous === null ? previous : null));
-        setPending(false);
+        setPlacement((previous) =>
+          previous && previous.index === index && previous.spot === null
+            ? previous
+            : { index, spot: null },
+        );
         return;
       }
 
@@ -210,7 +237,7 @@ export function OnboardingTour({
           missingSince = null;
           const direction = directionRef.current;
           if (index + direction > steps.length - 1) {
-            close(true);
+            close();
           } else {
             go(direction);
           }
@@ -228,8 +255,11 @@ export function OnboardingTour({
 
       const shellRect = shell.getBoundingClientRect();
       const measured = spotlightRect(rect, shellRect);
-      setSpot((previous) => (sameRect(previous, measured) ? previous : measured));
-      setPending(false);
+      setPlacement((previous) =>
+        previous && previous.index === index && sameRect(previous.spot, measured)
+          ? previous
+          : { index, spot: measured },
+      );
     };
 
     // First pass runs synchronously so a step whose anchor is already on screen never paints one
@@ -242,26 +272,34 @@ export function OnboardingTour({
     return () => cancelAnimationFrame(frame);
   }, [open, index, steps, shellRef, close, go]);
 
-  // Entering a step puts the card back into "not yet placed" until the loop above confirms an
-  // anchor. Without this the card would render immediately, against whatever spotlight the previous
-  // step left behind.
-  useEffect(() => {
-    setPending(true);
-  }, [index, steps]);
-
-  // A re-resolve can leave the cursor past the end (replaying a shorter sequence).
+  // A re-resolve can leave the cursor past the end (a shorter sequence than the one in flight).
   useEffect(() => {
     setIndex((current) => clampIndex(current));
   }, [clampIndex]);
 
-  // → next, ← back, Esc skip. Document-level so the shortcut works wherever focus has wandered —
-  // the tour is non-blocking, so that could be anywhere — and yielding to text entry the same way
-  // the undo shortcut does, or Esc would close the tour instead of the field the user is in.
+  /*
+   * → next, ← back, Esc skip — but only while focus is inside the card.
+   *
+   * The tour is deliberately non-blocking and it stages the rails so the user *can* go and try the
+   * thing being described. Four other components close on Escape at document/window level and none
+   * of them stop propagation (`HistoryBox`, `RationalePanel`, `ModelPicker`, `ConfirmDialog`), so a
+   * document-wide handler here means opening the History box on the Provenance step — which is what
+   * that step invites — and pressing Escape closes the popover *and* ends the tour for good. Arrow
+   * keys have the same problem against React Flow's node nudging on the canvas step.
+   *
+   * Scoping to the card is also the honest semantics: Escape dismisses the thing you are in. Focus
+   * lands on the card at every step and after every button click, so the shortcuts work exactly
+   * when the user is in the tour and yield the moment they step into the app.
+   */
   useEffect(() => {
     if (!open) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
+      const card = cardRef.current;
+      if (!card || !card.contains(document.activeElement)) {
+        return;
+      }
       if (isTextEntry(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
         return;
       }
@@ -273,32 +311,39 @@ export function OnboardingTour({
         back();
       } else if (event.key === "Escape") {
         event.preventDefault();
-        close(false);
+        close();
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, next, back, close]);
 
-  // Move focus to the card on every step change so the new copy is what a screen reader lands on
-  // and Tab starts from Skip rather than from wherever the last click left off.
+  // Move focus to the card whenever the *displayed* step changes, so the new copy is what a screen
+  // reader lands on and Tab starts from Skip. Keyed on the placed index, not `index`: the card is
+  // only in the DOM once it has been placed, so keying on the target step would run this against a
+  // null ref (or the outgoing card) and focus nothing.
+  const placedIndex = placement?.index ?? null;
   useEffect(() => {
-    if (open) {
+    if (open && placedIndex !== null) {
       cardRef.current?.focus();
     }
-  }, [open, index]);
+  }, [open, placedIndex]);
 
-  // Nothing to place until the shell has been measured (a card positioned against a zero-width
-  // shell lands off the edge), and nothing to show until the current step's anchor has been found.
-  // `pending` is what makes a skip invisible: the step that is about to be skipped never paints.
-  if (!open || !step || shellSize.width === 0 || pending) {
+  // Render the step that has been *placed*, never the one being navigated to. Until the loop lands
+  // a measurement there is nothing honest to draw — on first open that means one frame of nothing,
+  // and on a step whose anchor never appears it means the previous card holds until the skip
+  // resolves. Both beat painting a card against coordinates that belong to a different step.
+  const placed = placement ? steps[placement.index] : undefined;
+  if (!open || !placed || shellSize.width === 0) {
     return null;
   }
 
+  const spot = placement?.spot ?? null;
+  const shown = placement?.index ?? 0;
   const modal = placeModal(spot, shellSize);
   const targeted = spot !== null;
-  const counter = formatCounter(index, steps.length);
-  const titleId = `tour-title-${index}`;
+  const counter = formatCounter(shown, steps.length);
+  const titleId = `tour-title-${shown}`;
 
   return (
     <div className="tour">
@@ -331,42 +376,42 @@ export function OnboardingTour({
         {/* Announces the step, not the card: the visible copy is already read on focus, and the
             counter is what tells a screen-reader user where they are in the sequence. */}
         <span className="sr-only" role="status">
-          {`${counter} — ${step.title}`}
+          {`${counter} — ${placed.title}`}
         </span>
 
         <div className="tour__eyebrow-row">
-          <span className="tour__eyebrow">{step.eyebrow}</span>
-          <button type="button" className="tour__skip" onClick={() => close(false)}>
+          <span className="tour__eyebrow">{placed.eyebrow}</span>
+          <button type="button" className="tour__skip" onClick={close}>
             Skip tour
             <XIcon size={12} />
           </button>
         </div>
 
         <h2 className="tour__title" id={titleId}>
-          {step.title}
+          {placed.title}
         </h2>
-        <p className="tour__body">{step.body}</p>
-        {step.note ? <p className="tour__note">{step.note}</p> : null}
+        <p className="tour__body">{placed.body}</p>
+        {placed.note ? <p className="tour__note">{placed.note}</p> : null}
 
         {/* The fill is full-width and scaled, so the growth animates on `transform` rather than
             on `width`. `aria-hidden` because the counter beside it already says 02 / 10. */}
         <div className="tour__progress" aria-hidden>
           <div
             className="tour__progress-fill"
-            style={{ transform: `scaleX(${(index + 1) / steps.length})` }}
+            style={{ transform: `scaleX(${(shown + 1) / steps.length})` }}
           />
         </div>
 
         <div className="tour__footer">
           <span className="tour__counter">{counter}</span>
           <div className="tour__actions">
-            {index > 0 ? (
+            {shown > 0 ? (
               <button type="button" className="tour__btn" onClick={back}>
                 Back
               </button>
             ) : null}
             <button type="button" className="tour__btn tour__btn--primary" onClick={next}>
-              {step.nextLabel ?? "Next"}
+              {placed.nextLabel ?? "Next"}
             </button>
           </div>
         </div>

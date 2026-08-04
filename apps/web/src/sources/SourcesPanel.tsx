@@ -179,16 +179,24 @@ export function SourcesPanel({
   };
 
   // What was expanded before the tour borrowed the accordion. `undefined` means "not borrowed",
-  // which is how a restore knows it has nothing to put back.
+  // which is how a restore knows it has nothing to put back. `tourOpened` is which card the tour
+  // opened, so the restore can tell its own change from the user's.
   const preTourExpanded = useRef<string | null | undefined>(undefined);
+  const tourOpened = useRef<string | null>(null);
   const expandedRef = useRef(expandedSourceId);
   expandedRef.current = expandedSourceId;
 
   useEffect(() => {
     if (!tourExpandFirst) {
       if (preTourExpanded.current !== undefined) {
-        setExpandedSourceId(preTourExpanded.current);
+        // Put back only what is still the tour's. The tour is non-blocking, so the user may well
+        // have opened a different card while it was on this step — reverting that would be the
+        // overlay undoing a deliberate click, which is worse than leaving the panel as they left it.
+        if (expandedRef.current === tourOpened.current) {
+          setExpandedSourceId(preTourExpanded.current);
+        }
         preTourExpanded.current = undefined;
+        tourOpened.current = null;
       }
       return;
     }
@@ -199,6 +207,7 @@ export function SourcesPanel({
     if (preTourExpanded.current === undefined) {
       preTourExpanded.current = expandedRef.current;
     }
+    tourOpened.current = first;
     setExpandedSourceId(first);
   }, [tourExpandFirst, groups]);
 

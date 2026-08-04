@@ -51,6 +51,18 @@ export function spotlightRect(target: Rect, shell: Rect): Rect {
 }
 
 /**
+ * Keep the card's bottom edge inside the shell. Applies to targeted and untargeted steps alike:
+ * `.tour` is `overflow: hidden` and the card is the only thing on the overlay that takes pointer
+ * events, so a footer past the bottom edge is a Skip and a Next the user cannot reach at all.
+ */
+function clampTop(top: number, shellHeight: number): number {
+  if (top + MODAL_MAX_HEIGHT > shellHeight - MODAL_GAP) {
+    return Math.max(MODAL_GAP, shellHeight - MODAL_GAP - MODAL_MAX_HEIGHT);
+  }
+  return top;
+}
+
+/**
  * The card's actual width: {@link MODAL_WIDTH}, or as much of it as fits between the shell's
  * margins. A shell narrower than 444px is not a shape this editor is used at, but a card that keeps
  * its 396px there overruns the shell — and because the overlay clips, what gets cut is the right
@@ -73,7 +85,7 @@ export function placeModal(
   const width = modalWidth(shell.width);
 
   if (!spot) {
-    return { left: (shell.width - width) / 2, top: UNTARGETED_TOP, width };
+    return { left: (shell.width - width) / 2, top: clampTop(UNTARGETED_TOP, shell.height), width };
   }
 
   const sideRoom = width + SIDE_SLACK;
@@ -91,12 +103,7 @@ export function placeModal(
     );
   }
 
-  let top = spot.top;
-  if (top + MODAL_MAX_HEIGHT > shell.height - MODAL_GAP) {
-    top = Math.max(MODAL_GAP, shell.height - MODAL_GAP - MODAL_MAX_HEIGHT);
-  }
-
-  return { left, top, width };
+  return { left, top: clampTop(spot.top, shell.height), width };
 }
 
 /** `01 / 10` — both sides zero-padded to two, so the counter never changes width mid-tour. */

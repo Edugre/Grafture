@@ -72,6 +72,8 @@ export function App() {
     copilot: boolean;
     tab: CopilotTab;
   } | null>(null);
+  // What the tour last set each value to, so the restore can tell its own change from the user's.
+  const stagedLayout = useRef<{ sources?: boolean; copilot?: boolean; tab?: CopilotTab }>({});
   // A mirror of the live layout, so `applyTourStage` can capture it without being rebuilt (and
   // re-firing the tour's stage effect) on every collapse or tab change.
   const layoutRef = useRef({ sourcesCollapsed, copilotCollapsed, copilotTab });
@@ -82,11 +84,24 @@ export function App() {
   const applyTourStage = useCallback((stage: TourStage | null) => {
     if (stage === null) {
       const previous = preTourLayout.current;
+      const staged = stagedLayout.current;
       if (previous) {
-        setSourcesCollapsed(previous.sources);
-        setCopilotCollapsed(previous.copilot);
-        setCopilotTab(previous.tab);
+        // Restore only what the tour still owns. It is non-blocking on purpose, so the user may
+        // have collapsed a rail or changed tab while it was open — putting those back would be the
+        // overlay overruling a deliberate click. Each value is compared against what the tour last
+        // set it to; anything the user has since touched is left alone.
+        const live = layoutRef.current;
+        if (staged.sources === undefined || live.sourcesCollapsed === staged.sources) {
+          setSourcesCollapsed(previous.sources);
+        }
+        if (staged.copilot === undefined || live.copilotCollapsed === staged.copilot) {
+          setCopilotCollapsed(previous.copilot);
+        }
+        if (staged.tab === undefined || live.copilotTab === staged.tab) {
+          setCopilotTab(previous.tab);
+        }
         preTourLayout.current = null;
+        stagedLayout.current = {};
       }
       setTourSourceCard(false);
       return;
@@ -100,12 +115,15 @@ export function App() {
 
     if (stage.sources !== undefined) {
       setSourcesCollapsed(!stage.sources);
+      stagedLayout.current.sources = !stage.sources;
     }
     if (stage.copilot !== undefined) {
       setCopilotCollapsed(!stage.copilot);
+      stagedLayout.current.copilot = !stage.copilot;
     }
     if (stage.copilotTab !== undefined) {
       setCopilotTab(stage.copilotTab);
+      stagedLayout.current.tab = stage.copilotTab;
     }
     setTourSourceCard(stage.sourceCard === true);
   }, []);
