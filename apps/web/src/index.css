@@ -4,7 +4,8 @@
  * sizes, and raw radii do not belong in component files.
  * Amendments this file carries beyond the kit as written, all recorded there too:
  * neutral-450/550 (WCAG AA floor for faint text), --type-body-xs, --on-danger,
- * --accent-strong (accent-700, which had no light-theme name).
+ * --accent-strong (accent-700, which had no light-theme name), --space-chrome-*
+ * (the 2px control tier under the 4px spine), --scrim-strong.
  */
 :root {
   color-scheme: light dark;
@@ -61,6 +62,18 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
+  /* Chrome half-steps. The scale above is the spine — section rhythm, panel gutters,
+     stack gaps. Control chrome has always run on 2px increments underneath it, and six
+     files had already reached for a raw 6/10/14/18/20px (`.canvas-tools` 0 6px,
+     `.sources-panel__button`, `.settings__key-row`, the onboarding card's 18/20 gutters).
+     Naming the tier is honest; a seventh file inventing 17px is not.
+     Chrome only — never section rhythm. */
+  --space-chrome-0: 2px;
+  --space-chrome-1: 6px;
+  --space-chrome-2: 10px;
+  --space-chrome-3: 14px;
+  --space-chrome-4: 18px;
+  --space-chrome-5: 20px;
 
   /* ---- Radius (brand kit §4) ---- */
   --radius-sm: 4px; /* chips, badges */
@@ -175,6 +188,12 @@
   --shadow-popover: 0 16px 40px rgba(23, 26, 31, 0.18);
   --ring-proposed: 0 0 0 3px #f1eefc, 0 1px 2px rgba(23, 26, 31, 0.06);
 
+  /* Scrim. The heavier of the app's two dims: a spotlight scrim has to make a punched
+     hole read as a hole, which needs more than the 0.34 the centred modals dim at. The
+     dark value is the brand kit's dark `surface.scrim` — 0.44 of near-black over a
+     near-black app is no scrim at all. */
+  --scrim-strong: rgba(23, 26, 31, 0.44);
+
   color: var(--text);
   background-color: var(--bg-app);
 }
@@ -250,6 +269,8 @@
     --shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.5);
     --ring-proposed: 0 0 0 3px #241a4a, 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    --scrim-strong: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -319,6 +340,8 @@
   --shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.5);
   --ring-proposed: 0 0 0 3px #241a4a, 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  --scrim-strong: rgba(0, 0, 0, 0.6);
 }
 
 *,

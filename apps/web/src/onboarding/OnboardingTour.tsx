@@ -9,14 +9,7 @@ import {
   readOnboardingLastIndex,
   useOnboardingReplays,
 } from "./onboardingPreference.js";
-import {
-  MODAL_WIDTH,
-  type Rect,
-  formatCounter,
-  placeModal,
-  sameRect,
-  spotlightRect,
-} from "./placement.js";
+import { type Rect, formatCounter, placeModal, sameRect, spotlightRect } from "./placement.js";
 import { TOUR_STEPS, TOUR_STEP_COUNT, type TourStage } from "./steps.js";
 
 /**
@@ -282,7 +275,12 @@ export function OnboardingTour({
         aria-modal={false}
         aria-labelledby={titleId}
         tabIndex={-1}
-        style={{ left: modal.left, top: modal.top, width: MODAL_WIDTH }}
+        // Placed with `transform`, not `left`/`top`: the card has no hole to punch, so there is no
+        // reason for it to move on the layout properties the spotlight is stuck with.
+        style={{
+          transform: `translate3d(${modal.left}px, ${modal.top}px, 0)`,
+          width: modal.width,
+        }}
       >
         {/* Announces the step, not the card: the visible copy is already read on focus, and the
             counter is what tells a screen-reader user where they are in the sequence. */}
@@ -304,10 +302,12 @@ export function OnboardingTour({
         <p className="tour__body">{step.body}</p>
         {step.note ? <p className="tour__note">{step.note}</p> : null}
 
-        <div className="tour__progress">
+        {/* The fill is full-width and scaled, so the growth animates on `transform` rather than
+            on `width`. `aria-hidden` because the counter beside it already says 02 / 10. */}
+        <div className="tour__progress" aria-hidden>
           <div
             className="tour__progress-fill"
-            style={{ width: `${((index + 1) / TOUR_STEP_COUNT) * 100}%` }}
+            style={{ transform: `scaleX(${(index + 1) / TOUR_STEP_COUNT})` }}
           />
         </div>
 

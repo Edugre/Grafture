@@ -5,6 +5,7 @@ import {
   MODAL_WIDTH,
   SPOTLIGHT_PAD,
   formatCounter,
+  modalWidth,
   placeModal,
   sameRect,
   spotlightRect,
@@ -40,13 +41,18 @@ describe("placeModal", () => {
     expect(placeModal(null, { width: 1440, height: 900 })).toEqual({
       left: (1440 - MODAL_WIDTH) / 2,
       top: 300,
+      width: MODAL_WIDTH,
     });
   });
 
   it("prefers the right of the spotlight when there is room", () => {
     const spot = { left: 16, top: 120, width: 280, height: 90 };
 
-    expect(placeModal(spot, { width: 1440, height: 900 })).toEqual({ left: 320, top: 120 });
+    expect(placeModal(spot, { width: 1440, height: 900 })).toEqual({
+      left: 320,
+      top: 120,
+      width: MODAL_WIDTH,
+    });
   });
 
   it("falls to the left when the right side cannot hold the card", () => {
@@ -56,13 +62,18 @@ describe("placeModal", () => {
     expect(placeModal(spot, { width: 1440, height: 900 })).toEqual({
       left: 900 - 24 - MODAL_WIDTH,
       top: 200,
+      width: MODAL_WIDTH,
     });
   });
 
   it("centers under a spotlight too wide for either side, clamped off the shell edges", () => {
     const spot = { left: 200, top: 100, width: 1000, height: 90 };
 
-    expect(placeModal(spot, { width: 1440, height: 900 })).toEqual({ left: 502, top: 100 });
+    expect(placeModal(spot, { width: 1440, height: 900 })).toEqual({
+      left: 502,
+      top: 100,
+      width: MODAL_WIDTH,
+    });
   });
 
   it("lifts the card when it would run past the shell's bottom", () => {
@@ -71,6 +82,7 @@ describe("placeModal", () => {
     expect(placeModal(spot, { width: 1440, height: 900 })).toEqual({
       left: 240,
       top: 900 - 24 - MODAL_MAX_HEIGHT,
+      width: MODAL_WIDTH,
     });
   });
 
@@ -80,10 +92,36 @@ describe("placeModal", () => {
     expect(placeModal(spot, { width: 1440, height: 200 }).top).toBe(24);
   });
 
-  it("keeps the card on screen when the shell is narrower than the card", () => {
+  it("narrows the card, and keeps it on screen, when the shell can't hold it", () => {
     const spot = { left: 40, top: 60, width: 100, height: 40 };
+    const placed = placeModal(spot, { width: 320, height: 900 });
 
-    expect(placeModal(spot, { width: 320, height: 900 }).left).toBe(24);
+    expect(placed.left).toBe(24);
+    expect(placed.width).toBe(320 - 48);
+    // The whole card — including the Next button on its right edge — stays inside the shell.
+    expect(placed.left + placed.width).toBeLessThanOrEqual(320);
+  });
+
+  it("keeps the primary button inside the shell at every phone width", () => {
+    // The regression this guards: a fixed 396px card at a 375px shell put the Next button at
+    // x=400, and the overlay clips rather than scrolls — so the primary action vanished.
+    const spot = { left: 8, top: 100, width: 200, height: 48 };
+
+    for (const width of [320, 375, 414, 768]) {
+      const placed = placeModal(spot, { width, height: 800 });
+      expect(placed.left, `left at ${width}px`).toBeGreaterThanOrEqual(0);
+      expect(placed.left + placed.width, `right edge at ${width}px`).toBeLessThanOrEqual(width);
+    }
+  });
+});
+
+describe("modalWidth", () => {
+  it("holds the handoff measure when the shell can afford it, and gives it up when it can't", () => {
+    expect(modalWidth(1440)).toBe(MODAL_WIDTH);
+    expect(modalWidth(444)).toBe(MODAL_WIDTH);
+    expect(modalWidth(443)).toBe(443 - 48);
+    expect(modalWidth(375)).toBe(327);
+    expect(modalWidth(0)).toBe(0);
   });
 });
 

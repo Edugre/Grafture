@@ -5,7 +5,10 @@
 
 export type Rect = { left: number; top: number; width: number; height: number };
 
-/** Modal width from the handoff. Fixed, not fluid: the copy was written to this measure. */
+/**
+ * Modal width from the handoff. The copy was written to this measure, so it is a ceiling rather
+ * than a target — see {@link modalWidth}.
+ */
 export const MODAL_WIDTH = 396;
 
 /**
@@ -21,8 +24,8 @@ export const SPOTLIGHT_PAD = 8;
 /** Gap between the spotlight and the card, and the minimum margin to the shell's edges. */
 const MODAL_GAP = 24;
 
-/** A side only wins if it can hold the card *and* keep it off the shell edge. */
-const SIDE_ROOM = MODAL_WIDTH + 48;
+/** Slack a side needs beyond the card's own width before the card is placed there. */
+const SIDE_SLACK = 48;
 
 /** Where an untargeted step's card sits: upper third, not vertically centered. */
 const UNTARGETED_TOP = 300;
@@ -48,29 +51,43 @@ export function spotlightRect(target: Rect, shell: Rect): Rect {
 }
 
 /**
- * Where the card goes. Right of the spotlight when there's room, else left, else centered under the
- * spotlight's horizontal midpoint. Vertically it starts level with the spotlight and is lifted only
- * if it would otherwise overrun the shell's bottom.
+ * The card's actual width: {@link MODAL_WIDTH}, or as much of it as fits between the shell's
+ * margins. A shell narrower than 444px is not a shape this editor is used at, but a card that keeps
+ * its 396px there overruns the shell — and because the overlay clips, what gets cut is the right
+ * edge, which is exactly where the Next button lives. Losing the primary action to a viewport is
+ * worse than a narrower measure.
+ */
+export function modalWidth(shellWidth: number): number {
+  return Math.min(MODAL_WIDTH, Math.max(0, shellWidth - MODAL_GAP * 2));
+}
+
+/**
+ * Where the card goes, and how wide. Right of the spotlight when there's room, else left, else
+ * centered under the spotlight's horizontal midpoint. Vertically it starts level with the spotlight
+ * and is lifted only if it would otherwise overrun the shell's bottom.
  */
 export function placeModal(
   spot: Rect | null,
   shell: { width: number; height: number },
-): { left: number; top: number } {
+): { left: number; top: number; width: number } {
+  const width = modalWidth(shell.width);
+
   if (!spot) {
-    return { left: (shell.width - MODAL_WIDTH) / 2, top: UNTARGETED_TOP };
+    return { left: (shell.width - width) / 2, top: UNTARGETED_TOP, width };
   }
 
+  const sideRoom = width + SIDE_SLACK;
   const rightRoom = shell.width - (spot.left + spot.width);
   let left: number;
-  if (rightRoom >= SIDE_ROOM) {
+  if (rightRoom >= sideRoom) {
     left = spot.left + spot.width + MODAL_GAP;
-  } else if (spot.left >= SIDE_ROOM) {
-    left = spot.left - MODAL_GAP - MODAL_WIDTH;
+  } else if (spot.left >= sideRoom) {
+    left = spot.left - MODAL_GAP - width;
   } else {
     left = clamp(
-      spot.left + spot.width / 2 - MODAL_WIDTH / 2,
+      spot.left + spot.width / 2 - width / 2,
       MODAL_GAP,
-      shell.width - MODAL_WIDTH - MODAL_GAP,
+      shell.width - width - MODAL_GAP,
     );
   }
 
@@ -79,7 +96,7 @@ export function placeModal(
     top = Math.max(MODAL_GAP, shell.height - MODAL_GAP - MODAL_MAX_HEIGHT);
   }
 
-  return { left, top };
+  return { left, top, width };
 }
 
 /** `01 / 10` — both sides zero-padded to two, so the counter never changes width mid-tour. */
