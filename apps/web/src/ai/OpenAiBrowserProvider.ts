@@ -1,6 +1,6 @@
 import { DEFAULT_TARGET, type TargetId } from "@grafture/core";
 
-import { OpenAiCompatibleProvider } from "./openaiCompatible.js";
+import { type OpenAiCompatibleConfig, OpenAiCompatibleProvider } from "./openaiCompatible.js";
 import { OPENAI_DEFAULT_MODEL, parseOpenAiModels } from "./openaiModels.js";
 
 // Re-exported so existing importers (and tests) keep their entry point.
@@ -33,10 +33,13 @@ export class OpenAiBrowserProvider extends OpenAiCompatibleProvider {
     apiKey: string,
     model: string = OPENAI_DEFAULT_MODEL,
     target: TargetId = DEFAULT_TARGET,
+    retry?: OpenAiCompatibleConfig["retry"],
   ) {
     super(
       {
         errorLabel: "OpenAI",
+        family: "openai",
+        ...(retry ? { retry } : {}),
         chatUrl: OPENAI_API_URL,
         modelsUrl: OPENAI_MODELS_URL,
         model,

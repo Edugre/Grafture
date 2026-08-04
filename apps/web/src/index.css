@@ -30,6 +30,11 @@
   --leading-body-md: 20px;
   --type-body-sm: 12px;
   --leading-body-sm: 16px;
+  /* A second leading for body-sm. 16px is right for a one-line chip or label, but
+     too tight for a wrapping sentence at 12px — five files had already reached for
+     a raw `line-height: 18px` to get that air. Same size, looser measure; naming it
+     is what stops the sixth file inventing 17px. */
+  --leading-body-sm-loose: 18px;
   /* xs is below the kit's original 8-step floor. It was added because 25 badge /
      chip / type-tag / count declarations were already sitting at 10–11px off-scale;
      naming the tier is honest, a silent 9th size is not. Badges and counts only —
@@ -40,6 +45,11 @@
   --leading-mono-md: 20px;
   --type-mono-sm: 12px;
   --leading-mono-sm: 18px;
+  /* Mono half-step. Identifiers set inline in 12px sans copy read a shade large at
+     the full mono-sm; 11.5px optically matches the surrounding text. Used for model
+     ids, shell commands, and the stale-rationale panel — all identifiers, never copy. */
+  --type-mono-xs: 11.5px;
+  --leading-mono-xs: 16px;
 
   /* ---- Spacing (brand kit §4) — 4px base unit ---- */
   --space-1: 4px;
@@ -107,11 +117,16 @@
   /* Primary key / identifier dot */
   --pk: #454a50;
 
-  /* Caution — amber (rejected), shared accent across modes */
+  /* Caution — amber (rejected), shared accent across modes.
+     `--caution-text` is deliberately darker than `--warning`/`--caution-border`: the border and
+     the fill can sit at amber-600, but the same value as *text* measured 3.10:1 on `--caution-bg`
+     and 3.42:1 on `--surface` — under the 4.5:1 floor everywhere it was used, and every use is
+     11–13px. amber-800 clears 4.5:1 on all four grounds it lands on (caution-bg 5.16, surface
+     5.69, bg-panel 5.26, bg-app 5.50). The dark theme's `#d9a648` already cleared and is unchanged. */
   --warning: #b8801f;
   --caution-bg: #fbf3e3;
   --caution-border: #b8801f;
-  --caution-text: #b8801f;
+  --caution-text: #8a5e0f;
 
   /* Destructive (remove/delete affordances) */
   --danger: #cc3b3b;
@@ -369,6 +384,21 @@ summary:focus-visible,
 .byok__input-field:focus-visible,
 .copilot-compose__shell textarea:focus-visible {
   outline: none;
+}
+
+/* Visually hidden, still announced. For live regions whose visible counterpart either doesn't
+   exist or updates too often to announce — a ticking countdown re-announced every 200ms is worse
+   than silence, so the visible text stays out of the live region and a stable summary goes here. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Shared mono helper for identifiers, type chips, samples, code, tags. */

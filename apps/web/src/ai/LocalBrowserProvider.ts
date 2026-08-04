@@ -1,6 +1,6 @@
 import { DEFAULT_TARGET, type TargetId } from "@grafture/core";
 
-import { OpenAiCompatibleProvider } from "./openaiCompatible.js";
+import { type OpenAiCompatibleConfig, OpenAiCompatibleProvider } from "./openaiCompatible.js";
 import { LOCAL_DEFAULT_ENDPOINT, parseLocalModels } from "./localModels.js";
 
 // Local generation is far slower than a hosted API (CPU inference on a laptop can take minutes), so
@@ -52,11 +52,21 @@ export class LocalBrowserProvider extends OpenAiCompatibleProvider {
     endpoint: string = LOCAL_DEFAULT_ENDPOINT,
     model = "",
     target: TargetId = DEFAULT_TARGET,
+    retry?: OpenAiCompatibleConfig["retry"],
   ) {
     const base = normalizeEndpoint(endpoint || LOCAL_DEFAULT_ENDPOINT);
     super(
       {
         errorLabel: "Local",
+        family: "local",
+        endpoint: base,
+        retry: {
+          // A 500 from a local runtime is usually a genuine model crash (OOM), and an OOM
+          // reproduces on retry — so it gets one retry, not two, while 503-while-loading (the one
+          // local case where backoff genuinely helps) keeps the full budget.
+          message: { maxAttemptsByStatus: { 500: 2 }, ...retry?.message },
+          ...(retry?.models ? { models: retry.models } : {}),
+        },
         chatUrl: `${base}/chat/completions`,
         modelsUrl: `${base}/models`,
         model,

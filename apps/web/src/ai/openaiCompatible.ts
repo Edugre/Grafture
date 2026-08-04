@@ -20,6 +20,17 @@ import {
   type ToolSpec,
 } from "../copilot/investigationTools.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
+import {
+  type ProviderFamily,
+  type RetryContext,
+  type RetryOperation,
+  type RetryPolicy,
+  messageRetryPolicy,
+  modelsRetryPolicy,
+  providerErrorFromResponse,
+  rerankRetryPolicy,
+  runWithRetry,
+} from "./retry.js";
 
 /** Cap on investigation round-trips within a single propose() before we force a finalization. */
 const MAX_PREVIEW_ITERATIONS = 6;
@@ -115,6 +126,20 @@ type OpenAiChatResponse = {
 export type OpenAiCompatibleConfig = {
   /** Human label for this provider, prefixed onto thrown errors so failures are attributable. */
   errorLabel: string;
+  /**
+   * Which failure vocabulary to read this endpoint's statuses with. Hosted OpenAI and a local
+   * runtime share this wire loop but not their meanings — a 404 is "unknown model id" on the former
+   * and "wrong base URL, or the model was never pulled" on the latter.
+   */
+  family: ProviderFamily;
+  /** Base URL of a local runtime, surfaced in place of a status code on the unreachable card. */
+  endpoint?: string;
+  /** Backoff overrides, per operation. Local caps 500s lower — an OOM reproduces on retry. */
+  retry?: {
+    message?: Partial<RetryPolicy>;
+    models?: Partial<RetryPolicy>;
+    rerank?: Partial<RetryPolicy>;
+  };
   /** Chat Completions endpoint, e.g. `https://api.openai.com/v1/chat/completions`. */
   chatUrl: string;
   /** Models list endpoint, e.g. `https://api.openai.com/v1/models`. */
@@ -203,10 +228,34 @@ export class OpenAiCompatibleProvider implements AiProvider {
    */
   private fallbackNoticeShown = false;
 
+  private readonly messagePolicy: RetryPolicy;
+  private readonly modelsPolicy: RetryPolicy;
+  private readonly rerankPolicy: RetryPolicy;
+
   constructor(
     protected readonly config: OpenAiCompatibleConfig,
     protected readonly target: TargetId,
-  ) {}
+  ) {
+    this.messagePolicy = messageRetryPolicy(config.messageTimeoutMs, config.retry?.message);
+    this.modelsPolicy = modelsRetryPolicy(config.modelsTimeoutMs, config.retry?.models);
+    this.rerankPolicy = rerankRetryPolicy(
+      config.messageTimeoutMs,
+      config.retry?.rerank ?? config.retry?.message,
+    );
+  }
+
+  /** The classification context every call reports under — names the actor on the failure card. */
+  private retryContext(operation: RetryOperation): RetryContext {
+    return {
+      label: this.config.errorLabel,
+      family: this.config.family,
+      operation,
+      modelId: this.config.model,
+      attemptTimeoutMs:
+        operation === "models" ? this.config.modelsTimeoutMs : this.config.messageTimeoutMs,
+      ...(this.config.endpoint ? { endpoint: this.config.endpoint } : {}),
+    };
+  }
 
   async propose(
     schema: Schema,
@@ -406,7 +455,15 @@ export class OpenAiCompatibleProvider implements AiProvider {
   ): Promise<SuggestionRanking[]> {
     const system = buildRerankSystemPrompt(schema, sources);
     const userMessage = `Rank these suggestions:\n${JSON.stringify({ suggestions: candidates })}`;
-    const data = await this.request(system, [{ role: "user", content: userMessage }]);
+    // `rerank`, not `message`: this runs on a debounce in the background, so its backoff must not
+    // publish to the copilot panel's retry channel.
+    const data = await this.request(
+      system,
+      [{ role: "user", content: userMessage }],
+      undefined,
+      undefined,
+      "rerank",
+    );
 
     const text = data.choices?.[0]?.message?.content ?? "";
     const parsed = parseRankingResponse(text);
@@ -423,17 +480,18 @@ export class OpenAiCompatibleProvider implements AiProvider {
    * failure — so callers can fall back to the static catalog.
    */
   async listModels(): Promise<ModelInfo[]> {
-    const response = await this.fetchOrDescribe(this.config.modelsUrl, {
-      headers: this.headers(),
-      signal: AbortSignal.timeout(this.config.modelsTimeoutMs),
+    const context = this.retryContext("models");
+    const { value } = await runWithRetry(this.modelsPolicy, context, async (signal) => {
+      const response = await this.fetchOrDescribe(this.config.modelsUrl, {
+        headers: this.headers(),
+        signal,
+      });
+      if (!response.ok) {
+        throw await providerErrorFromResponse(response, context);
+      }
+      return (await response.json()) as unknown;
     });
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `${this.config.errorLabel} Models API error (${response.status}): ${errorBody}`,
-      );
-    }
-    return this.config.parseModels(await response.json());
+    return this.config.parseModels(value);
   }
 
   /** The shared headers every request needs: JSON content plus whatever auth the config supplies. */
@@ -450,28 +508,33 @@ export class OpenAiCompatibleProvider implements AiProvider {
     messages: OpenAiMessage[],
     tools?: ReturnType<typeof toOpenAiTool>[],
     toolChoice?: OpenAiToolChoice,
+    operation: "message" | "rerank" = "message",
   ): Promise<OpenAiChatResponse> {
-    const response = await this.fetchOrDescribe(this.config.chatUrl, {
-      method: "POST",
-      headers: this.headers(),
-      signal: AbortSignal.timeout(this.config.messageTimeoutMs),
-      body: JSON.stringify({
-        model: this.config.model,
-        // `max_completion_tokens` is the current param name and is accepted by reasoning models
-        // (o-series) that reject the legacy `max_tokens`.
-        max_completion_tokens: this.config.maxCompletionTokens,
-        messages: [{ role: "system", content: system }, ...messages],
-        ...(tools ? { tools } : {}),
-        ...(toolChoice ? { tool_choice: toolChoice } : {}),
-      }),
+    const body = JSON.stringify({
+      model: this.config.model,
+      // `max_completion_tokens` is the current param name and is accepted by reasoning models
+      // (o-series) that reject the legacy `max_tokens`.
+      max_completion_tokens: this.config.maxCompletionTokens,
+      messages: [{ role: "system", content: system }, ...messages],
+      ...(tools ? { tools } : {}),
+      ...(toolChoice ? { tool_choice: toolChoice } : {}),
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`${this.config.errorLabel} API error (${response.status}): ${errorBody}`);
-    }
-
-    return (await response.json()) as OpenAiChatResponse;
+    const context = this.retryContext(operation);
+    const policy = operation === "rerank" ? this.rerankPolicy : this.messagePolicy;
+    const { value } = await runWithRetry(policy, context, async (signal) => {
+      const response = await this.fetchOrDescribe(this.config.chatUrl, {
+        method: "POST",
+        headers: this.headers(),
+        signal,
+        body,
+      });
+      if (!response.ok) {
+        throw await providerErrorFromResponse(response, context);
+      }
+      return (await response.json()) as OpenAiChatResponse;
+    });
+    return value;
   }
 
   /**

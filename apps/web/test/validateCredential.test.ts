@@ -19,6 +19,7 @@ const httpError = (status: number) =>
   Promise.resolve({
     ok: false,
     status,
+    headers: new Headers(),
     text: async () => JSON.stringify({ error: { message: "nope" } }),
   } as Response);
 
@@ -64,6 +65,8 @@ describe("validateCredentialLive", () => {
   });
 
   it("does not treat a non-auth server error as an invalid key", async () => {
+    // A 500 is retryable, so the models listing here makes its one extra attempt before giving up.
+    // That is the point: only after the retry budget is spent does the check report unreachable.
     stubFetch(() => httpError(500));
     const result = await validateCredentialLive("anthropic", "sk-ant-test");
     expect(result.ok).toBe(false);
