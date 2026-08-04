@@ -28,10 +28,12 @@ import { parseRankingResponse } from "../suggest/rerank.js";
 import { DEFAULT_MODEL, parseModelsPage } from "./models.js";
 import {
   type RetryContext,
+  type RetryOperation,
   type RetryPolicy,
   messageRetryPolicy,
   modelsRetryPolicy,
   providerErrorFromResponse,
+  rerankRetryPolicy,
   runWithRetry,
 } from "./retry.js";
 
@@ -78,6 +80,7 @@ type ProviderMessage = { role: "user" | "assistant"; content: MessageContent };
 export class AnthropicBrowserProvider implements AiProvider {
   private readonly messagePolicy: RetryPolicy;
   private readonly modelsPolicy: RetryPolicy;
+  private readonly rerankPolicy: RetryPolicy;
 
   constructor(
     private readonly apiKey: string,
@@ -87,14 +90,19 @@ export class AnthropicBrowserProvider implements AiProvider {
      * Backoff overrides. Injected rather than baked in so tests can drive the retry paths without
      * real sleeps, and so a future provider variant can tune the budget without editing this class.
      */
-    retry: { message?: Partial<RetryPolicy>; models?: Partial<RetryPolicy> } = {},
+    retry: {
+      message?: Partial<RetryPolicy>;
+      models?: Partial<RetryPolicy>;
+      rerank?: Partial<RetryPolicy>;
+    } = {},
   ) {
     this.messagePolicy = messageRetryPolicy(MESSAGE_TIMEOUT_MS, retry.message);
     this.modelsPolicy = modelsRetryPolicy(MODELS_TIMEOUT_MS, retry.models);
+    this.rerankPolicy = rerankRetryPolicy(MESSAGE_TIMEOUT_MS, retry.rerank ?? retry.message);
   }
 
   /** The classification context every call reports under — names the actor on the failure card. */
-  private retryContext(operation: "message" | "models"): RetryContext {
+  private retryContext(operation: RetryOperation): RetryContext {
     return {
       label: "Anthropic",
       family: "anthropic",
@@ -200,7 +208,15 @@ export class AnthropicBrowserProvider implements AiProvider {
   ): Promise<SuggestionRanking[]> {
     const systemPrompt = buildRerankSystemPrompt(schema, sources);
     const userMessage = `Rank these suggestions:\n${JSON.stringify({ suggestions: candidates })}`;
-    const data = await this.request(systemPrompt, [{ role: "user", content: userMessage }]);
+    // `rerank`, not `message`: this runs on a debounce in the background, so its backoff must not
+    // publish to the copilot panel's retry channel.
+    const data = await this.request(
+      systemPrompt,
+      [{ role: "user", content: userMessage }],
+      undefined,
+      undefined,
+      "rerank",
+    );
 
     const parsed = parseRankingResponse(firstText(data.content) ?? "");
     if ("error" in parsed) {
@@ -272,6 +288,7 @@ export class AnthropicBrowserProvider implements AiProvider {
     messages: ProviderMessage[],
     tools?: ToolSpec[],
     toolChoice?: ToolChoice,
+    operation: "message" | "rerank" = "message",
   ): Promise<AnthropicMessageResponse> {
     // A bare string becomes a single cached block (the rerank path); propose passes its own
     // blocks so the static/dynamic cache split is preserved.
@@ -289,8 +306,9 @@ export class AnthropicBrowserProvider implements AiProvider {
       ...(toolChoice ? { tool_choice: toolChoice } : {}),
     });
 
-    const context = this.retryContext("message");
-    const { value } = await runWithRetry(this.messagePolicy, context, async (signal) => {
+    const context = this.retryContext(operation);
+    const policy = operation === "rerank" ? this.rerankPolicy : this.messagePolicy;
+    const { value } = await runWithRetry(policy, context, async (signal) => {
       const response = await fetch(ANTHROPIC_API_URL, {
         method: "POST",
         headers: this.headers(),

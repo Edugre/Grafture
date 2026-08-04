@@ -116,6 +116,19 @@ describe("classifyResponse", () => {
     });
   });
 
+  it("does not blame the chat model for a 404 on the listing endpoint", () => {
+    // A 404 from `GET /v1/models` is about the URL. Naming the chat model would point the user at
+    // "choose a different model", which cannot fix it.
+    const failure = classifyResponse(
+      404,
+      "{}",
+      new Headers(),
+      { ...ANTHROPIC, operation: "models" },
+      0,
+    );
+    expect(failure).toEqual({ kind: "unknown_model", status: 404, modelId: "" });
+  });
+
   it("reads the SAME 404 as an unreachable local runtime, because it is genuinely ambiguous", () => {
     // Wrong base URL or a model that was never pulled — JS cannot tell, so the card names both.
     expect(classifyResponse(404, "{}", new Headers(), LOCAL, 0)).toEqual({
@@ -210,6 +223,18 @@ describe("backoffMs", () => {
   it("caps the exponential at maxDelayMs", () => {
     const failure = { kind: "overloaded", status: 529 } as const;
     expect(backoffMs(POLICY, 8, failure, noJitter).waitMs).toBe(POLICY.maxDelayMs);
+  });
+
+  it("honours a retry-after longer than maxDelayMs rather than clamping it", () => {
+    // Clamping meant a `retry-after: 60` was answered after 16s — re-hitting a key the provider
+    // had just told us to leave alone. The overall budget decides whether the wait is worth
+    // starting; the header decides how long it is.
+    const failure = { kind: "rate_limited", status: 429, retryAfterMs: 60_000 } as const;
+    expect(backoffMs(POLICY, 1, failure, noJitter)).toEqual({
+      waitMs: 60_000,
+      fromRetryAfter: true,
+    });
+    expect(POLICY.maxDelayMs).toBeLessThan(60_000);
   });
 
   it("lets a provider's retry-after win outright, and flags the row as such", () => {
@@ -419,12 +444,65 @@ describe("runWithRetry", () => {
     const waiting = events[0] as Extract<RetryEvent, { type: "waiting" }>;
     expect(waiting.progress.waitMs).toBe(3000);
     expect(waiting.progress.attempts[0]?.fromRetryAfter).toBe(true);
-    expect(events[1]).toEqual({
+    expect(events[1]).toMatchObject({ type: "attempting", attempt: 2 });
+    expect(events[2]).toEqual({
       type: "settled",
       attempts: [{ n: 1, status: 429, waitedMs: 3000, fromRetryAfter: true }],
       elapsedMs: 3000,
       stopped: false,
     });
+  });
+
+  it("stays silent for a background rerank — it must never paint over a chat turn", async () => {
+    // `rankSuggestions` fires on a 500ms debounce outside the copilot panel's `busy` gate. If it
+    // published, its backoff would render over a turn that never made the request, and its ledger
+    // would land on the next reply as "Recovered after N attempts" for attempts that never happened.
+    const environment = fakeEnvironment();
+    const events: RetryEvent[] = [];
+    const unsubscribe = subscribeToRetries((event) => events.push(event));
+    let calls = 0;
+    await runWithRetry(
+      POLICY,
+      { ...ANTHROPIC, operation: "rerank" },
+      async () => {
+        calls += 1;
+        if (calls === 1) {
+          throw await providerErrorFromResponse(response(429, "{}"), ANTHROPIC);
+        }
+        return "ranked";
+      },
+      environment,
+      noJitter,
+    );
+    unsubscribe();
+    expect(calls).toBe(2);
+    expect(events).toEqual([]);
+  });
+
+  it("publishes `attempting` when the wait ends, so the panel stops claiming it is waiting", async () => {
+    // Without this the backoff block stays on screen for the whole of the next request — up to
+    // 120s hosted, 300s local — showing "Trying again in 0s" while the call is actually in flight.
+    const environment = fakeEnvironment();
+    const events: RetryEvent[] = [];
+    const unsubscribe = subscribeToRetries((event) => events.push(event));
+    let calls = 0;
+    await runWithRetry(
+      POLICY,
+      ANTHROPIC,
+      async () => {
+        calls += 1;
+        if (calls === 1) {
+          throw await providerErrorFromResponse(response(529, "{}"), ANTHROPIC);
+        }
+        return "ok";
+      },
+      environment,
+      noJitter,
+    );
+    unsubscribe();
+    expect(events.map((e) => e.type)).toEqual(["waiting", "attempting", "settled"]);
+    const attempting = events[1] as Extract<RetryEvent, { type: "attempting" }>;
+    expect(attempting.attempt).toBe(2);
   });
 
   it("stays silent for a models listing — its failure is a signal to fall back, not news", async () => {
@@ -444,9 +522,45 @@ describe("runWithRetry", () => {
     expect(events).toEqual([]);
   });
 
-  it("Stop aborts the in-flight request and cancels the scheduled retry", async () => {
-    // A stop that only cancelled the timer would leave a request in flight writing into a turn the
-    // user has abandoned, so the attempt's own signal must be aborted too.
+  it("Stop aborts a request that is genuinely in flight", async () => {
+    // The guarantee that matters: a stop while the request is live must abort it, or an
+    // abandoned turn keeps a response coming back to write into it.
+    let stopFromEvent: (() => void) | undefined;
+    const unsubscribe = subscribeToRetries((event) => {
+      if (event.type === "waiting") {
+        stopFromEvent = event.progress.stop;
+      }
+    });
+
+    let sawAbort = false;
+    let calls = 0;
+    const attempt = async (signal: AbortSignal) => {
+      calls += 1;
+      if (calls === 1) {
+        throw await providerErrorFromResponse(response(529, "{}"), ANTHROPIC);
+      }
+      // Second attempt hangs until the signal aborts — i.e. it is in flight when Stop lands.
+      return new Promise<string>((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          sawAbort = true;
+          reject(signal.reason as Error);
+        });
+        setTimeout(() => stopFromEvent?.(), 0);
+      });
+    };
+
+    const environment: RetryEnvironment = { now: () => 0, wait: async () => undefined };
+    const error = await runWithRetry(POLICY, ANTHROPIC, attempt, environment, noJitter).catch(
+      (thrown: unknown) => thrown,
+    );
+    unsubscribe();
+
+    expect(calls).toBe(2);
+    expect(sawAbort).toBe(true);
+    expect(error).toBeInstanceOf(RetryStoppedError);
+  });
+
+  it("Stop during backoff cancels the scheduled retry instead of making it", async () => {
     const events: RetryEvent[] = [];
     const unsubscribe = subscribeToRetries((event) => {
       events.push(event);
@@ -455,15 +569,8 @@ describe("runWithRetry", () => {
       }
     });
 
-    let sawAbort = false;
-    const environment: RetryEnvironment = {
-      now: () => 0,
-      wait: async () => undefined,
-    };
-    const attempt = vi.fn(async (signal: AbortSignal) => {
-      signal.addEventListener("abort", () => {
-        sawAbort = true;
-      });
+    const environment: RetryEnvironment = { now: () => 0, wait: async () => undefined };
+    const attempt = vi.fn(async () => {
       throw await providerErrorFromResponse(response(529, "{}"), ANTHROPIC);
     });
 
@@ -473,9 +580,23 @@ describe("runWithRetry", () => {
     unsubscribe();
 
     expect(error).toBeInstanceOf(RetryStoppedError);
+    // The retry the backoff was buying is never made, and no `attempting` is published for it.
     expect(attempt).toHaveBeenCalledTimes(1);
-    expect(sawAbort).toBe(true);
+    expect(events.map((e) => e.type)).toEqual(["waiting", "settled"]);
     expect(events.at(-1)).toMatchObject({ type: "settled", stopped: true });
+  });
+
+  it("leaves no per-attempt deadline timer alive after a request succeeds", async () => {
+    // The deadline is 120s hosted / 300s local. Left pending on every successful call it is a
+    // stray timer in the browser and a hung event loop under vitest.
+    vi.useFakeTimers();
+    try {
+      const before = vi.getTimerCount();
+      await runWithRetry(POLICY, ANTHROPIC, async () => "ok");
+      expect(vi.getTimerCount()).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

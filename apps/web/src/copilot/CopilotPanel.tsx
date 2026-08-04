@@ -198,6 +198,12 @@ export function CopilotPanel({
           scrollToBottom();
           return;
         }
+        // `attempting` means the wait ended and the request is back in flight — drop the backoff
+        // block so "Thinking…" returns, but do NOT close the episode: the ledger is still growing.
+        if (event.type === "attempting") {
+          setRetrying(null);
+          return;
+        }
         appendEpisode(retryLogRef.current, event.attempts, event.elapsedMs, event.stopped);
         setRetrying(null);
       }),
@@ -221,15 +227,19 @@ export function CopilotPanel({
     if (!(error instanceof ProviderError)) {
       return undefined;
     }
-    const log = takeRetryLog();
-    const attempts = log.attempts.length > 0 ? log.attempts : error.attempts;
+    // The ledger on the card is the *failing request's* — `error.attempts` — never the turn's
+    // accumulated log. A turn can retry successfully in round 1 and then fail outright in round 2;
+    // showing round 1's rows against round 2's failure invents a history. It also fools
+    // `failurePhase` into reading two-or-more rows as `interrupted`, which then narrates a
+    // transition ("the second attempt came back refused rather than rate limited") that never
+    // happened. The turn log's only job is the recovered line on a turn that succeeded.
     return {
       failure: error.failure,
       providerLabel: error.context.label,
       providerId: error.context.family,
-      ...(attempts.length > 0 ? { attempts } : {}),
+      ...(error.attempts.length > 0 ? { attempts: error.attempts } : {}),
       ...(error.requestId ? { requestId: error.requestId } : {}),
-      elapsedMs: log.elapsedMs || error.elapsedMs,
+      elapsedMs: error.elapsedMs,
       ...(error.context.attemptTimeoutMs ? { timeoutMs: error.context.attemptTimeoutMs } : {}),
       ...(error.context.modelId ? { modelId: error.context.modelId } : {}),
       sourceCount: useSchemaStore.getState().sources.length,
@@ -371,8 +381,11 @@ export function CopilotPanel({
    * failure card is built from, and when it didn't it renders exactly as it always did.
    */
   const failedTurnMessage = (error: unknown, sentText: string): ChatMessage => {
+    // Drain first and unconditionally: every terminal path has to clear the turn's log, or a
+    // recovered episode from this turn rides along on the *next* turn's reply as a ledger for
+    // attempts it never made. The early return below (a non-ProviderError) used to skip this.
+    const log = takeRetryLog();
     if (error instanceof RetryStoppedError) {
-      const log = takeRetryLog();
       const attempts = log.attempts.length > 0 ? log.attempts : error.attempts;
       setAnnouncement("Stopped retrying.");
       return {

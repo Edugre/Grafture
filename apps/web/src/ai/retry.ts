@@ -45,8 +45,16 @@ export type Attempt = {
   fromRetryAfter?: boolean | undefined;
 };
 
-/** Which call is being retried. `models` retries stay quiet and short — see {@link RetryPolicy}. */
-export type RetryOperation = "message" | "models";
+/**
+ * Which call is being retried.
+ *
+ * Only `message` is *visible* — it is the one call a user is sitting and waiting for, and the only
+ * one whose backoff belongs on screen. `models` and `rerank` are background enrichment whose
+ * failure the caller absorbs (static catalog / deterministic order), so they retry short, shallow,
+ * and silently. Getting this wrong is not cosmetic: a background rerank that published its backoff
+ * would paint the retry block over a chat turn that never made the request.
+ */
+export type RetryOperation = "message" | "models" | "rerank";
 
 /** Everything the classifier and the UI need to name the actor and the thing that failed. */
 export type RetryContext = {
@@ -244,7 +252,15 @@ export function classifyResponse(
     if (context.family === "local") {
       return { kind: "unreachable_local", endpoint: context.endpoint ?? "" };
     }
-    return { kind: "unknown_model", status: 404, modelId: context.modelId ?? "" };
+    // Only a *message* 404 is about the model. A 404 on the listing endpoint is about the URL, and
+    // naming the chat model for it would point the user at the wrong fix. (Listing failures fall
+    // back to the static catalog and never render a card — but a classification that lies is a lie
+    // waiting for the day something does read it.)
+    return {
+      kind: "unknown_model",
+      status: 404,
+      modelId: context.operation === "message" ? (context.modelId ?? "") : "",
+    };
   }
 
   if (status === 413) {
@@ -323,7 +339,10 @@ export function backoffMs(
   random: () => number = Math.random,
 ): { waitMs: number; fromRetryAfter: boolean } {
   if (failure.kind === "rate_limited" && failure.retryAfterMs !== undefined) {
-    return { waitMs: Math.min(failure.retryAfterMs, policy.maxDelayMs), fromRetryAfter: true };
+    // Uncapped, deliberately. Clamping to `maxDelayMs` meant a `retry-after: 60` was answered
+    // after 16s — re-hitting a key the provider had just told us to leave alone. The overall
+    // budget is what decides whether a long wait is worth starting; the header decides how long.
+    return { waitMs: failure.retryAfterMs, fromRetryAfter: true };
   }
   const exponential = policy.baseDelayMs * 2 ** (attempt - 1);
   const capped = Math.min(exponential, policy.maxDelayMs);
@@ -358,15 +377,22 @@ export type RetryProgress = {
  */
 export type RetryEvent =
   | { type: "waiting"; progress: RetryProgress }
+  /** The backoff wait ended; this attempt is now in flight. Not the end of the episode. */
+  | { type: "attempting"; attempt: number; attempts: Attempt[] }
   | { type: "settled"; attempts: Attempt[]; elapsedMs: number; stopped: boolean };
 
 const listeners = new Set<(event: RetryEvent) => void>();
 
 /**
- * Observe retry backoff as it happens. Only `message` calls publish — a model-listing retry is
- * invisible by design, since its failure is a signal to fall back to the static catalog rather than
- * something to show the user. Exactly one copilot turn runs at a time (the panel's `busy` gate), so
- * a single channel is sufficient and the panel never has to correlate events to turns.
+ * Observe retry backoff as it happens. Only `message` calls publish; `models` and `rerank` are
+ * background enrichment whose failure the caller absorbs, so they stay silent.
+ *
+ * That restriction is what makes one global channel sound. It is NOT true that only one request is
+ * ever in flight — `useRankedSuggestions` fires `rankSuggestions` on a 500ms debounce, entirely
+ * outside the copilot panel's `busy` gate. If that call published, its backoff would paint the
+ * retry block over a chat turn that never made the request, and its ledger would land on the next
+ * reply as a "Recovered after N attempts" line for attempts that turn never made. Keeping
+ * background work on a non-`message` operation is the whole guarantee — do not widen it.
  */
 export function subscribeToRetries(listener: (event: RetryEvent) => void): () => void {
   listeners.add(listener);
@@ -389,27 +415,30 @@ function publish(event: RetryEvent): void {
  * 18). The deadline is per attempt, exactly as before the wrapper existed; the overall budget in
  * {@link RetryPolicy} is what stops three of them stacking into a six-minute wait.
  */
-function linkSignals(deadlineMs: number, stop: AbortSignal): AbortSignal {
+function linkSignals(
+  deadlineMs: number,
+  stop: AbortSignal,
+): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(new DOMException("The operation timed out.", "TimeoutError")),
     deadlineMs,
   );
   const onStop = () => controller.abort(new DOMException("Retrying was stopped.", "AbortError"));
-  controller.signal.addEventListener(
-    "abort",
-    () => {
-      clearTimeout(timer);
-      stop.removeEventListener("abort", onStop);
-    },
-    { once: true },
-  );
+  // Idempotent: runs from the abort listener on a timeout/stop, and from the caller's `finally`
+  // on success. Without the latter, every successful request left a live timer for the full
+  // per-attempt deadline — 300s on a local endpoint — plus a listener retained on the stopper.
+  const dispose = () => {
+    clearTimeout(timer);
+    stop.removeEventListener("abort", onStop);
+  };
+  controller.signal.addEventListener("abort", dispose, { once: true });
   if (stop.aborted) {
     onStop();
   } else {
     stop.addEventListener("abort", onStop, { once: true });
   }
-  return controller.signal;
+  return { signal: controller.signal, dispose };
 }
 
 /**
@@ -426,6 +455,25 @@ export function messageRetryPolicy(
     baseDelayMs: 2_000,
     maxDelayMs: 16_000,
     overallBudgetMs: attemptTimeoutMs * 2 + 30_000,
+    attemptTimeoutMs,
+    ...overrides,
+  };
+}
+
+/**
+ * Backoff for a background rerank. Same discipline as a model listing — the caller absorbs the
+ * failure (it falls back to the deterministic suggestion order), so this must not spend a turn's
+ * worth of budget on a nicety, and must never publish.
+ */
+export function rerankRetryPolicy(
+  attemptTimeoutMs: number,
+  overrides: Partial<RetryPolicy> = {},
+): RetryPolicy {
+  return {
+    maxAttempts: 2,
+    baseDelayMs: 1_000,
+    maxDelayMs: 4_000,
+    overallBudgetMs: attemptTimeoutMs + 8_000,
     attemptTimeoutMs,
     ...overrides,
   };
@@ -474,8 +522,9 @@ export async function runWithRetry<T>(
 
   for (let n = 1; ; n += 1) {
     let error: unknown;
+    const link = linkSignals(policy.attemptTimeoutMs, stopper.signal);
     try {
-      const value = await attempt(linkSignals(policy.attemptTimeoutMs, stopper.signal));
+      const value = await attempt(link.signal);
       const elapsedMs = environment.now() - started;
       if (visible && attempts.length > 0) {
         publish({ type: "settled", attempts, elapsedMs, stopped: false });
@@ -483,6 +532,8 @@ export async function runWithRetry<T>(
       return { value, attempts, elapsedMs };
     } catch (thrown) {
       error = thrown;
+    } finally {
+      link.dispose();
     }
 
     // A stop is the user's decision, not a provider failure — it never becomes an error card.
@@ -550,6 +601,15 @@ export async function runWithRetry<T>(
         publish({ type: "settled", attempts, elapsedMs: stoppedAt, stopped: true });
       }
       throw new RetryStoppedError(attempts, stoppedAt);
+    }
+
+    // The wait is over and the next request is about to go out. Without this the panel keeps
+    // rendering the backoff block — "Trying again in 0s", a spent countdown bar, a Cancel button
+    // reading "Stop retrying" — for the entire duration of an attempt that is already in flight
+    // (up to 120s hosted, 300s local). A loading state that says "waiting" while it is working is
+    // the exact failure CLAUDE.md forbids.
+    if (visible) {
+      publish({ type: "attempting", attempt: n + 1, attempts: [...attempts] });
     }
   }
 }
