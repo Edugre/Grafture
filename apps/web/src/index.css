@@ -3,7 +3,8 @@
  * elevation, and §6 motion. Component CSS consumes these by name; raw hex, raw px
  * sizes, and raw radii do not belong in component files.
  * Amendments this file carries beyond the kit as written, all recorded there too:
- * neutral-450/550 (WCAG AA floor for faint text), --type-body-xs, --on-danger.
+ * neutral-450/550 (WCAG AA floor for faint text), --type-body-xs, --on-danger,
+ * --accent-strong (accent-700, which had no light-theme name).
  */
 :root {
   color-scheme: light dark;
@@ -109,6 +110,10 @@
   --accent: #7c5ce0;
   --accent-soft: #7c5ce0;
   --accent-text: #6a4bd0;
+  /* accent-700. The kit lists it as "text-on-accent-50, dark-theme accent text" but the light
+     theme had no name for it — the onboarding eyebrow is the first light-theme use. 8.9:1 on
+     `--surface`, so it also clears AA at the 11px it is set in. */
+  --accent-strong: #52399e;
   --accent-bg: #f1eefc; /* tint fill — proposed row/card */
   --accent-border: #e1dbfa; /* tint border */
   --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
@@ -203,6 +208,7 @@
     --accent: #7c5ce0;
     --accent-soft: #7c5ce0;
     --accent-text: #b7a6f2;
+    --accent-strong: #b7a6f2; /* accent-700 is unreadable on the dark surface — accent-300 stands in */
     --accent-bg: #241a4a;
     --accent-border: #52399e;
     --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
@@ -271,6 +277,7 @@
   --accent: #7c5ce0;
   --accent-soft: #7c5ce0;
   --accent-text: #b7a6f2;
+  --accent-strong: #b7a6f2; /* accent-700 is unreadable on the dark surface — accent-300 stands in */
   --accent-bg: #241a4a;
   --accent-border: #52399e;
   --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */

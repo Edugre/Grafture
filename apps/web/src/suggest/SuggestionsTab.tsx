@@ -301,7 +301,9 @@ function SuggestionCard({
   onDismiss: () => void;
 }) {
   return (
-    <div className={`copilot-suggest-card${open ? " is-open" : ""}`}>
+    // Every card is a candidate anchor for the tour's Suggestions step; it rings the first one the
+    // list rendered, which is the highest-ranked finding.
+    <div className={`copilot-suggest-card${open ? " is-open" : ""}`} data-tour="suggestions">
       <button type="button" className="copilot-suggest-card__header" onClick={onToggle}>
         <CardIndicator item={item} />
         <span className="copilot-suggest-card__title">

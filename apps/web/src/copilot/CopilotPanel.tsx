@@ -630,7 +630,9 @@ export function CopilotPanel({
         {activeTab === "chat" ? (
           <>
             {!provider ? (
-              <div className="copilot-cta">
+              // Both branches carry the tour's `chat` anchor: with no key the CTA *is* what the
+              // chat step is describing, and its copy says the step's note out loud.
+              <div className="copilot-cta" data-tour="chat">
                 <span className="copilot-cta__icon" aria-hidden>
                   <SparkleIcon size={24} />
                   <span className="copilot-cta__lock">
@@ -655,7 +657,7 @@ export function CopilotPanel({
                 </span>
               </div>
             ) : (
-              <div className="copilot-scroll">
+              <div className="copilot-scroll" data-tour="chat">
                 {/* Always mounted so the text swap is what announces, not the node's arrival. */}
                 <span className="sr-only" role="status">
                   {announcement}

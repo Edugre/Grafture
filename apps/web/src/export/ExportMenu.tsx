@@ -69,6 +69,7 @@ export function ExportMenu() {
         className="export-menu__toggle"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
+        data-tour="export"
       >
         <DownloadIcon size={16} />
         Export schema

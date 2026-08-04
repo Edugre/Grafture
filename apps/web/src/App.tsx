@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ByoKeyPage } from "./byokey/ByoKeyPage.js";
 import { CanvasPanel } from "./canvas/index.js";
@@ -6,6 +6,7 @@ import { ApiKeyProvider } from "./copilot/ApiKeyContext.js";
 import { CopilotPanel, type CopilotTab } from "./copilot/index.js";
 import { HomePage } from "./home/index.js";
 import type { CopilotKickoff } from "./copilot/index.js";
+import { OnboardingTour, type TourStage } from "./onboarding/index.js";
 import { ProjectsProvider } from "./persistence/index.js";
 import { SettingsPage } from "./settings/SettingsPage.js";
 import { SourcesPanel } from "./sources";
@@ -60,6 +61,55 @@ export function App() {
     }
   };
 
+  // ---- First-run tour ----
+  // The tour points at controls that live inside collapsed rails and closed cards, so it asks the
+  // editor to open them. The arrangement it found is captured on the first request and handed back
+  // when the tour closes — a tour that leaves the workspace rearranged has taken something.
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [tourSourceCard, setTourSourceCard] = useState(false);
+  const preTourLayout = useRef<{
+    sources: boolean;
+    copilot: boolean;
+    tab: CopilotTab;
+  } | null>(null);
+  // A mirror of the live layout, so `applyTourStage` can capture it without being rebuilt (and
+  // re-firing the tour's stage effect) on every collapse or tab change.
+  const layoutRef = useRef({ sourcesCollapsed, copilotCollapsed, copilotTab });
+  useEffect(() => {
+    layoutRef.current = { sourcesCollapsed, copilotCollapsed, copilotTab };
+  }, [sourcesCollapsed, copilotCollapsed, copilotTab]);
+
+  const applyTourStage = useCallback((stage: TourStage | null) => {
+    if (stage === null) {
+      const previous = preTourLayout.current;
+      if (previous) {
+        setSourcesCollapsed(previous.sources);
+        setCopilotCollapsed(previous.copilot);
+        setCopilotTab(previous.tab);
+        preTourLayout.current = null;
+      }
+      setTourSourceCard(false);
+      return;
+    }
+
+    preTourLayout.current ??= {
+      sources: layoutRef.current.sourcesCollapsed,
+      copilot: layoutRef.current.copilotCollapsed,
+      tab: layoutRef.current.copilotTab,
+    };
+
+    if (stage.sources !== undefined) {
+      setSourcesCollapsed(!stage.sources);
+    }
+    if (stage.copilot !== undefined) {
+      setCopilotCollapsed(!stage.copilot);
+    }
+    if (stage.copilotTab !== undefined) {
+      setCopilotTab(stage.copilotTab);
+    }
+    setTourSourceCard(stage.sourceCard === true);
+  }, []);
+
   return (
     <ThemeProvider>
       <ApiKeyProvider>
@@ -74,7 +124,7 @@ export function App() {
           ) : view === "home" ? (
             <HomePage onOpenSettings={() => openSettings("home")} onEnterEditor={enterEditor} />
           ) : (
-            <div className="app-root">
+            <div className="app-root" ref={shellRef}>
               <TopBar
                 onOpenHome={() => setView("home")}
                 onOpenSettings={() => openSettings("dashboard")}
@@ -90,6 +140,7 @@ export function App() {
                 <SourcesPanel
                   collapsed={sourcesCollapsed}
                   onToggleCollapse={() => setSourcesCollapsed((value) => !value)}
+                  tourExpandFirst={tourSourceCard}
                 />
                 <CanvasPanel
                   activeSuggestionId={copilotTab === "suggestions" ? activeSuggestionId : null}
@@ -107,6 +158,9 @@ export function App() {
                 />
               </div>
               <SuggestionsToast onView={() => changeCopilotTab("suggestions")} />
+              {/* Last child of the shell: it measures against `.app-root`, and everything it
+                  points at — the top bar included — has to be inside that box. */}
+              <OnboardingTour shellRef={shellRef} onStage={applyTourStage} />
             </div>
           )}
         </ProjectsProvider>

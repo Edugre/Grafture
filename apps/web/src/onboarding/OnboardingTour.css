@@ -1,0 +1,198 @@
+/* First-run tour overlay. Everything is positioned against the editor shell (`.app-root`), which
+   is `position: relative` for exactly this reason.
+
+   The tour is deliberately non-blocking: the scrim never takes pointer events, so the app under it
+   stays live and a user who wants to try the thing being described can. Only the card itself is
+   clickable. */
+
+.tour {
+  position: absolute;
+  inset: 0;
+  z-index: 55; /* above the canvas chrome (5) and the toast, below a confirm dialog (60) */
+  pointer-events: none;
+  /* The spotlight's 9999px shadow is drawn well outside the shell; without this it gives the
+     document a scrollbar and lets the user scroll the whole editor sideways. */
+  overflow: hidden;
+
+  /* The dim, as the spotlight's outer shadow. Light follows the brand kit's `surface.scrim`
+     at the tour's 0.44; dark uses the kit's darker scrim, since 0.44 of near-black over a
+     near-black app reads as no scrim at all. */
+  --tour-scrim: rgba(23, 26, 31, 0.44);
+  --tour-card-shadow: 0 12px 32px rgba(23, 26, 31, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tour {
+    --tour-scrim: rgba(0, 0, 0, 0.6);
+    --tour-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] .tour {
+  --tour-scrim: rgba(0, 0, 0, 0.6);
+  --tour-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* One element, not two and not an SVG mask: a 9999px outer shadow hole-punches the scrim for free,
+   so the dim and the hole can never drift apart while the ring is moving. */
+.tour__spotlight {
+  position: absolute;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px var(--tour-scrim);
+  pointer-events: none;
+}
+
+/* Untargeted steps (first and last) collapse the box to nothing at the shell's center, which leaves
+   the shadow as a plain full-surface scrim. No border and no transition — there is nothing to ring,
+   and animating a zero-size box across the shell is motion with no meaning. */
+.tour__spotlight.is-targeted {
+  border: 1px solid var(--accent);
+  transition:
+    left var(--dur-overlay) var(--ease-in-out),
+    top var(--dur-overlay) var(--ease-in-out),
+    width var(--dur-overlay) var(--ease-in-out),
+    height var(--dur-overlay) var(--ease-in-out);
+}
+
+.tour__card {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 18px 20px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--tour-card-shadow);
+  pointer-events: auto;
+  transition:
+    left var(--dur-overlay) var(--ease-in-out),
+    top var(--dur-overlay) var(--ease-in-out);
+}
+
+.tour__eyebrow-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.tour__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.tour__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: -4px -4px 0 auto;
+  padding: 2px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--type-body-sm);
+  line-height: var(--leading-body-sm);
+  cursor: pointer;
+}
+
+.tour__skip:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.tour__title {
+  margin: 10px 0 0;
+  font-size: var(--type-heading-md);
+  line-height: var(--leading-heading-md);
+  font-weight: 600;
+  color: var(--text-strong);
+  text-wrap: pretty;
+}
+
+.tour__body {
+  margin: var(--space-2) 0 0;
+  font-size: var(--type-body-lg);
+  line-height: var(--leading-body-lg);
+  font-weight: 400;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.tour__note {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  line-height: var(--leading-mono-sm);
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.tour__progress {
+  height: 2px;
+  margin-top: 18px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.tour__progress-fill {
+  height: 2px;
+  background: var(--accent);
+  transition: width var(--dur-overlay) var(--ease-in-out);
+}
+
+.tour__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 14px;
+}
+
+.tour__counter {
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  line-height: var(--leading-mono-sm);
+  color: var(--text-faint);
+}
+
+.tour__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.tour__btn {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--type-body-md);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tour__btn:hover {
+  background: var(--surface-strong);
+}
+
+.tour__btn--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tour__btn--primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+/* Reduced motion is already handled by the blanket rule in index.css, which zeroes every
+   transition duration — including the spotlight's, which is the one that matters here. */

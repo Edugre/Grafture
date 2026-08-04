@@ -87,6 +87,9 @@ export function RelationshipEdge({
               showProvenance ? " is-reviewed" : ""
             }${showProvenance && stale ? " is-stale" : ""}`}
             {...(showProvenance ? { "data-origin": originOf(entity) } : {})}
+            // Every live cardinality chip is a candidate anchor; the tour's `querySelector` takes
+            // whichever one the canvas painted first, which is a real edge either way.
+            data-tour="relationship"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}
