@@ -17,12 +17,31 @@ import "./ModelPicker.css";
  * is ready by default via its endpoint. Picking a model both sets that provider's model and makes
  * the provider active, so the copilot switches immediately.
  */
-export function ModelPicker({ onConnect }: { onConnect?: () => void }) {
+export function ModelPicker({
+  onConnect,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  onConnect?: () => void;
+  /**
+   * Optionally control the menu from outside. The copilot's "That model isn't on this key" card
+   * uses this to open the picker directly: the fix for a stale model preference is one control
+   * away, and making the user hunt for that control undoes the point of calling the failure fixable.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const { provider, setProvider } = useProviderPreference();
   const { model } = useModelPreference(provider);
   const { keyFor } = useApiKeyContext();
   const { models } = useAllModels();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean | ((value: boolean) => boolean)) => {
+    const resolved = typeof next === "function" ? next(open) : next;
+    setUncontrolledOpen(resolved);
+    onOpenChange?.(resolved);
+  };
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click or Escape.

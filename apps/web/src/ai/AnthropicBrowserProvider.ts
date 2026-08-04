@@ -26,6 +26,14 @@ import {
 } from "../copilot/investigationTools.js";
 import { parseRankingResponse } from "../suggest/rerank.js";
 import { DEFAULT_MODEL, parseModelsPage } from "./models.js";
+import {
+  type RetryContext,
+  type RetryPolicy,
+  messageRetryPolicy,
+  modelsRetryPolicy,
+  providerErrorFromResponse,
+  runWithRetry,
+} from "./retry.js";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models";
@@ -68,11 +76,33 @@ type MessageContent = string | AnthropicContentBlock[];
 type ProviderMessage = { role: "user" | "assistant"; content: MessageContent };
 
 export class AnthropicBrowserProvider implements AiProvider {
+  private readonly messagePolicy: RetryPolicy;
+  private readonly modelsPolicy: RetryPolicy;
+
   constructor(
     private readonly apiKey: string,
     private readonly model: string = DEFAULT_MODEL,
     private readonly target: TargetId = DEFAULT_TARGET,
-  ) {}
+    /**
+     * Backoff overrides. Injected rather than baked in so tests can drive the retry paths without
+     * real sleeps, and so a future provider variant can tune the budget without editing this class.
+     */
+    retry: { message?: Partial<RetryPolicy>; models?: Partial<RetryPolicy> } = {},
+  ) {
+    this.messagePolicy = messageRetryPolicy(MESSAGE_TIMEOUT_MS, retry.message);
+    this.modelsPolicy = modelsRetryPolicy(MODELS_TIMEOUT_MS, retry.models);
+  }
+
+  /** The classification context every call reports under — names the actor on the failure card. */
+  private retryContext(operation: "message" | "models"): RetryContext {
+    return {
+      label: "Anthropic",
+      family: "anthropic",
+      operation,
+      modelId: this.model,
+      attemptTimeoutMs: operation === "models" ? MODELS_TIMEOUT_MS : MESSAGE_TIMEOUT_MS,
+    };
+  }
 
   async propose(
     schema: Schema,
@@ -197,16 +227,21 @@ export class AnthropicBrowserProvider implements AiProvider {
         url.searchParams.set("after_id", after);
       }
 
-      const response = await fetch(url, {
-        headers: this.headers(),
-        signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
-      });
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Anthropic Models API error (${response.status}): ${errorBody}`);
-      }
+      // Retry is applied per page, not around the whole listing: that is the correct granularity —
+      // a transient 529 on page 3 should not re-fetch pages 1 and 2.
+      const { value } = await runWithRetry(
+        this.modelsPolicy,
+        this.retryContext("models"),
+        async (signal) => {
+          const response = await fetch(url, { headers: this.headers(), signal });
+          if (!response.ok) {
+            throw await providerErrorFromResponse(response, this.retryContext("models"));
+          }
+          return (await response.json()) as unknown;
+        },
+      );
 
-      const parsed = parseModelsPage(await response.json());
+      const parsed = parseModelsPage(value);
       models.push(...parsed.models);
       if (!parsed.hasMore || !parsed.lastId) {
         break;
@@ -245,26 +280,29 @@ export class AnthropicBrowserProvider implements AiProvider {
         ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
         : system;
 
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: this.headers(),
-      signal: AbortSignal.timeout(MESSAGE_TIMEOUT_MS),
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: 4096,
-        system: systemBlocks,
-        messages,
-        ...(tools ? { tools } : {}),
-        ...(toolChoice ? { tool_choice: toolChoice } : {}),
-      }),
+    const body = JSON.stringify({
+      model: this.model,
+      max_tokens: 4096,
+      system: systemBlocks,
+      messages,
+      ...(tools ? { tools } : {}),
+      ...(toolChoice ? { tool_choice: toolChoice } : {}),
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Anthropic API error (${response.status}): ${errorBody}`);
-    }
-
-    return (await response.json()) as AnthropicMessageResponse;
+    const context = this.retryContext("message");
+    const { value } = await runWithRetry(this.messagePolicy, context, async (signal) => {
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: "POST",
+        headers: this.headers(),
+        signal,
+        body,
+      });
+      if (!response.ok) {
+        throw await providerErrorFromResponse(response, context);
+      }
+      return (await response.json()) as AnthropicMessageResponse;
+    });
+    return value;
   }
 }
 

@@ -1,0 +1,392 @@
+/* Copilot provider-failure UI: the failure card, the attempt ledger, the live backoff block, and
+   the collapsed "recovered" line. Sits in the assistant slot of the transcript, so it inherits the
+   row's 20px avatar gutter and 10px gap from CopilotPanel.css and only styles its own interior.
+
+   Two severities, and they must not collapse into one: red means stop reading and do something
+   else; amber means you are one control away from working. */
+
+.copilot-error {
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  padding: 11px 12px 10px;
+}
+
+/* No entrance animation, deliberately: a card that slides in reads as a notification, and this is
+   a turn result — it was always going to be here. */
+.copilot-error--fatal {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.copilot-error--fixable {
+  border-color: var(--caution-border);
+  background: var(--caution-bg);
+}
+
+.copilot-error__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.copilot-error__title {
+  font-size: var(--type-body-md);
+  line-height: var(--leading-body-md);
+  font-weight: 600;
+}
+
+.copilot-error--fatal .copilot-error__title {
+  color: var(--danger-text);
+}
+
+.copilot-error--fixable .copilot-error__title {
+  color: var(--caution-text);
+}
+
+/* The real HTTP status, in mono, pushed right. Non-negotiable: it is the string users paste into a
+   bug report, and showing it keeps the wrapper honest — no invented friendlier codes. */
+.copilot-error__status {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  color: var(--text-faint);
+}
+
+.copilot-error__cause {
+  margin: 5px 0 0;
+  font-size: var(--type-body-sm);
+  line-height: 18px;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.copilot-error__mono-inline {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-mono);
+}
+
+.copilot-error__bullets {
+  margin: 7px 0 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.copilot-error__bullets li {
+  font-size: var(--type-body-sm);
+  line-height: 18px;
+  color: var(--text-muted);
+}
+
+/* ---- Copyable command (local-runtime card) ---- */
+.copilot-error__command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--code-chip-bg);
+}
+
+.copilot-error__command code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
+  color: var(--text-mono);
+}
+
+.copilot-error__command button {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: var(--type-body-xs);
+  font-weight: 500;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.copilot-error__command button:hover {
+  color: var(--text);
+}
+
+/* ---- Attempt ledger ----
+   A 3-column grid so attempt numbers and status codes align vertically down the block. A ragged
+   ledger is harder to scan than no ledger at all. */
+.copilot-error__ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Inside a fatal or fixable card the ledger sits under a divider in the card's own border colour,
+   so it reads as part of the same object rather than a second panel. */
+.copilot-error__ledger--inset {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid;
+  border-color: inherit;
+}
+
+.copilot-error--fatal .copilot-error__ledger--inset {
+  border-top-color: var(--danger-border);
+}
+
+.copilot-error--fixable .copilot-error__ledger--inset {
+  border-top-color: var(--caution-border);
+}
+
+.copilot-error__row {
+  display: grid;
+  grid-template-columns: 12px 34px 1fr;
+  gap: 9px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  color: var(--text-faint);
+}
+
+.copilot-error__row-status {
+  color: var(--text-mono);
+}
+
+/* An attempt that has not happened yet. Quieter than a real row so the ledger never implies a
+   result it does not have. */
+.copilot-error__row--pending {
+  color: var(--text-faint);
+  opacity: 0.65;
+}
+
+.copilot-error__req {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 9px;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  color: var(--text-faint);
+}
+
+.copilot-error__req span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-error__probe {
+  margin: 9px 0 0;
+  font-size: var(--type-body-sm);
+  line-height: 18px;
+  color: var(--text-muted);
+}
+
+/* ---- Actions: at most two. The primary resolves the cause; the secondary is always Dismiss. ---- */
+.copilot-error__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.copilot-error__btn {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--type-body-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.copilot-error__btn:hover {
+  background: var(--surface-hover);
+}
+
+/* Where re-sending is a coin flip (a timeout), both buttons stay secondary — don't offer a purple
+   button for something that may simply time out again. */
+.copilot-error__btn--go {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.copilot-error__btn--go:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+/* ---- Backing off (the live state) ----
+   Neutral, not an error: nothing has failed yet, and dressing a wait in red would be a lie. This
+   is the same block that hardens into the card above — nothing the user is reading moves when the
+   attempts run out. */
+.copilot-retrying {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.copilot-retrying__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px 0;
+}
+
+.copilot-retrying__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-faint);
+}
+
+.copilot-retrying__text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--type-body-sm);
+  line-height: var(--leading-body-sm);
+  color: var(--text-muted);
+}
+
+.copilot-retrying__text strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.copilot-retrying__stop {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: var(--type-body-xs);
+  font-weight: 500;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.copilot-retrying__stop:hover {
+  color: var(--text);
+}
+
+.copilot-retrying__ledger {
+  padding: 8px 10px 9px 33px;
+}
+
+.copilot-retrying__track {
+  height: 2px;
+  background: var(--border-subtle);
+}
+
+/* transform, not width: it stays off the layout path, and this animates while the panel is
+   otherwise idle. The duration is set inline to the actual wait, so the bar cannot overstate it. */
+.copilot-retrying__bar {
+  height: 2px;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: copilot-countdown linear forwards;
+}
+
+@keyframes copilot-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copilot-retrying__bar {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+/* ---- Recovered: the ledger folded to one line above a normal reply ---- */
+.copilot-recovered {
+  margin-bottom: 9px;
+}
+
+.copilot-recovered__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.copilot-recovered__head:hover {
+  color: var(--text);
+}
+
+.copilot-recovered__head > svg:first-child {
+  flex-shrink: 0;
+}
+
+.copilot-recovered__summary {
+  flex: 1;
+  min-width: 0;
+}
+
+.copilot-recovered__summary code {
+  font-family: var(--font-mono);
+}
+
+.copilot-recovered__chevron {
+  flex-shrink: 0;
+  transition: transform 0.16s ease;
+}
+
+.copilot-recovered.is-open .copilot-recovered__chevron {
+  transform: rotate(180deg);
+}
+
+.copilot-recovered__ledger {
+  margin-top: 6px;
+  padding-left: 20px;
+}
+
+/* ---- Avatar gutter ----
+   Same 20×20 slot and 10px gap as a normal assistant turn; only the fill changes. `--on-danger`
+   already carries the light/dark inversion the glyph needs (white on light, ink on dark). */
+.copilot-avatar--fatal {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+
+.copilot-avatar--fixable {
+  background: var(--caution-border);
+  color: var(--on-danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .copilot-avatar--fixable {
+    background: var(--caution-text);
+  }
+}
+
+:root[data-theme="dark"] .copilot-avatar--fixable {
+  background: var(--caution-text);
+}

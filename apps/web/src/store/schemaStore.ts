@@ -118,6 +118,8 @@ export type SchemaStore = {
   removeSource: (sourceId: string) => void;
 
   appendChatMessages: (messages: ChatMessage[]) => void;
+  /** Drop one message — how a dismissed copilot failure card leaves the transcript. */
+  removeChatMessage: (id: string) => void;
   clearChat: () => void;
 
   dismissSuggestions: (ids: string[]) => void;
@@ -651,6 +653,12 @@ export function createSchemaStore(options?: CreateSchemaStoreOptions) {
           }
           set((draft) => {
             draft.chat.push(...messages);
+          });
+        },
+
+        removeChatMessage: (id) => {
+          set((draft) => {
+            draft.chat = draft.chat.filter((message) => message.id !== id);
           });
         },
 

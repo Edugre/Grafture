@@ -3,6 +3,13 @@ import type { Schema } from "@grafture/core";
 import { useEffect, useRef, useState } from "react";
 
 import { useAiProvider } from "../ai/useAiProvider.js";
+import {
+  type Attempt,
+  ProviderError,
+  type RetryProgress,
+  RetryStoppedError,
+  subscribeToRetries,
+} from "../ai/retry.js";
 import { layoutSchema } from "../canvas/layout.js";
 import { useSchemaStore } from "../store/index.js";
 import { SuggestionsTab, useSuggestions } from "../suggest/index.js";
@@ -27,8 +34,31 @@ import {
 } from "./formatActions.js";
 import { DEFAULT_MAX_ITERATIONS, type LoopOutcome, runCopilotLoop } from "./agentLoop.js";
 import { buildConversationHistory } from "./conversation.js";
+import { CopilotErrorRow, CopilotRecovered, CopilotRetrying } from "./CopilotError.js";
+import { type CopilotFailure, type FailureActionId, toProviderFailure } from "./failureCopy.js";
 import { type ChatMessage, nextMessageId } from "./messages.js";
 import { warmDetectorFindings } from "./systemPrompt.js";
+
+/**
+ * Everything one turn's backoff episodes added up to. The agent loop can make several requests per
+ * turn, so a turn's ledger is the concatenation of each episode's attempts (renumbered so the rows
+ * still read 1, 2, 3…) and the sum of their elapsed times. Showing only the last episode would
+ * quietly under-report how much retrying the turn actually did.
+ */
+type TurnRetryLog = { attempts: Attempt[]; elapsedMs: number; stopped: boolean };
+
+function appendEpisode(
+  log: TurnRetryLog,
+  attempts: Attempt[],
+  elapsedMs: number,
+  stopped: boolean,
+) {
+  for (const attempt of attempts) {
+    log.attempts.push({ ...attempt, n: log.attempts.length + 1 });
+  }
+  log.elapsedMs += elapsedMs;
+  log.stopped = log.stopped || stopped;
+}
 
 /** A note appended to the reply when the loop stopped for a reason other than clean completion. */
 function outcomeFooter(outcome: LoopOutcome, attempts: number): string | null {
@@ -113,6 +143,11 @@ export function CopilotPanel({
   const [draft, setDraft] = useState(kickoff?.message ?? "");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ attempt: number; max: number } | null>(null);
+  // The live backoff block. Transient by design: it belongs to the request in flight, not to the
+  // transcript — what lands in history is the ledger it leaves behind.
+  const [retrying, setRetrying] = useState<RetryProgress | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const retryLogRef = useRef<TurnRetryLog>({ attempts: [], elapsedMs: 0, stopped: false });
   const cancelledRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const kickedOffRef = useRef(false);
@@ -142,6 +177,55 @@ export function CopilotPanel({
     return () => window.cancelIdleCallback(handle);
   }, [sources]);
 
+  // The retry wrapper drives the lifecycle; this only mirrors it into render state. Subscribing
+  // once for the panel's life is safe because exactly one turn runs at a time (the `busy` gate).
+  useEffect(
+    () =>
+      subscribeToRetries((event) => {
+        if (event.type === "waiting") {
+          setRetrying(event.progress);
+          scrollToBottom();
+          return;
+        }
+        appendEpisode(retryLogRef.current, event.attempts, event.elapsedMs, event.stopped);
+        setRetrying(null);
+      }),
+    [],
+  );
+
+  /** Take (and clear) the ledger this turn accumulated, for attaching to the resulting message. */
+  const takeRetryLog = (): TurnRetryLog => {
+    const log = retryLogRef.current;
+    retryLogRef.current = { attempts: [], elapsedMs: 0, stopped: false };
+    return log;
+  };
+
+  /**
+   * Build the persisted facts of a failed turn. Only measurements and classifications — the card's
+   * sentences are derived at render time, so a copy fix reaches transcripts saved before it.
+   * Returns undefined for anything that never came through the wrapper, which then renders as the
+   * plain message it always did.
+   */
+  const failureDetail = (error: unknown, retryMessage: string): CopilotFailure | undefined => {
+    if (!(error instanceof ProviderError)) {
+      return undefined;
+    }
+    const log = takeRetryLog();
+    const attempts = log.attempts.length > 0 ? log.attempts : error.attempts;
+    return {
+      failure: error.failure,
+      providerLabel: error.context.label,
+      providerId: error.context.family,
+      ...(attempts.length > 0 ? { attempts } : {}),
+      ...(error.requestId ? { requestId: error.requestId } : {}),
+      elapsedMs: log.elapsedMs || error.elapsedMs,
+      ...(error.context.attemptTimeoutMs ? { timeoutMs: error.context.attemptTimeoutMs } : {}),
+      ...(error.context.modelId ? { modelId: error.context.modelId } : {}),
+      sourceCount: useSchemaStore.getState().sources.length,
+      retryMessage,
+    };
+  };
+
   // Proposed (ghost) tables not yet in the live schema — surfaced in the Suggestions tab.
   const draftTableCount = schemaDraft
     ? schemaDraft.tables.filter((table) => !liveTables.some((live) => live.id === table.id)).length
@@ -153,8 +237,13 @@ export function CopilotPanel({
     });
   };
 
-  const handleSend = async () => {
-    const text = draft.trim();
+  /**
+   * Send one turn. `override` re-sends an earlier message (the failure card's "Try again") through
+   * exactly this path rather than a shortcut: same history capture, same provenance actor, same
+   * history step. A retry that bypassed this would quietly be a different kind of turn.
+   */
+  const handleSend = async (override?: string) => {
+    const text = (override ?? draft).trim();
     if (!text || !provider || busy) {
       return;
     }
@@ -230,10 +319,16 @@ export function CopilotPanel({
       // the first one seen rather than only the last step's.
       const notice = result.steps.find((step) => step.notice)?.notice;
 
+      // A turn that only got through after backing off keeps its record, at one line's volume.
+      const retryLog = takeRetryLog();
+
       const assistantMessage: ChatMessage = {
         id: nextMessageId(),
         role: "assistant",
         text: footer ? `${reply}\n\n${footer}` : reply,
+        ...(retryLog.attempts.length > 0
+          ? { retry: { attempts: retryLog.attempts, totalMs: retryLog.elapsedMs } }
+          : {}),
         ...(notice ? { notice } : {}),
         ...(appliedAll.length > 0 ? { applied: appliedAll } : {}),
         ...(rejectedFinal.length > 0
@@ -246,14 +341,65 @@ export function CopilotPanel({
       };
       appendChatMessages([assistantMessage]);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Something went wrong talking to the copilot.";
-      appendChatMessages([{ id: nextMessageId(), role: "error", text: message }]);
+      appendChatMessages([failedTurnMessage(error, text)]);
     } finally {
       setBusy(false);
       setProgress(null);
+      setRetrying(null);
       scrollToBottom();
     }
+  };
+
+  /**
+   * The transcript entry for a turn that didn't produce a reply.
+   *
+   * A user-initiated Stop is not an error — it gets an ordinary assistant turn wearing the ledger
+   * it stopped, so an abandoned retry never reads as a crash. Everything else becomes an error
+   * message; when it came through the retry wrapper it also carries the classified detail the
+   * failure card is built from, and when it didn't it renders exactly as it always did.
+   */
+  const failedTurnMessage = (error: unknown, sentText: string): ChatMessage => {
+    if (error instanceof RetryStoppedError) {
+      const log = takeRetryLog();
+      const attempts = log.attempts.length > 0 ? log.attempts : error.attempts;
+      return {
+        id: nextMessageId(),
+        role: "assistant",
+        text: "_Stopped retrying._",
+        ...(attempts.length > 0
+          ? { retry: { attempts, totalMs: log.elapsedMs || error.elapsedMs, stopped: true } }
+          : {}),
+      };
+    }
+    const detail = failureDetail(error, sentText);
+    const message =
+      error instanceof Error ? error.message : "Something went wrong talking to the copilot.";
+    return {
+      id: nextMessageId(),
+      role: "error",
+      text: message,
+      ...(detail ? { detail } : {}),
+    };
+  };
+
+  /** Run a failure card's primary action. The card names the intent; the panel owns the wiring. */
+  const runFailureAction = (id: FailureActionId, detail: CopilotFailure) => {
+    if (id === "retry" && detail.retryMessage) {
+      void handleSend(detail.retryMessage);
+      return;
+    }
+    if (id === "connect") {
+      onConnect();
+      return;
+    }
+    if (id === "pick-model") {
+      setPickerOpen(true);
+    }
+  };
+
+  /** Drop a failure card from the transcript. */
+  const dismissMessage = (id: string) => {
+    useSchemaStore.getState().removeChatMessage(id);
   };
 
   /**
@@ -342,14 +488,25 @@ export function CopilotPanel({
               working.tables.length === 1 ? "table" : "tables"
             } — review and **Accept** or **Discard** on the canvas._`
           : "";
-      appendChatMessages([{ id: nextMessageId(), role: "assistant", text: `${reply}${note}` }]);
+      const retryLog = takeRetryLog();
+      appendChatMessages([
+        {
+          id: nextMessageId(),
+          role: "assistant",
+          text: `${reply}${note}`,
+          ...(retryLog.attempts.length > 0
+            ? { retry: { attempts: retryLog.attempts, totalMs: retryLog.elapsedMs } }
+            : {}),
+        },
+      ]);
     } catch (error) {
-      const text =
-        error instanceof Error ? error.message : "Something went wrong drafting the schema.";
-      appendChatMessages([{ id: nextMessageId(), role: "error", text }]);
+      // The auto-draft turn has a visible transcript slot of its own (its prompt was appended as a
+      // user message above), so its failures get the same card as a typed turn — no separate surface.
+      appendChatMessages([failedTurnMessage(error, message)]);
     } finally {
       setBusy(false);
       setProgress(null);
+      setRetrying(null);
       scrollToBottom();
     }
   };
@@ -481,13 +638,30 @@ export function CopilotPanel({
                       }
 
                       if (message.role === "error") {
+                        // A failure classified by the retry wrapper gets a card in the assistant
+                        // slot; anything else (or a `kind` this build predates) keeps the raw
+                        // message it always had, which is honest rather than a guessed cause.
+                        const known = message.detail
+                          ? toProviderFailure(message.detail.failure)
+                          : null;
+                        if (!message.detail || !known) {
+                          return (
+                            <div key={message.id} className="copilot-row copilot-row--assistant">
+                              <span className="copilot-avatar copilot-avatar--error" aria-hidden>
+                                <InfoIcon size={13} />
+                              </span>
+                              <div className="copilot-body copilot-body--error">{message.text}</div>
+                            </div>
+                          );
+                        }
+                        const detail: CopilotFailure = { ...message.detail, failure: known };
                         return (
-                          <div key={message.id} className="copilot-row copilot-row--assistant">
-                            <span className="copilot-avatar copilot-avatar--error" aria-hidden>
-                              <InfoIcon size={13} />
-                            </span>
-                            <div className="copilot-body copilot-body--error">{message.text}</div>
-                          </div>
+                          <CopilotErrorRow
+                            key={message.id}
+                            detail={detail}
+                            onAction={(id) => runFailureAction(id, detail)}
+                            onDismiss={() => dismissMessage(message.id)}
+                          />
                         );
                       }
 
@@ -497,6 +671,13 @@ export function CopilotPanel({
                             <SparkleIcon size={13} />
                           </span>
                           <div className="copilot-body">
+                            {message.retry ? (
+                              <CopilotRecovered
+                                attempts={message.retry.attempts}
+                                totalMs={message.retry.totalMs}
+                                stopped={message.retry.stopped}
+                              />
+                            ) : null}
                             <Markdown>{message.text}</Markdown>
                             {message.notice ? (
                               <div className="copilot-chip copilot-chip--notice">
@@ -521,7 +702,20 @@ export function CopilotPanel({
                         </div>
                       );
                     })}
-                    {busy ? (
+                    {/* While backing off, the wait replaces the thinking dots rather than sitting
+                        beside them: the copilot is not thinking, it is waiting, and saying both at
+                        once would be one of them lying. */}
+                    {busy && retrying ? (
+                      <div className="copilot-row copilot-row--assistant">
+                        <span className="copilot-avatar" aria-hidden>
+                          <SparkleIcon size={13} />
+                        </span>
+                        <div className="copilot-body">
+                          <CopilotRetrying progress={retrying} />
+                        </div>
+                      </div>
+                    ) : null}
+                    {busy && !retrying ? (
                       <div className="copilot-row copilot-row--assistant">
                         <span className="copilot-avatar" aria-hidden>
                           <SparkleIcon size={13} />
@@ -552,16 +746,24 @@ export function CopilotPanel({
             {provider ? (
               <div className="copilot-compose">
                 <div className="copilot-compose__toolbar">
-                  <ModelPicker onConnect={onConnect} />
+                  <ModelPicker
+                    onConnect={onConnect}
+                    open={pickerOpen}
+                    onOpenChange={setPickerOpen}
+                  />
                   {busy ? (
                     <button
                       type="button"
                       className="copilot-compose__cancel"
                       onClick={() => {
                         cancelledRef.current = true;
+                        // Stopping mid-backoff must also abort the in-flight request and cancel
+                        // the scheduled retry — cancelling only the loop would leave a request
+                        // running that writes into a turn the user has abandoned.
+                        retrying?.stop();
                       }}
                     >
-                      Cancel
+                      {retrying ? "Stop retrying" : "Cancel"}
                     </button>
                   ) : null}
                 </div>
