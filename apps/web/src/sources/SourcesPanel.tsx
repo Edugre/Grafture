@@ -480,6 +480,7 @@ export function SourcesPanel({
         {sources.length === 0 ? (
           <div
             className="sources-panel__dropzone"
+            data-tour="sources-empty"
             onClick={openFilePicker}
             role="button"
             tabIndex={0}

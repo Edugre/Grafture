@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
 import { isTextEntry } from "../history/shortcuts.js";
+import { useSchemaStore } from "../store/index.js";
 import { XIcon } from "../ui/icons.js";
 import "./OnboardingTour.css";
 import {
@@ -10,22 +11,16 @@ import {
   useOnboardingReplays,
 } from "./onboardingPreference.js";
 import { type Rect, formatCounter, placeModal, sameRect, spotlightRect } from "./placement.js";
-import { TOUR_STEPS, TOUR_STEP_COUNT, type TourStage } from "./steps.js";
+import { type ResolvedStep, type TourContext, type TourStage, resolveSteps } from "./steps.js";
 
 /**
- * How long a step's anchor may stay missing before the tour moves on. Long enough to cover a rail
- * expanding and a tab swapping, short enough that the user doesn't sit looking at a card describing
- * something they can't see. A step whose anchor never appears — a relationship on an empty canvas,
- * a suggestion card when the detectors found nothing — is skipped rather than shown against a
- * centered scrim, because a tour that narrates invisible features is worse than a shorter tour.
+ * How long a step's anchor may stay missing before the tour moves on. This is now only a safety
+ * net — `resolveSteps` drops the steps this project can't show *before* the tour opens, so in the
+ * ordinary case every step in the sequence has an anchor waiting. What's left for the grace to
+ * catch is the narrow gap the resolver approximates over (see `hasSuggestions` below) and anything
+ * that disappears mid-tour. Long enough to cover a rail expanding and a tab swapping.
  */
 const ANCHOR_GRACE_MS = 500;
-
-const LAST_INDEX = TOUR_STEP_COUNT - 1;
-
-function clampIndex(index: number): number {
-  return Math.max(0, Math.min(LAST_INDEX, index));
-}
 
 /** The scrollable rail an anchor lives in, if any — the sources and copilot panes both use it. */
 function scrollParent(element: HTMLElement): HTMLElement | null {
@@ -66,10 +61,34 @@ export function OnboardingTour({
   onStage: (stage: TourStage | null) => void;
 }) {
   const replays = useOnboardingReplays();
+
+  const hasSources = useSchemaStore((state) => state.sources.length > 0);
+  const hasRelationships = useSchemaStore((state) => state.schema.relationships.length > 0);
+  // `hasSources` stands in for "the detectors found something". The exact answer is `useSuggestions`,
+  // but that runs `detectJoinKeys` in a memo — ~3.7s on real files, and per CLAUDE.md that work
+  // never goes on an interactive path. The approximation is only ever wrong one way (sources but no
+  // findings), and the grace-skip above still catches that, so the cost is one rare late skip rather
+  // than a detector run every time the tour opens.
+  const contextRef = useRef<TourContext>({
+    hasSources,
+    hasRelationships,
+    hasSuggestions: hasSources,
+  });
+  contextRef.current = { hasSources, hasRelationships, hasSuggestions: hasSources };
+
   const [open, setOpen] = useState(() => !readOnboardingCompleted());
-  const [index, setIndex] = useState(() => clampIndex(readOnboardingLastIndex()));
+  // Resolved once, when the tour opens, and frozen for its duration — a sequence that restructured
+  // because the user dropped a file mid-tour would renumber the card they are reading.
+  const [steps, setSteps] = useState<ResolvedStep[]>(() => resolveSteps(contextRef.current));
+  const [index, setIndex] = useState(() =>
+    Math.max(0, Math.min(steps.length - 1, readOnboardingLastIndex())),
+  );
   const [spot, setSpot] = useState<Rect | null>(null);
   const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
+  // True from the moment a step is entered until its anchor has been measured. The card stays
+  // unmounted while it is set, so a step is never *displayed* against the wrong spotlight — the
+  // failure the grace window used to create every time it skipped one.
+  const [pending, setPending] = useState(true);
 
   const cardRef = useRef<HTMLDivElement>(null);
   // Which way the user was heading, so a missing anchor is skipped *past* rather than bounced off.
@@ -78,7 +97,13 @@ export function OnboardingTour({
   const indexRef = useRef(index);
   indexRef.current = index;
 
-  const step = TOUR_STEPS[index];
+  const lastIndex = steps.length - 1;
+  const step = steps[index];
+
+  const clampIndex = useCallback(
+    (value: number) => Math.max(0, Math.min(steps.length - 1, value)),
+    [steps.length],
+  );
 
   const close = useCallback(
     (completed: boolean) => {
@@ -90,26 +115,32 @@ export function OnboardingTour({
     [onStage],
   );
 
-  const go = useCallback((direction: 1 | -1) => {
-    directionRef.current = direction;
-    setIndex((current) => clampIndex(current + direction));
-  }, []);
+  const go = useCallback(
+    (direction: 1 | -1) => {
+      directionRef.current = direction;
+      setIndex((current) => clampIndex(current + direction));
+    },
+    [clampIndex],
+  );
 
   const next = useCallback(() => {
-    if (indexRef.current >= LAST_INDEX) {
+    if (indexRef.current >= lastIndex) {
       close(true);
       return;
     }
     go(1);
-  }, [close, go]);
+  }, [close, go, lastIndex]);
 
   const back = useCallback(() => go(-1), [go]);
 
-  // Replay: reopen from the top whenever the preference is cleared, here or in another tab.
+  // Replay: reopen from the top whenever the preference is cleared, here or in another tab. The
+  // sequence is re-resolved here — a user who replays after loading files should get the full tour.
   useEffect(() => {
     if (replays > 0) {
       directionRef.current = 1;
+      setSteps(resolveSteps(contextRef.current));
       setIndex(0);
+      setPending(true);
       setOpen(true);
     }
   }, [replays]);
@@ -146,7 +177,7 @@ export function OnboardingTour({
 
     const tick = () => {
       const shell = shellRef.current;
-      const current = TOUR_STEPS[index];
+      const current = steps[index];
       if (!shell || !current) {
         return;
       }
@@ -162,6 +193,7 @@ export function OnboardingTour({
       if (!current.target) {
         missingSince = null;
         setSpot((previous) => (previous === null ? previous : null));
+        setPending(false);
         return;
       }
 
@@ -177,7 +209,7 @@ export function OnboardingTour({
         } else if (now - missingSince > ANCHOR_GRACE_MS) {
           missingSince = null;
           const direction = directionRef.current;
-          if (index + direction > LAST_INDEX) {
+          if (index + direction > steps.length - 1) {
             close(true);
           } else {
             go(direction);
@@ -197,6 +229,7 @@ export function OnboardingTour({
       const shellRect = shell.getBoundingClientRect();
       const measured = spotlightRect(rect, shellRect);
       setSpot((previous) => (sameRect(previous, measured) ? previous : measured));
+      setPending(false);
     };
 
     // First pass runs synchronously so a step whose anchor is already on screen never paints one
@@ -207,7 +240,19 @@ export function OnboardingTour({
     };
     loop();
     return () => cancelAnimationFrame(frame);
-  }, [open, index, shellRef, close, go]);
+  }, [open, index, steps, shellRef, close, go]);
+
+  // Entering a step puts the card back into "not yet placed" until the loop above confirms an
+  // anchor. Without this the card would render immediately, against whatever spotlight the previous
+  // step left behind.
+  useEffect(() => {
+    setPending(true);
+  }, [index, steps]);
+
+  // A re-resolve can leave the cursor past the end (replaying a shorter sequence).
+  useEffect(() => {
+    setIndex((current) => clampIndex(current));
+  }, [clampIndex]);
 
   // → next, ← back, Esc skip. Document-level so the shortcut works wherever focus has wandered —
   // the tour is non-blocking, so that could be anywhere — and yielding to text entry the same way
@@ -243,15 +288,16 @@ export function OnboardingTour({
     }
   }, [open, index]);
 
-  // Nothing to place until the shell has been measured; a card positioned against a zero-width
-  // shell lands off the edge, which is worse than one frame of nothing.
-  if (!open || !step || shellSize.width === 0) {
+  // Nothing to place until the shell has been measured (a card positioned against a zero-width
+  // shell lands off the edge), and nothing to show until the current step's anchor has been found.
+  // `pending` is what makes a skip invisible: the step that is about to be skipped never paints.
+  if (!open || !step || shellSize.width === 0 || pending) {
     return null;
   }
 
   const modal = placeModal(spot, shellSize);
   const targeted = spot !== null;
-  const counter = formatCounter(index, TOUR_STEP_COUNT);
+  const counter = formatCounter(index, steps.length);
   const titleId = `tour-title-${index}`;
 
   return (
@@ -307,7 +353,7 @@ export function OnboardingTour({
         <div className="tour__progress" aria-hidden>
           <div
             className="tour__progress-fill"
-            style={{ transform: `scaleX(${(index + 1) / TOUR_STEP_COUNT})` }}
+            style={{ transform: `scaleX(${(index + 1) / steps.length})` }}
           />
         </div>
 

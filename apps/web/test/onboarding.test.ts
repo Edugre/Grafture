@@ -10,7 +10,7 @@ import {
   sameRect,
   spotlightRect,
 } from "../src/onboarding/placement.js";
-import { TOUR_STEPS, TOUR_STEP_COUNT } from "../src/onboarding/steps.js";
+import { TOUR_STEPS, resolveSteps, type TourContext } from "../src/onboarding/steps.js";
 
 const SHELL = { left: 40, top: 20, width: 1440, height: 900 };
 
@@ -143,44 +143,177 @@ describe("sameRect", () => {
   });
 });
 
+const LOADED: TourContext = { hasSources: true, hasRelationships: true, hasSuggestions: true };
+const EMPTY: TourContext = { hasSources: false, hasRelationships: false, hasSuggestions: false };
+
 describe("TOUR_STEPS", () => {
   it("is the ten steps the tutorial documents, opening and closing untargeted", () => {
-    expect(TOUR_STEP_COUNT).toBe(10);
+    expect(TOUR_STEPS).toHaveLength(10);
     expect(TOUR_STEPS[0]?.target).toBeNull();
-    expect(TOUR_STEPS[TOUR_STEP_COUNT - 1]?.target).toBeNull();
+    expect(TOUR_STEPS[9]?.target).toBeNull();
   });
 
   it("overrides the button label only on the first and last steps", () => {
     const labelled = TOUR_STEPS.filter((step) => step.nextLabel !== undefined);
 
     expect(labelled.map((step) => step.nextLabel)).toEqual(["Start", "Start building"]);
-    expect(TOUR_STEPS[0]?.nextLabel).toBe("Start");
-    expect(TOUR_STEPS[TOUR_STEP_COUNT - 1]?.nextLabel).toBe("Start building");
+  });
+
+  it("numbers every step except the two bookends", () => {
+    expect(TOUR_STEPS.map((step) => step.numbered)).toEqual([
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+    ]);
   });
 
   it("stages a rail open for every step whose anchor lives inside one", () => {
     // Both side panels open collapsed, so a step pointing into one that forgot to say so would
-    // silently auto-skip on first run — the failure this assertion exists to catch.
+    // silently drop on first run — the failure this assertion exists to catch.
     const railed = new Map<string, "sources" | "copilot">([
       ["source-card", "sources"],
+      ["sources-empty", "sources"],
       ["build-table", "sources"],
       ["suggestions", "copilot"],
       ["chat", "copilot"],
     ]);
 
     for (const step of TOUR_STEPS) {
-      const required = step.target === null ? undefined : railed.get(step.target);
-      if (required) {
-        expect(step.stage?.[required], `${step.eyebrow} must open the ${required} rail`).toBe(true);
+      for (const target of [step.target, step.variant?.target]) {
+        const required = target == null ? undefined : railed.get(target);
+        if (required) {
+          expect(step.stage?.[required], `${step.label} must open the ${required} rail`).toBe(true);
+        }
       }
     }
   });
 
-  it("keeps every step's copy non-empty", () => {
+  it("keeps every step's copy non-empty, variants included", () => {
     for (const step of TOUR_STEPS) {
-      expect(step.eyebrow.length).toBeGreaterThan(0);
+      expect(step.label.length).toBeGreaterThan(0);
       expect(step.title.length).toBeGreaterThan(0);
       expect(step.body.length).toBeGreaterThan(0);
+      if (step.variant) {
+        expect(step.variant.title.length).toBeGreaterThan(0);
+        expect(step.variant.body.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("gives every requirement either a variant or a deliberate drop", () => {
+    // Not an assertion about which — just that no step carries a requirement by accident. A step
+    // that requires something and has no variant is stating "drop me", and that has to be a choice.
+    const required = TOUR_STEPS.filter((step) => step.requires !== undefined);
+
+    expect(required.map((step) => [step.label, step.variant !== undefined])).toEqual([
+      ["Welcome", true],
+      ["Sources", true],
+      ["Build", false],
+      ["Relationships", false],
+      ["Suggestions", false],
+    ]);
+  });
+});
+
+describe("resolveSteps", () => {
+  it("runs all ten, verbatim, on a project that has everything", () => {
+    const resolved = resolveSteps(LOADED);
+
+    expect(resolved).toHaveLength(10);
+    expect(resolved.map((step) => step.eyebrow)).toEqual([
+      "Welcome",
+      "Step 2 \u00b7 Sources",
+      "Step 3 \u00b7 Build",
+      "Step 4 \u00b7 Canvas",
+      "Step 5 \u00b7 Relationships",
+      "Step 6 \u00b7 Suggestions",
+      "Step 7 \u00b7 Copilot",
+      "Step 8 \u00b7 Provenance",
+      "Step 9 \u00b7 Export",
+      "Done",
+    ]);
+    // The handoff's copy, untouched, whenever the project can carry it.
+    expect(resolved[0]?.title).toBe(TOUR_STEPS[0]?.title);
+    expect(resolved[0]?.note).toBe("health_centers.csv \u00b7 covered_entities.json");
+    expect(resolved[1]?.body).toBe(TOUR_STEPS[1]?.body);
+  });
+
+  it("drops to seven on an empty project, renumbering as it goes", () => {
+    const resolved = resolveSteps(EMPTY);
+
+    expect(resolved.map((step) => step.eyebrow)).toEqual([
+      "Welcome",
+      "Step 2 \u00b7 Sources",
+      "Step 3 \u00b7 Canvas",
+      "Step 4 \u00b7 Copilot",
+      "Step 5 \u00b7 Provenance",
+      "Step 6 \u00b7 Export",
+      "Done",
+    ]);
+  });
+
+  it("never leaves a step pointing at an anchor the project can't have", () => {
+    const resolved = resolveSteps(EMPTY);
+    const targets = resolved.map((step) => step.target);
+
+    expect(targets).not.toContain("source-card");
+    expect(targets).not.toContain("build-table");
+    expect(targets).not.toContain("relationship");
+    expect(targets).not.toContain("suggestions");
+    // …and the Sources step still points at something real: the dropzone.
+    expect(targets).toContain("sources-empty");
+  });
+
+  it("swaps the welcome copy that claims files are already loaded", () => {
+    const loaded = resolveSteps(LOADED)[0];
+    const empty = resolveSteps(EMPTY)[0];
+
+    expect(loaded?.body).toContain("This project already holds");
+    expect(loaded?.note).toBeDefined();
+    expect(empty?.body).not.toContain("already holds");
+    // The authored note names two files that aren't there — a variant without one drops it.
+    expect(empty?.note).toBeUndefined();
+    expect(empty?.nextLabel).toBe("Start");
+  });
+
+  it("resolves each requirement independently", () => {
+    // Sources loaded, nothing joined yet, detectors have findings: only Relationships drops.
+    const resolved = resolveSteps({
+      hasSources: true,
+      hasRelationships: false,
+      hasSuggestions: true,
+    });
+
+    expect(resolved).toHaveLength(9);
+    expect(resolved.map((step) => step.target)).not.toContain("relationship");
+    expect(resolved.map((step) => step.target)).toContain("suggestions");
+  });
+
+  it("keeps the eyebrow numeral and the counter in agreement in every shape", () => {
+    // The regression this guards: dropping step 5 used to leave "Step 6 \u00b7 Suggestions" sitting
+    // above a counter reading "05 / 09".
+    for (const context of [
+      LOADED,
+      EMPTY,
+      { hasSources: true, hasRelationships: false, hasSuggestions: false },
+      { hasSources: true, hasRelationships: true, hasSuggestions: false },
+    ]) {
+      const resolved = resolveSteps(context);
+      resolved.forEach((step, position) => {
+        const numeral = /^Step (\d+) \u00b7 /.exec(step.eyebrow)?.[1];
+        if (numeral) {
+          expect(Number(numeral), `${step.eyebrow} at position ${position}`).toBe(position + 1);
+        }
+      });
+      expect(resolved[0]?.eyebrow).toBe("Welcome");
+      expect(resolved[resolved.length - 1]?.eyebrow).toBe("Done");
     }
   });
 });
