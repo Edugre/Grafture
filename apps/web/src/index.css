@@ -30,6 +30,11 @@
   --leading-body-md: 20px;
   --type-body-sm: 12px;
   --leading-body-sm: 16px;
+  /* A second leading for body-sm. 16px is right for a one-line chip or label, but
+     too tight for a wrapping sentence at 12px — five files had already reached for
+     a raw `line-height: 18px` to get that air. Same size, looser measure; naming it
+     is what stops the sixth file inventing 17px. */
+  --leading-body-sm-loose: 18px;
   /* xs is below the kit's original 8-step floor. It was added because 25 badge /
      chip / type-tag / count declarations were already sitting at 10–11px off-scale;
      naming the tier is honest, a silent 9th size is not. Badges and counts only —
@@ -40,6 +45,11 @@
   --leading-mono-md: 20px;
   --type-mono-sm: 12px;
   --leading-mono-sm: 18px;
+  /* Mono half-step. Identifiers set inline in 12px sans copy read a shade large at
+     the full mono-sm; 11.5px optically matches the surrounding text. Used for model
+     ids, shell commands, and the stale-rationale panel — all identifiers, never copy. */
+  --type-mono-xs: 11.5px;
+  --leading-mono-xs: 16px;
 
   /* ---- Spacing (brand kit §4) — 4px base unit ---- */
   --space-1: 4px;

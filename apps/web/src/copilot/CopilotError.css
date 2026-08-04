@@ -1,3 +1,14 @@
+/* Hallmark · component: copilot failure card + attempt ledger + backoff block
+ * genre: modern-minimal · theme: project system (Grafture tokens, preserved — no new palette)
+ * states: default · hover · focus-visible (global ring, index.css) · active
+ *   — disabled n/a: no action on this card is ever inert. Loading and success are carried as
+ *     label text, not styling: Copy → "Copied", Test connection → "Checking…" → result line.
+ * contrast: pass (40–41) — all 24 text/background pairs ≥ 4.5:1 in both themes
+ * motion: reduced-motion re-asserts the countdown's true duration (functional timer, not decor)
+ * known-open: interior spacing is raw px, matching CopilotPanel.css and the design handoff
+ *   rather than the 4pt --space-* scale. House-wide decision, not this file's to make.
+ */
+
 /* Copilot provider-failure UI: the failure card, the attempt ledger, the live backoff block, and
    the collapsed "recovered" line. Sits in the assistant slot of the transcript, so it inherits the
    row's 20px avatar gutter and 10px gap from CopilotPanel.css and only styles its own interior.
@@ -58,14 +69,19 @@
 .copilot-error__cause {
   margin: 5px 0 0;
   font-size: var(--type-body-sm);
-  line-height: 18px;
+  line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
   text-wrap: pretty;
+  /* `text-wrap: pretty` balances lines but never breaks inside a word. The cause sentence can
+     carry an arbitrary model id — a local runtime's is routinely 40+ unbroken characters — which
+     would otherwise run straight out of the card. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .copilot-error__mono-inline {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--type-mono-xs);
   color: var(--text-mono);
 }
 
@@ -79,7 +95,7 @@
 
 .copilot-error__bullets li {
   font-size: var(--type-body-sm);
-  line-height: 18px;
+  line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
 }
 
@@ -101,7 +117,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--type-mono-xs);
   letter-spacing: -0.01em;
   color: var(--text-mono);
 }
@@ -193,13 +209,14 @@
 .copilot-error__probe {
   margin: 9px 0 0;
   font-size: var(--type-body-sm);
-  line-height: 18px;
+  line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
 }
 
 /* ---- Actions: at most two. The primary resolves the cause; the secondary is always Dismiss. ---- */
 .copilot-error__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 11px;
 }
@@ -214,11 +231,20 @@
   font: inherit;
   font-size: var(--type-body-sm);
   font-weight: 500;
+  /* Both labels fit side by side in the 372px panel today. The pair is nowrap + wrap so that if
+     the panel ever narrows or a label grows, the row breaks between the buttons rather than
+     inside one — a CTA reading on two lines looks like a styling bug, not a choice. */
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .copilot-error__btn:hover {
   background: var(--surface-hover);
+}
+
+/* Press feedback, matching `.npm-btn` in NewProjectModal.css — the house gesture. */
+.copilot-error__btn:active {
+  transform: translateY(1px);
 }
 
 /* Where re-sending is a coin flip (a timeout), both buttons stay secondary — don't offer a purple
@@ -232,6 +258,12 @@
 .copilot-error__btn--go:hover {
   border-color: var(--accent-hover);
   background: var(--accent-hover);
+}
+
+.copilot-error__command button:active,
+.copilot-retrying__stop:active,
+.copilot-recovered__head:active {
+  transform: translateY(1px);
 }
 
 /* ---- Backing off (the live state) ----
@@ -369,7 +401,7 @@
 
 .copilot-recovered__chevron {
   flex-shrink: 0;
-  transition: transform 0.16s ease;
+  transition: transform var(--dur-hover) var(--ease-out);
 }
 
 .copilot-recovered.is-open .copilot-recovered__chevron {
