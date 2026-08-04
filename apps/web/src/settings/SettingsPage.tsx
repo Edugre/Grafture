@@ -14,6 +14,7 @@ import { useAllModels } from "../ai/useModels.js";
 import { useTargetPreference } from "../ai/targetPreference.js";
 import { useApiKeyContext } from "../copilot/ApiKeyContext.js";
 import { useAutoDraftPreference } from "../copilot/autoDraftPreference.js";
+import { resetOnboarding } from "../onboarding/index.js";
 import { useRerankPreference } from "../suggest/rerankPreference.js";
 import { useThemeContext, type Theme } from "../theme/ThemeContext.js";
 import {
@@ -370,6 +371,9 @@ const THEMES: Array<{ id: Theme; label: string; icon: ReactNode }> = [
 
 function AppearanceSection() {
   const { theme, setTheme } = useThemeContext();
+  // Confirms in place rather than by navigation: the tour itself only reappears once the user is
+  // back in the editor, so a button that just goes quiet reads as a button that did nothing.
+  const [replayQueued, setReplayQueued] = useState(false);
 
   return (
     <div className="settings__pane">
@@ -400,6 +404,28 @@ function AppearanceSection() {
         })}
       </div>
       <p className="settings__hint">Changes apply immediately and are saved to this browser.</p>
+
+      <h2 className="settings__section-heading">Onboarding</h2>
+      <p className="settings__field-label">
+        The guided tour of the editor — sources, canvas, suggestions, copilot, export.
+      </p>
+      <div className="settings__field-row">
+        <button
+          type="button"
+          className="settings__btn settings__btn--secondary"
+          onClick={() => {
+            resetOnboarding();
+            setReplayQueued(true);
+          }}
+        >
+          Replay tutorial
+        </button>
+      </div>
+      <p className="settings__hint">
+        {replayQueued
+          ? "The tour will start again the next time you open a project."
+          : "Shown once per browser. Replaying starts it again from step one."}
+      </p>
     </div>
   );
 }

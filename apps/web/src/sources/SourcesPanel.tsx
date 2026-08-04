@@ -1,5 +1,13 @@
 import { ParseError, type Source } from "@grafture/core";
-import { useCallback, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 
 import { useSchemaStore } from "../store/index.js";
 import type { PipelineStep } from "../ui/Pipeline.js";
@@ -34,6 +42,7 @@ function SourceCard({
   rowCount,
   nestedCount = 0,
   nested = false,
+  tourAnchor = false,
   expanded,
   onToggle,
   onBuildTable,
@@ -51,6 +60,8 @@ function SourceCard({
   nestedCount?: number;
   /** A child source, rendered indented under its parent. */
   nested?: boolean;
+  /** Carries the onboarding tour's `source-card` / `build-table` anchors (the first card only). */
+  tourAnchor?: boolean;
   expanded: boolean;
   onToggle: () => void;
   onBuildTable: () => void;
@@ -73,6 +84,7 @@ function SourceCard({
         nested ? " sources-panel__source--nested" : ""
       }`}
       data-source-id={sourceId}
+      {...(tourAnchor ? { "data-tour": "source-card" } : {})}
     >
       <button
         type="button"
@@ -94,7 +106,10 @@ function SourceCard({
       {expanded ? (
         <div className="sources-panel__source-body">
           {children}
-          <div className="sources-panel__source-actions">
+          <div
+            className="sources-panel__source-actions"
+            {...(tourAnchor ? { "data-tour": "build-table" } : {})}
+          >
             <button type="button" className="sources-panel__button" onClick={onBuildTable}>
               Build table
             </button>
@@ -116,9 +131,16 @@ function SourceCard({
 export function SourcesPanel({
   collapsed,
   onToggleCollapse,
+  tourExpandFirst = false,
 }: {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  /**
+   * The onboarding tour's "Build table" step needs the first card open to have anything to point
+   * at. It borrows the accordion for the length of that step and the panel puts back whatever was
+   * expanded before — the tour never leaves the panel rearranged.
+   */
+  tourExpandFirst?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Tracks drag enter/leave depth so the overlay doesn't flicker as the cursor
@@ -155,6 +177,39 @@ export function SourcesPanel({
   const toggleSource = (sourceId: string) => {
     setExpandedSourceId((current) => (current === sourceId ? null : sourceId));
   };
+
+  // What was expanded before the tour borrowed the accordion. `undefined` means "not borrowed",
+  // which is how a restore knows it has nothing to put back. `tourOpened` is which card the tour
+  // opened, so the restore can tell its own change from the user's.
+  const preTourExpanded = useRef<string | null | undefined>(undefined);
+  const tourOpened = useRef<string | null>(null);
+  const expandedRef = useRef(expandedSourceId);
+  expandedRef.current = expandedSourceId;
+
+  useEffect(() => {
+    if (!tourExpandFirst) {
+      if (preTourExpanded.current !== undefined) {
+        // Put back only what is still the tour's. The tour is non-blocking, so the user may well
+        // have opened a different card while it was on this step — reverting that would be the
+        // overlay undoing a deliberate click, which is worse than leaving the panel as they left it.
+        if (expandedRef.current === tourOpened.current) {
+          setExpandedSourceId(preTourExpanded.current);
+        }
+        preTourExpanded.current = undefined;
+        tourOpened.current = null;
+      }
+      return;
+    }
+    const first = groups[0]?.root.id;
+    if (!first) {
+      return;
+    }
+    if (preTourExpanded.current === undefined) {
+      preTourExpanded.current = expandedRef.current;
+    }
+    tourOpened.current = first;
+    setExpandedSourceId(first);
+  }, [tourExpandFirst, groups]);
 
   const ingestFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -325,7 +380,10 @@ export function SourcesPanel({
   };
 
   /** One source card with its clickable field list. Parent and nested cards render identically. */
-  const renderCard = (source: Source, opts: { nested?: boolean; nestedCount?: number }) => (
+  const renderCard = (
+    source: Source,
+    opts: { nested?: boolean; nestedCount?: number; tourAnchor?: boolean },
+  ) => (
     <SourceCard
       key={source.id}
       sourceId={source.id}
@@ -336,6 +394,7 @@ export function SourcesPanel({
       rowCount={source.rowCount}
       {...(opts.nested ? { nested: true } : {})}
       {...(opts.nestedCount ? { nestedCount: opts.nestedCount } : {})}
+      {...(opts.tourAnchor ? { tourAnchor: true } : {})}
       expanded={expandedSourceId === source.id}
       onToggle={() => toggleSource(source.id)}
       onBuildTable={() => handleBuildTable(source.id)}
@@ -430,6 +489,7 @@ export function SourcesPanel({
         {sources.length === 0 ? (
           <div
             className="sources-panel__dropzone"
+            data-tour="sources-empty"
             onClick={openFilePicker}
             role="button"
             tabIndex={0}
@@ -485,9 +545,12 @@ export function SourcesPanel({
             No sources yet. Upload a file to inspect its fields.
           </p>
         ) : (
-          groups.map((group) => (
+          groups.map((group, groupIndex) => (
             <div className="sources-panel__group" key={group.root.id}>
-              {renderCard(group.root, { nestedCount: group.children.length })}
+              {renderCard(group.root, {
+                nestedCount: group.children.length,
+                tourAnchor: groupIndex === 0,
+              })}
               {group.children.length > 0 ? (
                 <div className="sources-panel__nested">
                   {group.children.map((child) => renderCard(child, { nested: true }))}
