@@ -35,7 +35,12 @@ import {
 import { DEFAULT_MAX_ITERATIONS, type LoopOutcome, runCopilotLoop } from "./agentLoop.js";
 import { buildConversationHistory } from "./conversation.js";
 import { CopilotErrorRow, CopilotRecovered, CopilotRetrying } from "./CopilotError.js";
-import { type CopilotFailure, type FailureActionId, toProviderFailure } from "./failureCopy.js";
+import {
+  type CopilotFailure,
+  type FailureActionId,
+  describeFailure,
+  toProviderFailure,
+} from "./failureCopy.js";
 import { type ChatMessage, nextMessageId } from "./messages.js";
 import { warmDetectorFindings } from "./systemPrompt.js";
 
@@ -147,6 +152,12 @@ export function CopilotPanel({
   // transcript — what lands in history is the ledger it leaves behind.
   const [retrying, setRetrying] = useState<RetryProgress | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /**
+   * Spoken when a turn ends without a reply. Deliberately panel-level and written only from the
+   * failure path — a `role="alert"` on the card itself would also fire for every failure loaded
+   * out of a saved transcript, announcing week-old errors on project open.
+   */
+  const [announcement, setAnnouncement] = useState("");
   const retryLogRef = useRef<TurnRetryLog>({ attempts: [], elapsedMs: 0, stopped: false });
   const cancelledRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -255,6 +266,7 @@ export function CopilotPanel({
     const turnId = nextMessageId();
 
     setDraft("");
+    setAnnouncement("");
     appendChatMessages([{ id: nextMessageId(), role: "user", text }]);
     setBusy(true);
     cancelledRef.current = false;
@@ -362,6 +374,7 @@ export function CopilotPanel({
     if (error instanceof RetryStoppedError) {
       const log = takeRetryLog();
       const attempts = log.attempts.length > 0 ? log.attempts : error.attempts;
+      setAnnouncement("Stopped retrying.");
       return {
         id: nextMessageId(),
         role: "assistant",
@@ -374,6 +387,11 @@ export function CopilotPanel({
     const detail = failureDetail(error, sentText);
     const message =
       error instanceof Error ? error.message : "Something went wrong talking to the copilot.";
+    // Announce the card's own title, not the raw provider string — the title is the sentence the
+    // card was written to lead with, and the raw string is a JSON blob.
+    setAnnouncement(
+      detail ? `Copilot failed. ${describeFailure(detail).title}.` : `Copilot failed. ${message}`,
+    );
     return {
       id: nextMessageId(),
       role: "error",
@@ -415,6 +433,7 @@ export function CopilotPanel({
 
     onTabChange("chat");
     setDraft(""); // the kickoff seeded the input; clear it now that we're sending it ourselves
+    setAnnouncement("");
     appendChatMessages([{ id: nextMessageId(), role: "user", text: message }]);
     setBusy(true);
     cancelledRef.current = false;
@@ -624,6 +643,10 @@ export function CopilotPanel({
               </div>
             ) : (
               <div className="copilot-scroll">
+                {/* Always mounted so the text swap is what announces, not the node's arrival. */}
+                <span className="sr-only" role="status">
+                  {announcement}
+                </span>
                 {messages.length > 0 ? (
                   <div className="copilot-chat">
                     {messages.map((message) => {

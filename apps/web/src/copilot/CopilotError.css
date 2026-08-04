@@ -44,12 +44,15 @@
 }
 
 /* The real HTTP status, in mono, pushed right. Non-negotiable: it is the string users paste into a
-   bug report, and showing it keeps the wrapper honest — no invented friendlier codes. */
+   bug report, and showing it keeps the wrapper honest — no invented friendlier codes.
+   `--text-muted`, not `--text-faint`: the faint token is calibrated against `--bg-app`, and both
+   card tints are darker than that — it measured 3.78:1 on the danger ground at 11px. The string
+   the user is meant to copy into a bug report cannot be the least legible thing on the card. */
 .copilot-error__status {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--type-body-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .copilot-error__cause {
@@ -111,7 +114,8 @@
   font: inherit;
   font-size: var(--type-body-xs);
   font-weight: 500;
-  color: var(--text-faint);
+  /* On `--code-chip-bg`, not the page ground: `--text-faint` measured 3.98:1 here. */
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -153,18 +157,20 @@
   font-family: var(--font-mono);
   font-size: var(--type-body-xs);
   line-height: var(--leading-body-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .copilot-error__row-status {
   color: var(--text-mono);
 }
 
-/* An attempt that has not happened yet. Quieter than a real row so the ledger never implies a
-   result it does not have. */
+/* An attempt that has not happened yet. Quieter than a settled row so the ledger never implies a
+   result it doesn't have — but quiet by *token*, not by `opacity`. Multiplying an already-faint
+   colour by 0.65 dropped this to 2.2–3.2:1; the three levels are now three named tokens
+   (status → row → pending), each of which clears 4.5:1 on its own ground. Pending rows only ever
+   render inside the retrying box, which sits on `--surface` (4.72:1 light, 5.83:1 dark). */
 .copilot-error__row--pending {
   color: var(--text-faint);
-  opacity: 0.65;
 }
 
 .copilot-error__req {
@@ -175,7 +181,7 @@
   font-family: var(--font-mono);
   font-size: var(--type-body-xs);
   line-height: var(--leading-body-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .copilot-error__req span:last-child {
@@ -291,13 +297,15 @@
 }
 
 /* transform, not width: it stays off the layout path, and this animates while the panel is
-   otherwise idle. The duration is set inline to the actual wait, so the bar cannot overstate it. */
+   otherwise idle. `--countdown-ms` is set inline to the actual wait, so the bar cannot overstate
+   it — a custom property rather than `animation-duration` directly, so the reduced-motion rule
+   below can re-assert the same real value with `!important`. */
 .copilot-retrying__bar {
   height: 2px;
   width: 100%;
   background: var(--accent);
   transform-origin: left;
-  animation: copilot-countdown linear forwards;
+  animation: copilot-countdown var(--countdown-ms, 0ms) linear forwards;
 }
 
 @keyframes copilot-countdown {
@@ -309,10 +317,14 @@
   }
 }
 
+/* This bar is a functional timer, not decoration — the same case `SuggestionsToast.css` already
+   carves out. Collapsing it to the global 0.01ms floor left a full-width bar frozen for the whole
+   wait, which reads as a stalled progress bar: worse than no bar. Keep the true duration; a 2px
+   linear depletion carries no vestibular risk. `!important` is what outranks the blanket rule in
+   index.css. */
 @media (prefers-reduced-motion: reduce) {
   .copilot-retrying__bar {
-    animation: none;
-    transform: scaleX(1);
+    animation-duration: var(--countdown-ms, 0ms) !important;
   }
 }
 
@@ -333,7 +345,8 @@
   font: inherit;
   font-size: var(--type-body-xs);
   line-height: var(--leading-body-xs);
-  color: var(--text-faint);
+  /* 4.36:1 as `--text-faint` on `--bg-panel` — under the floor at 11px. */
+  color: var(--text-muted);
   cursor: pointer;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import type { Attempt, RetryProgress } from "../ai/retry.js";
 import { validateCredentialLive } from "../ai/validateCredential.js";
@@ -298,6 +298,14 @@ export function CopilotRetrying({ progress }: { progress: RetryProgress }) {
 
   return (
     <div className="copilot-retrying">
+      {/* This block replaces the "Thinking…" status, which carried `role="status"` — without a live
+          region of its own, a screen-reader user would get no announcement that the turn moved from
+          thinking to backing off. The visible text ticks every 200ms and is deliberately NOT the
+          announced string: a countdown re-read five times a second is worse than silence. This
+          summary changes only when the attempt number does, so it speaks once per attempt. */}
+      <span className="sr-only" role="status">
+        {label}. Retrying, attempt {attempts.length + 1} of {maxAttempts}.
+      </span>
       <div className="copilot-retrying__head">
         <ClockIcon size={15} className="copilot-retrying__icon" />
         <span className="copilot-retrying__text">
@@ -321,12 +329,13 @@ export function CopilotRetrying({ progress }: { progress: RetryProgress }) {
         ) : null}
       </div>
       {/* Scaled, not width-animated: transform stays off the layout path, and this runs while the
-          panel is otherwise idle. The duration is the actual wait, so the bar cannot lie. */}
+          panel is otherwise idle. The duration is the actual wait, so the bar cannot lie — it
+          rides a custom property so the reduced-motion rule can re-assert the same real value. */}
       <div className="copilot-retrying__track">
         <div
           className="copilot-retrying__bar"
           key={progress.nextAttemptAt}
-          style={{ animationDuration: `${waitMs}ms` }}
+          style={{ "--countdown-ms": `${waitMs}ms` } as CSSProperties}
         />
       </div>
     </div>
