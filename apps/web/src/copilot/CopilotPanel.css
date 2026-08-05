@@ -276,8 +276,13 @@
   color: var(--text);
 }
 
+/* The pre-card fallback: a raw provider message, still what transcripts saved before the failure
+   cards existed contain. Those messages are an unbroken JSON blob with no space to break at, which
+   pushed the whole panel into horizontal scroll (751px of content in a 305px column). */
 .copilot-body--error {
   color: var(--danger-text);
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* ---- Inline suggestion/applied/rejected chips ---- */
@@ -341,7 +346,7 @@
 .copilot-applied__chevron {
   flex-shrink: 0;
   color: var(--text-faint);
-  transition: transform 0.16s ease;
+  transition: transform var(--dur-hover) var(--ease-out);
 }
 
 .copilot-applied.is-open .copilot-applied__chevron {
@@ -356,7 +361,7 @@
 
 .copilot-applied__item {
   font-size: var(--type-body-sm);
-  line-height: 18px;
+  line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
 }
 

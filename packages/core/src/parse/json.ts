@@ -218,7 +218,7 @@ export function parseJson(input: string, name: string, opts?: ParseOptions): Sou
   try {
     parsed = JSON.parse(input);
   } catch {
-    throw new ParseError(`Unable to parse JSON in "${name}"`);
+    throw new ParseError("Not valid JSON — check for a trailing comma or an unclosed brace", name);
   }
 
   const makeId = resolveMakeId(opts);

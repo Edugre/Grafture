@@ -1,4 +1,7 @@
 .app-root {
+  /* The onboarding tour's positioning context: its spotlight and card are absolutely placed in
+     shell-relative coordinates, and the shell has to include the top bar (the Export step). */
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -332,6 +335,14 @@
 .canvas-tools__icon:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Provenance / undo / redo / history — grouped so the onboarding tour can ring them as one
+   control cluster. Transparent to layout: same flex row, same 4px rhythm as its siblings. */
+.canvas-tools__cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .canvas-tools__divider {

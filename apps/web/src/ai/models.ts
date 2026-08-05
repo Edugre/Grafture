@@ -1,10 +1,10 @@
 import type { ModelInfo } from "@grafture/core";
 
 /**
- * The model used when no preference is saved. Kept at Sonnet 4.6 to preserve the app's original
- * cost/behavior; the Settings picker is how users opt into Opus/Fable tiers.
+ * The model used when no preference is saved. Kept on the Sonnet tier to preserve the app's
+ * original cost/behavior; the Settings picker is how users opt into Opus/Fable tiers.
  */
-export const DEFAULT_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_MODEL = "claude-sonnet-5";
 
 /**
  * Curated fallback catalog, shown when the live Models API can't be reached (no key, offline, or
@@ -12,6 +12,8 @@ export const DEFAULT_MODEL = "claude-sonnet-4-6";
  * here and the live list is filtered to match ({@link isSelectableModel}).
  */
 export const MODEL_CATALOG: ModelInfo[] = [
+  { id: "claude-opus-5", displayName: "Claude Opus 5", maxInputTokens: 1_000_000 },
+  { id: "claude-sonnet-5", displayName: "Claude Sonnet 5", maxInputTokens: 1_000_000 },
   { id: "claude-opus-4-8", displayName: "Claude Opus 4.8", maxInputTokens: 1_000_000 },
   { id: "claude-sonnet-4-6", displayName: "Claude Sonnet 4.6", maxInputTokens: 1_000_000 },
 ];

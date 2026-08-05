@@ -378,6 +378,26 @@ describe("parseXlsx", () => {
     return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
   }
 
+  it("reports an unreadable workbook without repeating the file name", () => {
+    // A ZIP local-file header followed by junk — enough for SheetJS to commit to unzipping and
+    // then fail, which is the branch that raises ParseError.
+    const corrupt = new Uint8Array(64);
+    corrupt.set([0x50, 0x4b, 0x03, 0x04]); // "PK\x03\x04"
+    corrupt.fill(7, 4);
+
+    let thrown: unknown;
+    try {
+      parseXlsx(corrupt.buffer, "books.xlsx", opts);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ParseError);
+    const failure = thrown as ParseError;
+    expect(failure.sourceName).toBe("books.xlsx");
+    expect(failure.message).not.toContain("books.xlsx");
+  });
+
   it("prefixes field names when multiple non-empty sheets exist", () => {
     const buffer = workbookBuffer({
       People: [
@@ -499,6 +519,23 @@ describe("parseJson", () => {
 
   it("throws ParseError for malformed JSON", () => {
     expect(() => parseJson("{not json", "bad.json", opts)).toThrow(ParseError);
+  });
+
+  it("carries the file name out of band, not inside the message", () => {
+    // Callers render the file name themselves (a row heading, a "name: reason" banner). A name
+    // inside the message too produced `bad.json: Unable to parse JSON in "bad.json"`.
+    let thrown: unknown;
+    try {
+      parseJson("{not json", "bad.json", opts);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ParseError);
+    const failure = thrown as ParseError;
+    expect(failure.sourceName).toBe("bad.json");
+    expect(failure.message).not.toContain("bad.json");
+    expect(failure.message.length).toBeGreaterThan(0);
   });
 
   it("uses injected makeId for Source id", () => {

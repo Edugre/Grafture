@@ -350,20 +350,26 @@ describe("schemaStore", () => {
   describe("undo and redo", () => {
     it("caps the undo stack at HISTORY_LIMIT, dropping the oldest snapshots", () => {
       const history = createHistoryController();
-      const snapshot = (marker: number) => ({
-        schema: { tables: [], relationships: [] },
-        sources: [],
-        selection: { tableId: `t-${marker}` },
+      const entry = (marker: number) => ({
+        snapshot: {
+          schema: { tables: [], relationships: [] },
+          sources: [],
+          selection: { tableId: `t-${marker}` },
+        },
+        label: `step ${marker}`,
+        details: [],
+        actor: "user" as const,
+        at: marker,
       });
 
       for (let index = 0; index < HISTORY_LIMIT + 5; index += 1) {
-        pushHistory(history, snapshot(index));
+        pushHistory(history, entry(index));
       }
 
       expect(history.past).toHaveLength(HISTORY_LIMIT);
       // The five oldest entries were dropped, not the newest.
-      expect(history.past[0]?.selection.tableId).toBe("t-5");
-      expect(history.past.at(-1)?.selection.tableId).toBe(`t-${HISTORY_LIMIT + 4}`);
+      expect(history.past[0]?.snapshot.selection.tableId).toBe("t-5");
+      expect(history.past.at(-1)?.snapshot.selection.tableId).toBe(`t-${HISTORY_LIMIT + 4}`);
     });
 
     it("undoes and redoes schema mutations from runActions", () => {

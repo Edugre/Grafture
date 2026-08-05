@@ -1,0 +1,171 @@
+/* The history stack: a popover hung off the canvas toolbar, next to the undo/redo buttons it
+   expands on. Anchored to its trigger rather than floated on the canvas so the two read as one
+   control — the buttons take one step, the box takes any number. */
+.history-box {
+  position: relative;
+  display: inline-flex;
+}
+
+.history-box__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 10;
+  width: 268px;
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface);
+  box-shadow: var(--shadow-node);
+}
+
+.history-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 6px;
+}
+
+.history-box__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.history-box__count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.history-box__list {
+  /* Ten-ish rows, then scroll: the stack holds up to HISTORY_LIMIT steps and a popover that grows
+     past the canvas is worse than one that scrolls. */
+  max-height: 264px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* Row + disclosure share a line; the row takes the remaining width. */
+.history-box__entry {
+  display: flex;
+  align-items: center;
+}
+
+.history-box__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-box__row:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.history-box__disclosure {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  margin-left: 2px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform var(--dur-fast, 120ms) var(--ease-out, ease);
+}
+
+.history-box__disclosure:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.history-box__disclosure.is-open {
+  transform: rotate(180deg);
+}
+
+/* The actions inside one batched step. Indented under their row and typed a size down: this is
+   the detail behind the step, not a list of steps you can travel to individually — the stack
+   moves in whole commits. */
+.history-box__details {
+  margin: 0 0 4px;
+  padding: 2px 0 2px 25px;
+  list-style: none;
+  border-left: 1px solid var(--border-subtle);
+  margin-left: 15px;
+}
+
+.history-box__detail {
+  padding: 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* Already walked back. Dimmed rather than hidden — an undone step is still a step you can return
+   to, and hiding it is how a redo stack becomes invisible. */
+.history-box__row.is-undone {
+  opacity: 0.5;
+}
+
+.history-box__row.is-current {
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  cursor: default;
+}
+
+.history-box__label {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.history-box__actor {
+  flex: none;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.history-box__time {
+  flex: none;
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The base row has no actor, so it gets a neutral tick instead of a provenance dot. */
+.history-box__base-dot {
+  flex: none;
+  width: 8px;
+  height: 1.5px;
+  margin-right: 7px;
+  border-radius: 1px;
+  background: var(--border-strong, var(--border-subtle));
+}
+
+.history-box__empty {
+  margin: 0;
+  padding: 6px 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}

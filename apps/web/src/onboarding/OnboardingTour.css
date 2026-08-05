@@ -1,0 +1,246 @@
+/* Hallmark · component: overlay (first-run tour) · genre: modern-minimal
+ * theme: project tokens (index.css) · nav/footer/macrostructure: n/a (component scope)
+ * states: default · hover · focus-visible · active · disabled
+ * contrast: pass (40–41) · tokens: pass (48) · mobile: pass (34, 49)
+ * pre-emit critique: P5 H5 E4 S5 R4 V5
+ */
+
+/* First-run tour overlay. Everything is positioned against the editor shell (`.app-root`), which
+   is `position: relative` for exactly this reason.
+
+   The tour is deliberately non-blocking: the scrim never takes pointer events, so the app under it
+   stays live and a user who wants to try the thing being described can. Only the card itself is
+   clickable. */
+
+.tour {
+  position: absolute;
+  inset: 0;
+  z-index: 55; /* above the canvas chrome (5) and the toast, below a confirm dialog (60) */
+  pointer-events: none;
+  /* The spotlight's 9999px shadow is drawn well outside the shell; without this it gives the
+     document a scrollbar and lets the user scroll the whole editor sideways. */
+  overflow: hidden;
+}
+
+/* One element, not two and not an SVG mask: a 9999px outer shadow hole-punches the scrim for free,
+   so the dim and the hole can never drift apart while the ring is moving. */
+.tour__spotlight {
+  position: absolute;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px var(--scrim-strong);
+  pointer-events: none;
+}
+
+/* Untargeted steps (first and last) collapse the box to nothing at the shell's center, which leaves
+   the shadow as a plain full-surface scrim. No border and no transition — there is nothing to ring,
+   and animating a zero-size box across the shell is motion with no meaning.
+
+   The ring is two layers. The accent line alone measured 1.67:1 against the light-theme scrim
+   (`--accent` on white dimmed 44% reads as mid-grey), so the surface-coloured halo outside it gives
+   the line a second edge to work against: 4.7:1 in light, 4.0:1 in dark, on both sides.
+
+   This is the one place in the file that animates layout properties. The spotlight's geometry *is*
+   the hole — a `transform` would scale the 1px border and the corner radius along with it, and the
+   ring would stop tracing the control it points at. The card and the progress fill both animate on
+   `transform` precisely because they don't have that constraint. */
+.tour__spotlight.is-targeted {
+  border: 1px solid var(--accent);
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 9999px var(--scrim-strong);
+  transition:
+    left var(--dur-overlay) var(--ease-in-out),
+    top var(--dur-overlay) var(--ease-in-out),
+    width var(--dur-overlay) var(--ease-in-out),
+    height var(--dur-overlay) var(--ease-in-out);
+}
+
+.tour__card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  max-width: calc(100% - var(--space-7));
+  padding: var(--space-chrome-4) var(--space-chrome-5) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  pointer-events: auto;
+  transition: transform var(--dur-overlay) var(--ease-in-out);
+}
+
+/* The card is focused on every step change so the new copy is what a screen reader lands on. It is
+   never in the tab order (`tabindex="-1"`), so the global focus ring would only ever fire on that
+   programmatic focus — as a detached halo around a 396px box. Inset instead, tracing the card's own
+   radius: still visible, no longer a second border floating outside the first. */
+.tour .tour__card:focus-visible {
+  outline: 2px solid var(--accent);
+  /* Restated at higher specificity than index.css's `[tabindex]:focus-visible`, which is an equal
+     match — leaving this to source order would make it depend on bundler chunking. */
+  outline-offset: -2px;
+}
+
+.tour__eyebrow-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.tour__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.tour__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  /* Pulled back into the card's own padding so the label's box hangs off the corner rather than
+     insetting from it — the optical edge is the text, not the hit area. */
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-1)) 0 auto;
+  padding: var(--space-chrome-0) var(--space-chrome-1);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--type-body-sm);
+  line-height: var(--leading-body-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--dur-hover) var(--ease-out);
+}
+
+.tour__skip:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.tour__skip:active {
+  background: var(--surface-hover);
+}
+
+.tour__title {
+  margin: var(--space-chrome-2) 0 0;
+  font-size: var(--type-heading-md);
+  line-height: var(--leading-heading-md);
+  font-weight: 600;
+  color: var(--text-strong);
+  text-wrap: pretty;
+}
+
+.tour__body {
+  margin: var(--space-2) 0 0;
+  font-size: var(--type-body-lg);
+  line-height: var(--leading-body-lg);
+  font-weight: 400;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.tour__note {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-chrome-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  line-height: var(--leading-mono-sm);
+  color: var(--text-muted);
+  /* Notes carry file names and shortcuts — one long identifier must break rather than push the
+     card wider than the measure it was placed at. */
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.tour__progress {
+  height: 2px;
+  margin-top: var(--space-chrome-4);
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+/* Full width, scaled from the left — so the fill grows on `transform`, not on `width`. */
+.tour__progress-fill {
+  height: 2px;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--accent);
+  transition: transform var(--dur-overlay) var(--ease-in-out);
+}
+
+.tour__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-chrome-3);
+}
+
+.tour__counter {
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  line-height: var(--leading-mono-sm);
+  color: var(--text-faint);
+}
+
+.tour__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.tour__btn {
+  height: 32px;
+  padding: 0 var(--space-chrome-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--type-body-md);
+  font-weight: 500;
+  /* Back / Next / Start building are one-line affordances at any width the card is placed at. */
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-hover) var(--ease-out),
+    border-color var(--dur-hover) var(--ease-out);
+}
+
+.tour__btn:hover {
+  background: var(--surface-strong);
+}
+
+.tour__btn:active {
+  background: var(--surface-hover);
+}
+
+.tour__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tour__btn--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tour__btn--primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+/* Pressed reads as a step past hover, not a return to rest — accent-700, the same value the
+   eyebrow is set in. */
+.tour__btn--primary:active {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+/* Reduced motion is already handled by the blanket rule in index.css, which zeroes every
+   transition duration — including the spotlight's, which is the one that matters here. */

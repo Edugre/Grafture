@@ -11,6 +11,7 @@ import type { Connection, EdgeChange, NodeChange, ReactFlowInstance } from "@xyf
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { HistoryBox, useHistoryShortcuts } from "../history/index.js";
 import { useSchemaStore } from "../store/index.js";
 import { useSuggestions } from "../suggest/index.js";
 import {
@@ -102,6 +103,10 @@ export function CanvasPanel({
   const setReviewMode = useSchemaStore((state) => state.setReviewMode);
   const canUndo = useSchemaStore((state) => state.canUndo());
   const canRedo = useSchemaStore((state) => state.canRedo());
+
+  // ⌘Z / ⌘⇧Z. Bound from here because the canvas mounts exactly when the editor is open, but the
+  // listener is document-level so the shortcut also works from the sources and copilot panels.
+  useHistoryShortcuts();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<TableFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RelationshipFlowEdge>([]);
@@ -331,7 +336,7 @@ export function CanvasPanel({
             </div>
           ) : null}
         </div>
-        <div className="canvas-tools">
+        <div className="canvas-tools" data-tour="canvas-toolbar">
           <button
             type="button"
             className="canvas-tools__btn"
@@ -342,37 +347,42 @@ export function CanvasPanel({
             <span>Table</span>
           </button>
           <span className="canvas-tools__divider" />
-          <button
-            type="button"
-            className={`canvas-tools__icon${reviewMode ? " is-active" : ""}`}
-            onClick={() => setReviewMode(!reviewMode)}
-            title={reviewMode ? "Hide where things came from" : "Show where things came from"}
-            aria-label="Toggle provenance review mode"
-            aria-pressed={reviewMode}
-          >
-            <ProvenanceIcon size={15} />
-          </button>
-          <span className="canvas-tools__divider" />
-          <button
-            type="button"
-            className="canvas-tools__icon"
-            onClick={undo}
-            disabled={!canUndo}
-            title="Undo"
-            aria-label="Undo"
-          >
-            <UndoIcon size={15} />
-          </button>
-          <button
-            type="button"
-            className="canvas-tools__icon"
-            onClick={redo}
-            disabled={!canRedo}
-            title="Redo"
-            aria-label="Redo"
-          >
-            <RedoIcon size={15} />
-          </button>
+          {/* Provenance, undo, redo, and history read as one group and the tour rings them as one,
+              so they get a wrapper rather than four sibling anchors. */}
+          <div className="canvas-tools__cluster" data-tour="provenance">
+            <button
+              type="button"
+              className={`canvas-tools__icon${reviewMode ? " is-active" : ""}`}
+              onClick={() => setReviewMode(!reviewMode)}
+              title={reviewMode ? "Hide where things came from" : "Show where things came from"}
+              aria-label="Toggle provenance review mode"
+              aria-pressed={reviewMode}
+            >
+              <ProvenanceIcon size={15} />
+            </button>
+            <span className="canvas-tools__divider" />
+            <button
+              type="button"
+              className="canvas-tools__icon"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (⌘Z)"
+              aria-label="Undo"
+            >
+              <UndoIcon size={15} />
+            </button>
+            <button
+              type="button"
+              className="canvas-tools__icon"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (⌘⇧Z)"
+              aria-label="Redo"
+            >
+              <RedoIcon size={15} />
+            </button>
+            <HistoryBox />
+          </div>
           {tableCount > 0 ? (
             <>
               <span className="canvas-tools__divider" />

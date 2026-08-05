@@ -1,14 +1,31 @@
 import { ParseError, type Source } from "@grafture/core";
-import { useCallback, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 
 import { useSchemaStore } from "../store/index.js";
+import type { PipelineStep } from "../ui/Pipeline.js";
 import { BranchIcon, ChevronDownIcon, FileIcon, PanelOpenIcon, PlusIcon } from "../ui/icons.js";
 import { addSourceFieldToTable, buildTableFromSource, formatSample } from "./buildFromSource.js";
 import { childLabel, groupSources } from "./groupSources.js";
+import { ParsingOverlay } from "./ParsingOverlay.js";
 import "./SourcesPanel.css";
+import { nextPaint } from "./nextPaint.js";
 import { readAndParseFile } from "./readAndParse.js";
 
 const ACCEPTED_EXTENSIONS = ".csv,.tsv,.xlsx,.xls,.json";
+
+/**
+ * How long parsing may run before the overlay appears. Under this, the files are read before a
+ * progress surface would have been legible and flashing one is worse than showing nothing.
+ */
+const OVERLAY_AFTER_MS = 180;
 
 type PanelMessage = { kind: "error"; text: string } | { kind: "info"; text: string } | null;
 
@@ -25,6 +42,7 @@ function SourceCard({
   rowCount,
   nestedCount = 0,
   nested = false,
+  tourAnchor = false,
   expanded,
   onToggle,
   onBuildTable,
@@ -42,6 +60,8 @@ function SourceCard({
   nestedCount?: number;
   /** A child source, rendered indented under its parent. */
   nested?: boolean;
+  /** Carries the onboarding tour's `source-card` / `build-table` anchors (the first card only). */
+  tourAnchor?: boolean;
   expanded: boolean;
   onToggle: () => void;
   onBuildTable: () => void;
@@ -64,6 +84,7 @@ function SourceCard({
         nested ? " sources-panel__source--nested" : ""
       }`}
       data-source-id={sourceId}
+      {...(tourAnchor ? { "data-tour": "source-card" } : {})}
     >
       <button
         type="button"
@@ -85,7 +106,10 @@ function SourceCard({
       {expanded ? (
         <div className="sources-panel__source-body">
           {children}
-          <div className="sources-panel__source-actions">
+          <div
+            className="sources-panel__source-actions"
+            {...(tourAnchor ? { "data-tour": "build-table" } : {})}
+          >
             <button type="button" className="sources-panel__button" onClick={onBuildTable}>
               Build table
             </button>
@@ -107,9 +131,16 @@ function SourceCard({
 export function SourcesPanel({
   collapsed,
   onToggleCollapse,
+  tourExpandFirst = false,
 }: {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  /**
+   * The onboarding tour's "Build table" step needs the first card open to have anything to point
+   * at. It borrows the accordion for the length of that step and the panel puts back whatever was
+   * expanded before — the tour never leaves the panel rearranged.
+   */
+  tourExpandFirst?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Tracks drag enter/leave depth so the overlay doesn't flicker as the cursor
@@ -118,6 +149,11 @@ export function SourcesPanel({
   const [dragActive, setDragActive] = useState(false);
   const [message, setMessage] = useState<PanelMessage>(null);
   const [busy, setBusy] = useState(false);
+  // One step per file in the current ingest. `settled` flips the overlay from a live count to a
+  // dismissible failure report; `overlayShown` gates it on the anti-flash delay below.
+  const [steps, setSteps] = useState<PipelineStep[]>([]);
+  const [settled, setSettled] = useState(false);
+  const [overlayShown, setOverlayShown] = useState(false);
   // Accordion: at most one source expanded at a time. `null` means all collapsed (the default).
   const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
 
@@ -142,6 +178,39 @@ export function SourcesPanel({
     setExpandedSourceId((current) => (current === sourceId ? null : sourceId));
   };
 
+  // What was expanded before the tour borrowed the accordion. `undefined` means "not borrowed",
+  // which is how a restore knows it has nothing to put back. `tourOpened` is which card the tour
+  // opened, so the restore can tell its own change from the user's.
+  const preTourExpanded = useRef<string | null | undefined>(undefined);
+  const tourOpened = useRef<string | null>(null);
+  const expandedRef = useRef(expandedSourceId);
+  expandedRef.current = expandedSourceId;
+
+  useEffect(() => {
+    if (!tourExpandFirst) {
+      if (preTourExpanded.current !== undefined) {
+        // Put back only what is still the tour's. The tour is non-blocking, so the user may well
+        // have opened a different card while it was on this step — reverting that would be the
+        // overlay undoing a deliberate click, which is worse than leaving the panel as they left it.
+        if (expandedRef.current === tourOpened.current) {
+          setExpandedSourceId(preTourExpanded.current);
+        }
+        preTourExpanded.current = undefined;
+        tourOpened.current = null;
+      }
+      return;
+    }
+    const first = groups[0]?.root.id;
+    if (!first) {
+      return;
+    }
+    if (preTourExpanded.current === undefined) {
+      preTourExpanded.current = expandedRef.current;
+    }
+    tourOpened.current = first;
+    setExpandedSourceId(first);
+  }, [tourExpandFirst, groups]);
+
   const ingestFiles = useCallback(
     async (files: FileList | File[]) => {
       const list = Array.from(files);
@@ -151,39 +220,74 @@ export function SourcesPanel({
 
       setBusy(true);
       setMessage(null);
+      setSettled(false);
+      // Seed one step per file up front so the overlay opens showing the whole queue, not a
+      // list that grows a row at a time.
+      setSteps(
+        list.map((file, index) => ({
+          id: `${index}:${file.name}`,
+          label: file.name,
+          state: "pending",
+        })),
+      );
 
-      const errors: string[] = [];
-      let added = 0;
+      // A handful of small CSVs parse in well under a frame. Showing the overlay for 40ms reads
+      // as a glitch, so it only appears if the work actually outlives the delay — the same floor
+      // the New Project modal uses before morphing.
+      const reveal = window.setTimeout(() => setOverlayShown(true), OVERLAY_AFTER_MS);
 
-      for (const file of list) {
+      const patch = (id: string, next: Partial<PipelineStep>) => {
+        setSteps((current) =>
+          current.map((step) => (step.id === id ? { ...step, ...next } : step)),
+        );
+      };
+
+      let failures = 0;
+
+      // Sequential on purpose: parsing is synchronous CPU work, so running it in parallel would
+      // interleave into one long freeze with nothing to show. One at a time gives every file a
+      // real parsing state and keeps the frame budget for painting it.
+      for (const [index, file] of list.entries()) {
+        const id = `${index}:${file.name}`;
+        patch(id, { state: "active" });
+        await nextPaint();
         try {
-          const sources = await readAndParseFile(file);
-          addSources(sources);
-          added += 1;
+          const parsed = await readAndParseFile(file);
+          addSources(parsed);
+          const columns = parsed[0]?.fields.length ?? 0;
+          const nested = parsed.length - 1;
+          patch(id, {
+            state: "done",
+            detail: `${columns} ${columns === 1 ? "column" : "columns"}${
+              nested > 0 ? ` · ${nested} nested ${nested === 1 ? "table" : "tables"}` : ""
+            }`,
+          });
         } catch (error) {
+          failures += 1;
+          // The reason only — the step's own label above it is the file name, and ParseError
+          // deliberately keeps the name out of `message` (see core's ParseError).
           const text =
-            error instanceof ParseError
+            error instanceof ParseError || error instanceof Error
               ? error.message
-              : error instanceof Error
-                ? error.message
-                : "Failed to parse file";
-          errors.push(`${file.name}: ${text}`);
+              : "Failed to parse file";
+          patch(id, { state: "failed", detail: text });
         }
       }
 
-      if (errors.length > 0) {
-        setMessage({ kind: "error", text: errors.join(" ") });
-      } else if (added > 0) {
-        setMessage({
-          kind: "info",
-          text:
-            added === 1
-              ? "File parsed locally — nothing was uploaded."
-              : `${added} files parsed locally — nothing was uploaded.`,
-        });
-      }
-
+      window.clearTimeout(reveal);
       setBusy(false);
+
+      if (failures === 0) {
+        // Silent success: the new source cards behind the overlay are the confirmation, so close
+        // rather than make the user dismiss a banner that only says what they can already see.
+        setSteps([]);
+        setOverlayShown(false);
+      } else {
+        // A failure must be readable regardless of how fast it happened — an unparseable file
+        // fails almost instantly, which is exactly when the anti-flash delay would have hidden it.
+        setSettled(true);
+        setOverlayShown(true);
+      }
     },
     [addSources],
   );
@@ -276,7 +380,10 @@ export function SourcesPanel({
   };
 
   /** One source card with its clickable field list. Parent and nested cards render identically. */
-  const renderCard = (source: Source, opts: { nested?: boolean; nestedCount?: number }) => (
+  const renderCard = (
+    source: Source,
+    opts: { nested?: boolean; nestedCount?: number; tourAnchor?: boolean },
+  ) => (
     <SourceCard
       key={source.id}
       sourceId={source.id}
@@ -287,6 +394,7 @@ export function SourcesPanel({
       rowCount={source.rowCount}
       {...(opts.nested ? { nested: true } : {})}
       {...(opts.nestedCount ? { nestedCount: opts.nestedCount } : {})}
+      {...(opts.tourAnchor ? { tourAnchor: true } : {})}
       expanded={expandedSourceId === source.id}
       onToggle={() => toggleSource(source.id)}
       onBuildTable={() => handleBuildTable(source.id)}
@@ -381,6 +489,7 @@ export function SourcesPanel({
         {sources.length === 0 ? (
           <div
             className="sources-panel__dropzone"
+            data-tour="sources-empty"
             onClick={openFilePicker}
             role="button"
             tabIndex={0}
@@ -436,9 +545,12 @@ export function SourcesPanel({
             No sources yet. Upload a file to inspect its fields.
           </p>
         ) : (
-          groups.map((group) => (
+          groups.map((group, groupIndex) => (
             <div className="sources-panel__group" key={group.root.id}>
-              {renderCard(group.root, { nestedCount: group.children.length })}
+              {renderCard(group.root, {
+                nestedCount: group.children.length,
+                tourAnchor: groupIndex === 0,
+              })}
               {group.children.length > 0 ? (
                 <div className="sources-panel__nested">
                   {group.children.map((child) => renderCard(child, { nested: true }))}
@@ -448,6 +560,18 @@ export function SourcesPanel({
           ))
         )}
       </div>
+
+      {overlayShown && steps.length > 0 ? (
+        <ParsingOverlay
+          steps={steps}
+          settled={settled}
+          onDismiss={() => {
+            setSteps([]);
+            setSettled(false);
+            setOverlayShown(false);
+          }}
+        />
+      ) : null}
 
       {dragActive ? (
         <div className="sources-panel__drag-overlay" aria-hidden>

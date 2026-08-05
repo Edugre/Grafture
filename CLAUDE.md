@@ -35,20 +35,38 @@ must stay fully usable offline with the user's own API key.
 
 A `Schema` is `{ tables: Table[], relationships: Relationship[] }`.
 
-- `Table`: `{ id, name, x, y, width?, fields: Field[] }`
-- `Field`: `{ id, name, type, pk: boolean, fk: boolean }`
-- `Relationship`: `{ id, fromTable, fromField, toTable, toField, cardinality: "1:1" | "1:N" | "N:M" }`
+- `Table`: `{ id, name, x, y, width?, fields: Field[], provenance? }`
+- `Field`: `{ id, name, type, pk: boolean, fk: boolean, provenance? }`
+- `Relationship`: `{ id, fromTable, fromField, toTable, toField, cardinality: "1:1" | "1:N" | "N:M", provenance? }`
+
+`Provenance` is `{ origin: "ai" | "user" | "imported", touched: boolean, rationale? }` and
+`Rationale` is `{ text, evidence: string[], turnId? }` (`packages/core/src/model.ts`). It is
+**optional everywhere** — absent provenance reads as user-owned and is never back-filled, so
+schemas saved before it existed still load. Two invariants: provenance covers an entity's **own**
+attributes only (a table's is about its name; "is this table AI-generated?" is _derived_ from its
+fields, never stored), and `origin`/`touched` are two independent bits rather than one enum so the
+mixed cases stay representable.
 
 The AI mutates the canvas only through the **action protocol** — a discriminated union
 validated by zod in `packages/core` (the `op` discriminants in
-`packages/core/src/actions.ts` are the source of truth; 11 ops as of 2026-07-03):
+`packages/core/src/actions.ts` are the source of truth; 11 ops as of 2026-08-03):
 `add_table | add_field | remove_field | remove_table | rename_table | rename_field | add_relationship | remove_relationship | set_pk | set_type | set_cardinality`.
+
+Five ops accept an optional `rationale` (`add_table`, `add_relationship`, `set_pk`, `set_type`,
+`set_cardinality`). **It is declared as the first key on every op that takes one, and that order
+is load-bearing** — generation is autoregressive, so a reason emitted before the decision
+conditions it, while one emitted after can only defend a choice already made. Nothing in the JSON
+Schema enforces the order (the response tool types actions as a loose `object[]`); the system
+prompt is the only enforcement, so don't reorder those fields.
 
 Task status and current-state facts live in `HANDOFF.md` — it wins on **facts**; this
 file wins on **rules**.
 
-`applyActions(schema, actions)` in core is a **pure, tested** function. AI output and
-manual edits both flow through it.
+`applyActions(schema, actions, opts?)` in core is a **pure, tested** function. AI output and
+manual edits both flow through it. `opts.actor: Origin` (default `"user"`) is what stamps
+provenance — core cannot infer who is acting when both paths share one function, so **every
+caller declares it**: the copilot passes `"ai"`, building a table from a parsed file passes
+`"imported"`, everything else takes the default. A rationale on a non-AI actor is dropped.
 
 ## Hard rules
 
@@ -57,7 +75,10 @@ manual edits both flow through it.
   touches state. **Invalid actions are rejected and surfaced to the user, never silently
   dropped.** (The prototype silently no-oped on bad field names — do not reproduce that.)
 - All canvas mutations go through the store's typed commands so undo/redo stays correct.
-  Never mutate diagram state directly.
+  Never mutate diagram state directly. **Every command also names its history step** — a
+  `{ label, actor }` pushed with the snapshot, which is what the history box lists. A step with
+  no name is a step the user cannot recognise, so a new command must supply one; label from what
+  `applyActions` applied, never from what was requested.
 - Core logic (parsers, exporters, `applyActions`) requires vitest tests. Don't land core
   changes without them.
 - Keep `packages/core` free of React and of any network/server code.
@@ -65,6 +86,20 @@ manual edits both flow through it.
   detector block is expensive (~3.7s on real files) and is cached on source identity and
   prewarmed on idle in `copilot/systemPrompt.ts` — a detector that reads the schema, the clock,
   or any other state would silently serve stale findings. Never do that work on the send path.
+- **Provenance is written once and never rewritten.** `origin` is set at creation; `touched` is
+  monotonic (false→true, never cleared except by a freshly written rationale); a rationale is
+  frozen at write time and is never user-editable — an explanation the user can rewrite is
+  worthless as a record. Never back-fill provenance onto an entity that lacks it.
+- **Copilot tools are declared once, in the shared registry** (`copilot/investigationTools.ts`:
+  `INVESTIGATION_TOOLS`, `isInvestigationTool`, `runInvestigationTool`, `ToolSpec`). Both provider
+  families offer and dispatch through it, so adding a tool is one edit — not a registration plus a
+  dispatch arm per provider, which is how a tool got offered but never routed. Read a call's
+  arguments with `requiredStringArgs` (`copilot/toolArgs.ts`) so the keys come from the tool's own
+  `input_schema.required` and a rename becomes a compile error instead of a silent `""`.
+- **Loading states must not lie.** `ui/Pipeline` fills its rail purely from steps that genuinely
+  settled — never a timer, never a synthetic percentage. A step still running gets a pulsing dot
+  and nothing more. Both ingest surfaces (`sources/ParsingOverlay`, `home/CreateProgress`) share
+  it; keep the app to one loading language.
 
 ## Stack
 

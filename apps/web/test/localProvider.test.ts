@@ -125,7 +125,7 @@ describe("LocalBrowserProvider.listModels", () => {
 
 /** A non-OK response carrying an error body. */
 function errorResponse(status: number, body: string) {
-  return { ok: false, status, text: async () => body } as Response;
+  return { ok: false, status, headers: new Headers(), text: async () => body } as Response;
 }
 
 const JSON_REPLY = JSON.stringify({
@@ -276,7 +276,11 @@ describe("LocalBrowserProvider JSON fallback (models without tool calling)", () 
 
   it("surfaces a non-tool error unchanged (no fallback for an unrelated failure)", async () => {
     stubFetch([errorResponse(500, "internal server error")]);
-    const provider = new LocalBrowserProvider();
+    // Zero backoff: a 500 IS retried (see retry.test.ts), and this test is about the fallback not
+    // firing, not about how long the wrapper waits between the two attempts.
+    const provider = new LocalBrowserProvider("http://localhost:11434/v1", "", "postgres", {
+      message: { baseDelayMs: 0, maxDelayMs: 0 },
+    });
     // 500 isn't a tool-support problem, so it propagates instead of retrying in JSON mode.
     await expect(provider.propose(EMPTY_SCHEMA, [], "go")).rejects.toThrow(/500/);
   });

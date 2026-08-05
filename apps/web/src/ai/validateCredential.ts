@@ -1,6 +1,7 @@
 import { DEFAULT_TARGET } from "@grafture/core";
 
 import { PROVIDERS, type ProviderId } from "./providers.js";
+import { ProviderError } from "./retry.js";
 
 export type CredentialCheck =
   | { ok: true }
@@ -16,8 +17,21 @@ export type CredentialCheck =
       error: string;
     };
 
-/** Providers embed the HTTP status in thrown messages as "(401)" — see listModels impls. */
+/**
+ * Providers embed the HTTP status in thrown messages as "(401)" — see `providerErrorFromResponse`,
+ * which preserves that shape. Only the fallback path now: a failure that came through the retry
+ * wrapper carries a typed {@link ProviderError.failure} instead, and reading the type beats
+ * re-parsing a string we also produce. The regex stays for anything thrown outside the wrapper.
+ */
 const AUTH_STATUS = /\((401|403)\)/;
+
+/** Did the provider answer and refuse the credential (as opposed to never answering)? */
+function isAuthFailure(error: unknown): boolean {
+  if (error instanceof ProviderError) {
+    return error.failure.kind === "unauthorized";
+  }
+  return AUTH_STATUS.test(error instanceof Error ? error.message : String(error));
+}
 
 /**
  * Live-check a credential by making the cheapest authenticated call the provider supports —
@@ -41,8 +55,7 @@ export async function validateCredentialLive(
     await provider.listModels();
     return { ok: true };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (AUTH_STATUS.test(message)) {
+    if (isAuthFailure(error)) {
       return {
         ok: false,
         reason: "rejected",

@@ -1,4 +1,4 @@
-export type { Selection, StoreSnapshot } from "./history.js";
+export type { HistoryEntry, HistoryStep, Selection, StoreSnapshot } from "./history.js";
 export type {
   CreateSchemaStoreOptions,
   RationaleFocus,

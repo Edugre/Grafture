@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loading states — Hallmark component preview</title>
+    <!--
+      Hallmark component-scope demo wrapper. NOT production code — delete once reviewed.
+      Run `pnpm dev` and open /src/home/CreateProgress.preview.html
+
+      Every state renders at once via .is-hover / .is-focus / .is-active mirror classes, which
+      the component CSS targets alongside the real pseudo-classes. Toggle OS dark mode (or the
+      switch below) to check both themes; toggle Reduce Motion to check the collapse.
+    -->
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/src/home/NewProjectModal.css" />
+    <link rel="stylesheet" href="/src/ui/Pipeline.css" />
+    <link rel="stylesheet" href="/src/home/CreateProgress.css" />
+    <link rel="stylesheet" href="/src/sources/ParsingOverlay.css" />
+    <style>
+      body {
+        padding: 32px;
+        background: var(--bg-app);
+        overflow-x: clip;
+      }
+      html {
+        overflow-x: clip;
+      }
+      .demo {
+        max-width: 640px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      .demo h1 {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin: 0;
+      }
+      .demo h1 span {
+        font-weight: 400;
+        color: var(--text-faint);
+      }
+      .demo__row {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+      .demo__tag {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-faint);
+        padding-top: 10px;
+        overflow-wrap: anywhere;
+      }
+      .demo__frame {
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 4px;
+      }
+      .demo__frame .cp {
+        padding: 20px 20px 16px;
+      }
+      .demo__pad {
+        padding: 14px;
+      }
+      /* The sources panel is a narrow rail — show the overlay card at its real width so
+         wrapping file names are checked, not assumed. */
+      .demo__panel {
+        max-width: 300px;
+        padding: 14px;
+        background: var(--bg-panel);
+      }
+      .demo__toggle {
+        display: flex;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--text-muted);
+        align-items: center;
+      }
+      @media (max-width: 560px) {
+        .demo__row {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 6px;
+        }
+        .demo__tag {
+          padding-top: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo">
+      <h1>New Project — loading states <span>· Hallmark component preview</span></h1>
+      <label class="demo__toggle">
+        <input type="checkbox" id="dark" />
+        force dark
+      </label>
+
+      <!-- ============ A · file parse rows ============ -->
+      <h1><span>A · parse — file row states</span></h1>
+
+      <div class="demo__row">
+        <div class="demo__tag">queued</div>
+        <div class="demo__frame demo__pad">
+          <ul class="npm-filelist">
+            <li class="npm-filerow" data-state="queued">
+              <span class="npm-filerow__badge" aria-hidden></span>
+              <span class="npm-filerow__body">
+                <span class="npm-filerow__name">funding_rounds.json</span>
+                <span class="npm-filerow__meta">Queued · 812 KB</span>
+              </span>
+              <button class="npm-filerow__remove" aria-label="Remove"></button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">parsing<br />(loading)</div>
+        <div class="demo__frame demo__pad">
+          <ul class="npm-filelist">
+            <li class="npm-filerow" data-state="parsing">
+              <span class="npm-filerow__badge" aria-hidden></span>
+              <span class="npm-filerow__body">
+                <span class="npm-filerow__name">organizations.xlsx</span>
+                <span class="npm-filerow__meta">Reading columns · 2.4 MB</span>
+              </span>
+              <button class="npm-filerow__remove" disabled aria-label="Remove"></button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">ready<br />(success)</div>
+        <div class="demo__frame demo__pad">
+          <ul class="npm-filelist">
+            <li class="npm-filerow" data-state="ready">
+              <span class="npm-filerow__badge" aria-hidden></span>
+              <span class="npm-filerow__body">
+                <span class="npm-filerow__name">grants.csv</span>
+                <span class="npm-filerow__meta">14 columns · 340 KB</span>
+              </span>
+              <button class="npm-filerow__remove" aria-label="Remove"></button>
+            </li>
+            <li class="npm-filerow" data-state="ready">
+              <span class="npm-filerow__badge" aria-hidden></span>
+              <span class="npm-filerow__body">
+                <span class="npm-filerow__name">payouts.json</span>
+                <span class="npm-filerow__meta">9 columns · 2 nested tables · 88 KB</span>
+              </span>
+              <button class="npm-filerow__remove is-hover" aria-label="Remove"></button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">failed<br />(error)</div>
+        <div class="demo__frame demo__pad">
+          <ul class="npm-filelist">
+            <li class="npm-filerow" data-state="failed">
+              <span class="npm-filerow__badge" aria-hidden></span>
+              <span class="npm-filerow__body">
+                <span class="npm-filerow__name">q3_export_final_v2.xlsx</span>
+                <span class="npm-filerow__meta"
+                  >Sheet 1 has no header row — the first row is empty</span
+                >
+              </span>
+              <button class="npm-filerow__remove is-focus" aria-label="Remove"></button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ============ B · create progress ============ -->
+      <h1><span>B · create — pipeline states</span></h1>
+
+      <div class="demo__row">
+        <div class="demo__tag">default<br />(pending)</div>
+        <div class="demo__frame">
+          <div class="cp">
+            <p class="cp__title">Creating <span class="cp__title-name">Grant Reporting</span></p>
+            <ol class="pipeline cp__pipeline">
+              <li class="pipeline__step" data-state="pending">
+                <span class="pipeline__dot"></span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Source files read</span
+                  ><span class="pipeline__detail">2 files · 4 tables · 23 columns</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="pending">
+                <span class="pipeline__dot"></span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Saving project</span></span
+                >
+              </li>
+            </ol>
+            <div class="cp__actions">
+              <button class="npm-btn npm-btn--ghost" disabled>Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">loading<br />(active)</div>
+        <div class="demo__frame">
+          <div class="cp">
+            <p class="cp__title">Creating <span class="cp__title-name">Grant Reporting</span></p>
+            <ol class="pipeline cp__pipeline">
+              <li class="pipeline__step" data-state="done">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Source files read</span
+                  ><span class="pipeline__detail">2 files · 4 tables · 23 columns</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="active">
+                <span class="pipeline__dot"></span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Saving project</span></span
+                >
+              </li>
+            </ol>
+            <p class="cp__note">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 3v18M3 12h18" />
+              </svg>
+              The Copilot drafts a first schema once the canvas opens.
+            </p>
+            <div class="cp__actions">
+              <button class="npm-btn npm-btn--ghost" disabled>Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">success<br />(all done)</div>
+        <div class="demo__frame">
+          <div class="cp">
+            <p class="cp__title">Creating <span class="cp__title-name">Grant Reporting</span></p>
+            <ol class="pipeline cp__pipeline">
+              <li class="pipeline__step" data-state="done">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Source files read</span
+                  ><span class="pipeline__detail">2 files · 4 tables · 23 columns</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="done">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Saving project</span></span
+                >
+              </li>
+            </ol>
+            <div class="cp__actions">
+              <button class="npm-btn npm-btn--ghost" disabled>Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">error</div>
+        <div class="demo__frame">
+          <div class="cp">
+            <p class="cp__title">
+              Couldn’t create <span class="cp__title-name">Grant Reporting</span>
+            </p>
+            <ol class="pipeline cp__pipeline">
+              <li class="pipeline__step" data-state="done">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Source files read</span
+                  ><span class="pipeline__detail">2 files · 4 tables · 23 columns</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="failed">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">Saving project</span></span
+                >
+              </li>
+            </ol>
+            <p class="cp__error">
+              The browser blocked local storage — this usually means private browsing is on, or the
+              disk quota is full.
+            </p>
+            <div class="cp__actions">
+              <button class="npm-btn npm-btn--ghost">Back to form</button>
+              <button class="npm-btn npm-btn--primary">Try again</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ C · sources panel overlay ============ -->
+      <h1><span>C · sources panel — parsing overlay (same rail, panel width)</span></h1>
+
+      <div class="demo__row">
+        <div class="demo__tag">loading</div>
+        <div class="demo__frame demo__panel">
+          <div class="parsing-overlay__card">
+            <p class="parsing-overlay__title">
+              Reading files <span class="parsing-overlay__count">1 of 4</span>
+            </p>
+            <ol class="pipeline">
+              <li class="pipeline__step" data-state="done">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">alpha_ledger.csv</span
+                  ><span class="pipeline__detail">12 columns</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="active">
+                <span class="pipeline__dot"></span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">beta_organizations.csv</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="pending">
+                <span class="pipeline__dot"></span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">gamma_rounds.csv</span></span
+                >
+              </li>
+              <li class="pipeline__step" data-state="pending">
+                <span class="pipeline__dot"></span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">delta_payouts.json</span></span
+                >
+              </li>
+            </ol>
+            <p class="parsing-overlay__foot">Parsed in your browser — nothing is uploaded.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo__row">
+        <div class="demo__tag">settled<br />(error)</div>
+        <div class="demo__frame demo__panel">
+          <div class="parsing-overlay__card">
+            <p class="parsing-overlay__title">
+              1 of 2 files couldn’t be read
+              <span class="parsing-overlay__count">1 added</span>
+            </p>
+            <ol class="pipeline">
+              <li class="pipeline__step" data-state="done">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">payouts.json</span
+                  ><span class="pipeline__detail">2 columns · 1 nested table</span></span
+                >
+              </li>
+              <!-- The tall wrapped error is the case that used to drag the rail past the last
+                   dot; the rail must stop dead at this dot. -->
+              <li class="pipeline__step" data-state="failed">
+                <span class="pipeline__dot">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </span>
+                <span class="pipeline__text"
+                  ><span class="pipeline__label">bad_export.json</span
+                  ><span class="pipeline__detail"
+                    >Not valid JSON — check for a trailing comma or an unclosed brace</span
+                  ></span
+                >
+              </li>
+            </ol>
+            <button class="parsing-overlay__dismiss">Dismiss</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ button states ============ -->
+      <h1><span>Actions — 8 states</span></h1>
+
+      <div class="demo__row">
+        <div class="demo__tag">default<br />hover<br />focus<br />active<br />disabled</div>
+        <div class="demo__frame demo__pad">
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <button class="npm-btn npm-btn--primary">Create project</button>
+            <button class="npm-btn npm-btn--primary is-hover">Create project</button>
+            <button class="npm-btn npm-btn--primary is-focus">Create project</button>
+            <button class="npm-btn npm-btn--primary is-active">Create project</button>
+            <button class="npm-btn npm-btn--primary" disabled>Create project</button>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px">
+            <button class="npm-btn npm-btn--ghost">Cancel</button>
+            <button class="npm-btn npm-btn--ghost is-hover">Cancel</button>
+            <button class="npm-btn npm-btn--ghost is-focus">Cancel</button>
+            <button class="npm-btn npm-btn--ghost is-active">Cancel</button>
+            <button class="npm-btn npm-btn--ghost" disabled>Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      const box = document.getElementById("dark");
+      box.addEventListener("change", () => {
+        document.documentElement.dataset.theme = box.checked ? "dark" : "light";
+      });
+    </script>
+  </body>
+</html>

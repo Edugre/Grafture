@@ -3,7 +3,9 @@
  * elevation, and §6 motion. Component CSS consumes these by name; raw hex, raw px
  * sizes, and raw radii do not belong in component files.
  * Amendments this file carries beyond the kit as written, all recorded there too:
- * neutral-450/550 (WCAG AA floor for faint text), --type-body-xs, --on-danger.
+ * neutral-450/550 (WCAG AA floor for faint text), --type-body-xs, --on-danger,
+ * --accent-strong (accent-700, which had no light-theme name), --space-chrome-*
+ * (the 2px control tier under the 4px spine), --scrim-strong.
  */
 :root {
   color-scheme: light dark;
@@ -30,6 +32,11 @@
   --leading-body-md: 20px;
   --type-body-sm: 12px;
   --leading-body-sm: 16px;
+  /* A second leading for body-sm. 16px is right for a one-line chip or label, but
+     too tight for a wrapping sentence at 12px — five files had already reached for
+     a raw `line-height: 18px` to get that air. Same size, looser measure; naming it
+     is what stops the sixth file inventing 17px. */
+  --leading-body-sm-loose: 18px;
   /* xs is below the kit's original 8-step floor. It was added because 25 badge /
      chip / type-tag / count declarations were already sitting at 10–11px off-scale;
      naming the tier is honest, a silent 9th size is not. Badges and counts only —
@@ -40,6 +47,11 @@
   --leading-mono-md: 20px;
   --type-mono-sm: 12px;
   --leading-mono-sm: 18px;
+  /* Mono half-step. Identifiers set inline in 12px sans copy read a shade large at
+     the full mono-sm; 11.5px optically matches the surrounding text. Used for model
+     ids, shell commands, and the stale-rationale panel — all identifiers, never copy. */
+  --type-mono-xs: 11.5px;
+  --leading-mono-xs: 16px;
 
   /* ---- Spacing (brand kit §4) — 4px base unit ---- */
   --space-1: 4px;
@@ -50,6 +62,18 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
+  /* Chrome half-steps. The scale above is the spine — section rhythm, panel gutters,
+     stack gaps. Control chrome has always run on 2px increments underneath it, and six
+     files had already reached for a raw 6/10/14/18/20px (`.canvas-tools` 0 6px,
+     `.sources-panel__button`, `.settings__key-row`, the onboarding card's 18/20 gutters).
+     Naming the tier is honest; a seventh file inventing 17px is not.
+     Chrome only — never section rhythm. */
+  --space-chrome-0: 2px;
+  --space-chrome-1: 6px;
+  --space-chrome-2: 10px;
+  --space-chrome-3: 14px;
+  --space-chrome-4: 18px;
+  --space-chrome-5: 20px;
 
   /* ---- Radius (brand kit §4) ---- */
   --radius-sm: 4px; /* chips, badges */
@@ -99,6 +123,10 @@
   --accent: #7c5ce0;
   --accent-soft: #7c5ce0;
   --accent-text: #6a4bd0;
+  /* accent-700. The kit lists it as "text-on-accent-50, dark-theme accent text" but the light
+     theme had no name for it — the onboarding eyebrow is the first light-theme use. 8.9:1 on
+     `--surface`, so it also clears AA at the 11px it is set in. */
+  --accent-strong: #52399e;
   --accent-bg: #f1eefc; /* tint fill — proposed row/card */
   --accent-border: #e1dbfa; /* tint border */
   --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
@@ -107,11 +135,16 @@
   /* Primary key / identifier dot */
   --pk: #454a50;
 
-  /* Caution — amber (rejected), shared accent across modes */
+  /* Caution — amber (rejected), shared accent across modes.
+     `--caution-text` is deliberately darker than `--warning`/`--caution-border`: the border and
+     the fill can sit at amber-600, but the same value as *text* measured 3.10:1 on `--caution-bg`
+     and 3.42:1 on `--surface` — under the 4.5:1 floor everywhere it was used, and every use is
+     11–13px. amber-800 clears 4.5:1 on all four grounds it lands on (caution-bg 5.16, surface
+     5.69, bg-panel 5.26, bg-app 5.50). The dark theme's `#d9a648` already cleared and is unchanged. */
   --warning: #b8801f;
   --caution-bg: #fbf3e3;
   --caution-border: #b8801f;
-  --caution-text: #b8801f;
+  --caution-text: #8a5e0f;
 
   /* Destructive (remove/delete affordances) */
   --danger: #cc3b3b;
@@ -155,6 +188,12 @@
   --shadow-popover: 0 16px 40px rgba(23, 26, 31, 0.18);
   --ring-proposed: 0 0 0 3px #f1eefc, 0 1px 2px rgba(23, 26, 31, 0.06);
 
+  /* Scrim. The heavier of the app's two dims: a spotlight scrim has to make a punched
+     hole read as a hole, which needs more than the 0.34 the centred modals dim at. The
+     dark value is the brand kit's dark `surface.scrim` — 0.44 of near-black over a
+     near-black app is no scrim at all. */
+  --scrim-strong: rgba(23, 26, 31, 0.44);
+
   color: var(--text);
   background-color: var(--bg-app);
 }
@@ -188,6 +227,7 @@
     --accent: #7c5ce0;
     --accent-soft: #7c5ce0;
     --accent-text: #b7a6f2;
+    --accent-strong: #b7a6f2; /* accent-700 is unreadable on the dark surface — accent-300 stands in */
     --accent-bg: #241a4a;
     --accent-border: #52399e;
     --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
@@ -229,6 +269,8 @@
     --shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.5);
     --ring-proposed: 0 0 0 3px #241a4a, 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    --scrim-strong: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -256,6 +298,7 @@
   --accent: #7c5ce0;
   --accent-soft: #7c5ce0;
   --accent-text: #b7a6f2;
+  --accent-strong: #b7a6f2; /* accent-700 is unreadable on the dark surface — accent-300 stands in */
   --accent-bg: #241a4a;
   --accent-border: #52399e;
   --accent-hover: #6747c7; /* accent-600 — brand kit §5.1 hover/pressed */
@@ -297,6 +340,8 @@
   --shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.5);
   --ring-proposed: 0 0 0 3px #241a4a, 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  --scrim-strong: rgba(0, 0, 0, 0.6);
 }
 
 *,
@@ -374,6 +419,21 @@ summary:focus-visible,
 .byok__input-field:focus-visible,
 .copilot-compose__shell textarea:focus-visible {
   outline: none;
+}
+
+/* Visually hidden, still announced. For live regions whose visible counterpart either doesn't
+   exist or updates too often to announce — a ticking countdown re-announced every 200ms is worse
+   than silence, so the visible text stays out of the live region and a stable summary goes here. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Shared mono helper for identifiers, type chips, samples, code, tags. */

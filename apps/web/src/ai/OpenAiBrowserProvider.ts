@@ -1,6 +1,6 @@
 import { DEFAULT_TARGET, type TargetId } from "@grafture/core";
 
-import { OpenAiCompatibleProvider } from "./openaiCompatible.js";
+import { type OpenAiCompatibleConfig, OpenAiCompatibleProvider } from "./openaiCompatible.js";
 import { OPENAI_DEFAULT_MODEL, parseOpenAiModels } from "./openaiModels.js";
 
 // Re-exported so existing importers (and tests) keep their entry point.
@@ -15,10 +15,11 @@ const MESSAGE_TIMEOUT_MS = 120_000;
 const MODELS_TIMEOUT_MS = 15_000;
 
 // Upper bound on tokens per completion. Unlike Anthropic's `max_tokens` (visible output only),
-// OpenAI's `max_completion_tokens` also has to cover the hidden reasoning tokens the o-series
-// spends before answering — a 4k cap can be entirely consumed by reasoning, leaving no output and
-// a `length` finish. This is a ceiling, not a reservation (billing is per token produced), so a
-// generous value is safe for non-reasoning models like gpt-4.1 too.
+// OpenAI's `max_completion_tokens` also has to cover the hidden reasoning tokens a reasoning model
+// spends before answering — which now includes the default (the GPT-5.x tiers), not just the
+// o-series. A 4k cap can be entirely consumed by reasoning, leaving no output and a `length`
+// finish. This is a ceiling, not a reservation (billing is per token produced), so a generous
+// value is safe for the non-reasoning models in the catalog too.
 const MAX_COMPLETION_TOKENS = 32_768;
 
 /**
@@ -32,10 +33,13 @@ export class OpenAiBrowserProvider extends OpenAiCompatibleProvider {
     apiKey: string,
     model: string = OPENAI_DEFAULT_MODEL,
     target: TargetId = DEFAULT_TARGET,
+    retry?: OpenAiCompatibleConfig["retry"],
   ) {
     super(
       {
         errorLabel: "OpenAI",
+        family: "openai",
+        ...(retry ? { retry } : {}),
         chatUrl: OPENAI_API_URL,
         modelsUrl: OPENAI_MODELS_URL,
         model,
