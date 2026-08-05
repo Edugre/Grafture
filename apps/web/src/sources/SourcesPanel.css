@@ -6,14 +6,14 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  padding: 18px 18px 12px;
+  gap: var(--space-2);
+  padding: var(--space-chrome-4) var(--space-chrome-4) var(--space-3);
 }
 
 .sources-panel__title-group {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -33,7 +33,7 @@
 .sources-panel__header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-chrome-1);
   flex-shrink: 0;
 }
 
@@ -62,10 +62,10 @@
 }
 
 .sources-panel .panel-body {
-  padding: 0 14px 16px;
+  padding: 0 var(--space-chrome-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-chrome-2);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -80,8 +80,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 18px 16px;
+  gap: var(--space-chrome-1);
+  padding: var(--space-chrome-4) var(--space-4);
   border: 1px dashed var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -113,7 +113,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: var(--space-4);
   pointer-events: none;
   background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
   backdrop-filter: blur(1px);
@@ -123,9 +123,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-chrome-1);
   width: 100%;
-  padding: 28px 20px;
+  padding: 28px var(--space-chrome-5);
   border: 1.5px dashed var(--accent);
   border-radius: var(--radius-lg);
   background: var(--accent-bg);
@@ -149,7 +149,7 @@
 
 .sources-panel__message {
   margin: 0;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-chrome-2);
   border-radius: var(--radius-md);
   font-size: var(--type-body-sm);
 }
@@ -174,8 +174,8 @@
 }
 
 .sources-panel__table-select {
-  margin: 0 4px;
-  padding: 4px 6px;
+  margin: 0 var(--space-1);
+  padding: var(--space-1) var(--space-chrome-1);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -208,9 +208,9 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-chrome-1);
   margin-left: 19px;
-  padding: 6px 0 0 13px;
+  padding: var(--space-chrome-1) 0 0 13px;
 }
 
 /* The rail tying the children to the parent card above them. */
@@ -229,7 +229,7 @@
 }
 
 .sources-panel__source--nested .sources-panel__source-header {
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-chrome-2);
 }
 
 .sources-panel__source--nested .sources-panel__source-icon {
@@ -241,7 +241,7 @@
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 11px 12px;
+  padding: 11px var(--space-3);
   border: none;
   background: transparent;
   text-align: left;
@@ -258,7 +258,7 @@
 .sources-panel__source-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-chrome-0);
   min-width: 0;
   flex: 1;
 }
@@ -295,12 +295,12 @@
 
 .sources-panel__source-actions {
   display: flex;
-  gap: 6px;
-  padding: 8px 12px 10px;
+  gap: var(--space-chrome-1);
+  padding: var(--space-2) var(--space-3) var(--space-chrome-2);
 }
 
 .sources-panel__button {
-  padding: 5px 10px;
+  padding: 5px var(--space-chrome-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -329,15 +329,15 @@
 .sources-panel__fields {
   list-style: none;
   margin: 0;
-  padding: 4px 0 6px;
+  padding: var(--space-1) 0 var(--space-chrome-1);
 }
 
 .sources-panel__field {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 6px 12px;
+  padding: var(--space-chrome-1) var(--space-3);
   border: none;
   background: transparent;
   text-align: left;
@@ -383,7 +383,7 @@
   background: var(--surface-strong);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 1px 6px;
+  padding: 1px var(--space-chrome-1);
   flex-shrink: 0;
 }
 

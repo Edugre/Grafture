@@ -12,7 +12,7 @@
   right: 0;
   z-index: 10;
   width: 268px;
-  padding: 6px;
+  padding: var(--space-chrome-1);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -23,7 +23,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px 6px;
+  padding: var(--space-1) var(--space-2) var(--space-chrome-1);
 }
 
 .history-box__title {
@@ -56,9 +56,9 @@
 .history-box__row {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-chrome-0);
   width: 100%;
-  padding: 5px 8px;
+  padding: 5px var(--space-2);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -80,7 +80,7 @@
   justify-content: center;
   width: 20px;
   height: 22px;
-  margin-left: 2px;
+  margin-left: var(--space-chrome-0);
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
@@ -102,15 +102,15 @@
    the detail behind the step, not a list of steps you can travel to individually — the stack
    moves in whole commits. */
 .history-box__details {
-  margin: 0 0 4px;
-  padding: 2px 0 2px 25px;
+  margin: 0 0 var(--space-1);
+  padding: var(--space-chrome-0) 0 var(--space-chrome-0) 25px;
   list-style: none;
   border-left: 1px solid var(--border-subtle);
   margin-left: 15px;
 }
 
 .history-box__detail {
-  padding: 2px 0;
+  padding: var(--space-chrome-0) 0;
   font-size: var(--type-body-xs);
   line-height: var(--leading-body-xs);
   color: var(--text-muted);
@@ -140,7 +140,7 @@
    that would exist for two rules in one file. */
 .history-box__actor {
   flex: none;
-  margin-left: 6px;
+  margin-left: var(--space-chrome-1);
   font-size: var(--type-body-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -149,7 +149,7 @@
 
 .history-box__time {
   flex: none;
-  margin-left: 6px;
+  margin-left: var(--space-chrome-1);
   font-size: var(--type-body-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -169,7 +169,7 @@
    reserved for identifiers, and body-xs is badges and counts — neither is a home for a sentence. */
 .history-box__empty {
   margin: 0;
-  padding: 6px 8px 10px;
+  padding: var(--space-chrome-1) var(--space-2) var(--space-chrome-2);
   font-size: var(--type-body-sm);
   line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);

@@ -5,10 +5,10 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .copilot-suggest-help {
@@ -36,8 +36,8 @@
 .copilot-suggest-draft {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
+  gap: var(--space-2);
+  padding: var(--space-chrome-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--accent-border);
   background: var(--accent-bg);
@@ -79,7 +79,7 @@
   background: var(--surface);
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-sm);
-  padding: 1px 6px;
+  padding: 1px var(--space-chrome-1);
 }
 
 .copilot-suggest-draft__hint {
@@ -92,8 +92,8 @@
 .copilot-suggest-draft__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 2px;
+  gap: var(--space-2);
+  margin-top: var(--space-chrome-0);
 }
 
 .copilot-suggest-draft__actions .copilot-suggest-btn--ghost {
@@ -105,7 +105,7 @@
 .copilot-suggest-rank {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-chrome-1);
   margin: 0;
   font-size: var(--type-body-xs);
   line-height: 16px;
@@ -167,7 +167,7 @@
 
 /* AI rationale line under the stats. */
 .copilot-suggest-card__rationale {
-  margin: 6px 0 0;
+  margin: var(--space-chrome-1) 0 0;
   font-size: var(--type-body-sm);
   line-height: 17px;
   color: var(--text);
@@ -177,13 +177,13 @@
 .copilot-suggest-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .copilot-suggest-grouphead {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .copilot-suggest-grouphead__label {
@@ -226,7 +226,7 @@
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 11px 12px;
+  padding: 11px var(--space-3);
   border: none;
   background: transparent;
   text-align: left;
@@ -290,7 +290,7 @@
 }
 
 .copilot-suggest-card__body {
-  padding: 0 12px 12px 27px;
+  padding: 0 var(--space-3) var(--space-3) 27px;
 }
 
 .copilot-suggest-card__detail {
@@ -304,7 +304,7 @@
 }
 
 .copilot-suggest-card__note {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--type-body-xs);
   line-height: 15px;
   color: var(--caution-text);
@@ -313,14 +313,14 @@
 .copilot-suggest-card__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 11px;
 }
 
 /* ---- Buttons (shared by cards + footer) ---- */
 .copilot-suggest-btn {
   height: 30px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   font-family: inherit;
   font-size: var(--type-body-md);
@@ -339,7 +339,7 @@
 }
 
 .copilot-suggest-btn--primary {
-  padding: 0 14px;
+  padding: 0 var(--space-chrome-3);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
@@ -356,8 +356,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: var(--space-chrome-2);
+  padding: var(--space-chrome-3) var(--space-4);
   border-top: 1px solid var(--border-subtle);
   background: var(--surface);
 }
@@ -376,7 +376,7 @@
 .copilot-suggest-footer__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .copilot-suggest-footer .copilot-suggest-btn {

@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: var(--space-6);
   background: rgba(23, 26, 31, 0.34);
   backdrop-filter: blur(1.5px);
   animation: npm-fade var(--dur-hover) var(--ease-out);
@@ -78,8 +78,8 @@
 .npm-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 22px 24px 18px;
+  gap: var(--space-3);
+  padding: 22px var(--space-5) var(--space-chrome-4);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -110,7 +110,7 @@
 }
 
 .npm-header__subtitle {
-  margin: 2px 0 0;
+  margin: var(--space-chrome-0) 0 0;
   font-size: var(--type-body-sm);
   line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
@@ -143,15 +143,15 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 22px 24px;
+  padding: 22px var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-chrome-5);
 }
 
 .npm-label {
   display: block;
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   font-size: var(--type-body-sm);
   font-weight: 500;
   color: var(--text-secondary);
@@ -161,7 +161,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .npm-labelrow .npm-label {
@@ -179,7 +179,7 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  padding: 30px 24px;
+  padding: 30px var(--space-5);
   border: 1.5px dashed var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
@@ -202,7 +202,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--accent-bg);
   color: var(--accent-text);
@@ -220,7 +220,7 @@
 }
 
 .npm-dropzone__hint {
-  margin-top: 4px;
+  margin-top: var(--space-1);
   font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-faint);
@@ -233,11 +233,11 @@
 /* ---- File list ---- */
 .npm-filelist {
   list-style: none;
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .npm-filerow {
@@ -416,16 +416,16 @@
 .npm-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  gap: var(--space-chrome-1);
+  margin-top: var(--space-chrome-2);
 }
 
 .npm-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   height: 26px;
-  padding: 0 10px;
+  padding: 0 var(--space-chrome-2);
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-full);
   background: var(--accent-bg);
@@ -445,8 +445,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 24px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--border-subtle);
   background: var(--surface-sunken);
 }
@@ -458,7 +458,7 @@
 
 .npm-footer__actions {
   display: flex;
-  gap: 10px;
+  gap: var(--space-chrome-2);
 }
 
 .npm-btn {
@@ -478,7 +478,7 @@
 }
 
 .npm-btn--ghost {
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-secondary);
@@ -489,7 +489,7 @@
 }
 
 .npm-btn--primary {
-  padding: 0 18px;
+  padding: 0 var(--space-chrome-4);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
@@ -598,13 +598,13 @@
 
 @media (max-width: 520px) {
   .npm-scrim {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .npm-footer {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: var(--space-chrome-2);
   }
 
   .npm-footer__actions .npm-btn {

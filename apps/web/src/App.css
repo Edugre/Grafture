@@ -37,8 +37,8 @@
 /* Collapsed side panel — a thin rail with an expand button and a vertical label. */
 .panel-rail {
   align-items: center;
-  padding: 12px 0;
-  gap: 12px;
+  padding: var(--space-3) 0;
+  gap: var(--space-3);
   overflow: hidden;
 }
 
@@ -73,7 +73,7 @@
 .panel-body {
   flex: 1;
   min-height: 0;
-  padding: 16px;
+  padding: var(--space-4);
   overflow: auto;
 }
 
@@ -103,7 +103,7 @@
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .canvas-status .canvas-chip {
@@ -116,9 +116,9 @@
 .canvas-back {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   height: 28px;
-  padding: 0 12px 0 9px;
+  padding: 0 var(--space-3) 0 9px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -162,9 +162,9 @@
 .canvas-draft-bar {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   height: 32px;
-  padding: 0 6px 0 13px;
+  padding: 0 var(--space-chrome-1) 0 13px;
   border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
@@ -201,7 +201,7 @@
 
 .canvas-draft-bar__btn {
   height: 24px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   font-family: inherit;
   font-size: var(--type-body-sm);
@@ -289,9 +289,9 @@
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   height: 32px;
-  padding: 0 6px;
+  padding: 0 var(--space-chrome-1);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -342,7 +342,7 @@
 .canvas-tools__cluster {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .canvas-tools__divider {
@@ -354,8 +354,8 @@
 .canvas-tools__active {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding-left: 2px;
+  gap: var(--space-chrome-1);
+  padding-left: var(--space-chrome-0);
   font-size: var(--type-body-sm);
   color: var(--text-muted);
   white-space: nowrap;
@@ -364,7 +364,7 @@
 .canvas-tools__select {
   height: 24px;
   max-width: 160px;
-  padding: 0 6px;
+  padding: 0 var(--space-chrome-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -382,7 +382,7 @@
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-chrome-0);
   padding: 3px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
@@ -466,9 +466,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-chrome-2);
   height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-chrome-3);
   font-family: var(--font-sans);
   font-size: var(--type-heading-md);
   font-weight: 600;
@@ -488,9 +488,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   height: 30px;
-  padding: 0 14px;
+  padding: 0 var(--space-chrome-3);
   font-size: var(--type-body-md);
   letter-spacing: -0.01em;
   border-top: 1px solid var(--row-divider);
@@ -633,7 +633,7 @@
 .table-node__title-meta {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -653,7 +653,7 @@
 .table-node__title-input {
   width: 100%;
   height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-chrome-3);
   font-family: var(--font-sans);
   font-size: var(--type-heading-md);
   font-weight: 600;
@@ -707,7 +707,7 @@
   background: var(--surface-strong);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 1px 6px;
+  padding: 1px var(--space-chrome-1);
 }
 
 .table-node__fk {
@@ -721,7 +721,7 @@
   flex: 1;
   min-width: 0;
   height: 22px;
-  padding: 0 6px;
+  padding: 0 var(--space-chrome-1);
   font: inherit;
   background: var(--surface);
   border: none;
@@ -732,7 +732,7 @@
 
 /* Name editor takes the whole row (the type chip and remove button are hidden while editing). */
 .table-node__field-input--wide {
-  margin-right: 4px;
+  margin-right: var(--space-1);
 }
 
 .table-node__type-input {
@@ -758,7 +758,7 @@
 }
 
 .table-node__remove {
-  padding: 0 2px;
+  padding: 0 var(--space-chrome-0);
   border: none;
   background: none;
   color: var(--text-dim);
@@ -789,7 +789,7 @@
 .table-node__add,
 .table-node__add-input {
   width: 100%;
-  padding: 7px 14px;
+  padding: 7px var(--space-chrome-3);
   font-family: var(--font-mono);
   font-size: var(--type-mono-sm);
   text-align: left;
@@ -849,7 +849,7 @@
   height: 20px;
   display: inline-flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -881,7 +881,7 @@
   bottom: 62px; /* clear of the zoom controls */
   z-index: 6;
   width: min(360px, calc(100% - 32px));
-  padding: 12px 14px 11px;
+  padding: var(--space-3) var(--space-chrome-3) 11px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -891,8 +891,8 @@
 .rationale-panel__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .rationale-panel__kind {
@@ -936,8 +936,8 @@
 }
 
 .rationale-panel__stale {
-  margin: 0 0 8px;
-  padding: 6px 9px;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-chrome-1) 9px;
   border-radius: var(--radius-md);
   border: 1px dashed var(--prov-touched);
   background: var(--caution-bg, transparent);
@@ -956,12 +956,12 @@
 }
 
 .rationale-panel__evidence {
-  margin-top: 10px;
+  margin-top: var(--space-chrome-2);
 }
 
 .rationale-panel__evidence-label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
   font-size: var(--type-body-xs);
   line-height: var(--leading-body-xs);
   font-weight: 600;
@@ -988,7 +988,7 @@
 }
 
 .rationale-panel__meta {
-  margin: 10px 0 0;
+  margin: var(--space-chrome-2) 0 0;
   padding-top: 9px;
   border-top: 1px solid var(--row-divider);
   font-size: var(--type-body-xs);

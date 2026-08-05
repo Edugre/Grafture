@@ -8,7 +8,7 @@
 .cp {
   display: flex;
   flex-direction: column;
-  padding: 26px 24px 22px;
+  padding: 26px var(--space-5) 22px;
 }
 
 .cp__title {
@@ -26,7 +26,7 @@
 }
 
 .cp__pipeline {
-  margin-top: 20px;
+  margin-top: var(--space-chrome-5);
 }
 
 /* ---- Note + error ---- */
@@ -34,7 +34,7 @@
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  margin: 20px 0 0;
+  margin: var(--space-chrome-5) 0 0;
   padding: 9px 11px;
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-md);
@@ -46,11 +46,11 @@
 
 .cp__note > svg {
   flex: 0 0 auto;
-  margin-top: 2px;
+  margin-top: var(--space-chrome-0);
 }
 
 .cp__error {
-  margin: 20px 0 0;
+  margin: var(--space-chrome-5) 0 0;
   padding: 9px 11px;
   border: 1px solid var(--danger-border);
   border-radius: var(--radius-md);
@@ -65,7 +65,7 @@
 .cp__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-chrome-2);
   margin-top: 22px;
 }
 
@@ -83,11 +83,11 @@
 
 @media (max-width: 520px) {
   .cp {
-    padding: 22px 18px 18px;
+    padding: 22px var(--space-chrome-4) var(--space-chrome-4);
   }
 
   .cp__actions {
-    margin-top: 18px;
+    margin-top: var(--space-chrome-4);
   }
 
   .cp__actions .npm-btn {

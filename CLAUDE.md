@@ -106,6 +106,13 @@ caller declares it**: the copilot passes `"ai"`, building a table from a parsed 
   that matches the content, not the nearest number: `--type-body-xs` is badges and counts and
   never running copy, `--type-mono-xs` is identifiers only. If nothing fits, widen the scale in
   `index.css` with a comment saying why — a silent extra size is what the scale exists to prevent.
+- **When a spacing value has a `--space-*` token, write the token.** The spine is the 4px
+  `--space-1…8` steps plus the `--space-chrome-*` tier for the 2px control sizes between them, and
+  `apps/web/test/spacingScale.test.ts` fails on any literal that duplicates one. The guard stops
+  there on purpose: the app still carries values the spine has no name for (9px, 7px, 11px), and
+  snapping those moves the UI rather than tidying it, so they are a design call and not drift.
+  Half-tokenised shorthands like `padding: var(--space-2) 9px` are expected and honest — they mark
+  exactly which half is off-spine.
 
 ## Stack
 
