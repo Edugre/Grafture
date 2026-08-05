@@ -46,7 +46,7 @@
 .copilot-suggest-draft__head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
 }
 
 .copilot-suggest-draft__icon {
@@ -69,7 +69,7 @@
 .copilot-suggest-draft__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .copilot-suggest-draft__chip {
@@ -147,7 +147,7 @@
 .copilot-suggest-prio {
   flex: 0 0 auto;
   align-self: center;
-  padding: 1px 7px;
+  padding: 1px var(--space-chrome-1);
   border-radius: var(--radius-full);
   font-size: var(--type-body-xs);
   font-weight: 600;
@@ -224,9 +224,9 @@
 .copilot-suggest-card__header {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-chrome-2);
   width: 100%;
-  padding: 11px var(--space-3);
+  padding: var(--space-3);
   border: none;
   background: transparent;
   text-align: left;
@@ -289,6 +289,8 @@
   transform: rotate(180deg);
 }
 
+/* Chevron-aligned indent: the left padding tracks the disclosure control above it, so it sits
+   off the spacing spine on purpose. */
 .copilot-suggest-card__body {
   padding: 0 var(--space-3) var(--space-3) 27px;
 }
@@ -314,7 +316,7 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-  margin-top: 11px;
+  margin-top: var(--space-3);
 }
 
 /* ---- Buttons (shared by cards + footer) ---- */

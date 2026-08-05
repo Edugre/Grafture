@@ -17,7 +17,7 @@
 .confirm-card {
   width: 400px;
   max-width: 100%;
-  padding: 22px var(--space-5) var(--space-chrome-4);
+  padding: var(--space-5) var(--space-5) var(--space-chrome-4);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

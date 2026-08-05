@@ -75,7 +75,7 @@
 .model-picker__connect {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   padding: 1px var(--space-chrome-1);
   border: none;
   border-radius: var(--radius-sm);

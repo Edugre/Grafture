@@ -118,7 +118,7 @@
   align-items: center;
   gap: var(--space-1);
   height: 28px;
-  padding: 0 var(--space-3) 0 9px;
+  padding: 0 var(--space-3) 0 var(--space-chrome-2);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -138,9 +138,9 @@
 .canvas-preview-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   height: 28px;
-  padding: 0 13px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
@@ -164,7 +164,7 @@
   align-items: center;
   gap: var(--space-2);
   height: 32px;
-  padding: 0 var(--space-chrome-1) 0 13px;
+  padding: 0 var(--space-chrome-1) 0 var(--space-3);
   border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);
@@ -185,7 +185,7 @@
 .canvas-draft-bar__label {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   font-size: var(--type-body-sm);
   font-weight: 500;
   color: var(--accent-text);
@@ -262,9 +262,9 @@
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   height: 28px;
-  padding: 0 13px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -301,9 +301,9 @@
 .canvas-tools__btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   height: 24px;
-  padding: 0 9px;
+  padding: 0 var(--space-chrome-2);
   border: none;
   border-radius: var(--radius-full);
   background: transparent;
@@ -383,7 +383,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-chrome-0);
-  padding: 3px;
+  padding: var(--space-1);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -551,7 +551,7 @@
   display: inline-block;
   width: 8px;
   height: 8px;
-  margin-right: 7px;
+  margin-right: var(--space-chrome-1);
   vertical-align: middle;
   border-radius: 50%;
   border: 1.5px solid var(--prov-user);
@@ -738,7 +738,7 @@
 .table-node__type-input {
   width: 84px;
   height: 20px;
-  padding: 0 5px;
+  padding: 0 var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--type-body-xs);
   background: var(--surface);
@@ -789,7 +789,7 @@
 .table-node__add,
 .table-node__add-input {
   width: 100%;
-  padding: 7px var(--space-chrome-3);
+  padding: var(--space-chrome-1) var(--space-chrome-3);
   font-family: var(--font-mono);
   font-size: var(--type-mono-sm);
   text-align: left;
@@ -881,7 +881,7 @@
   bottom: 62px; /* clear of the zoom controls */
   z-index: 6;
   width: min(360px, calc(100% - 32px));
-  padding: var(--space-3) var(--space-chrome-3) 11px;
+  padding: var(--space-3) var(--space-chrome-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: var(--surface);
@@ -937,7 +937,7 @@
 
 .rationale-panel__stale {
   margin: 0 0 var(--space-2);
-  padding: var(--space-chrome-1) 9px;
+  padding: var(--space-chrome-1) var(--space-chrome-2);
   border-radius: var(--radius-md);
   border: 1px dashed var(--prov-touched);
   background: var(--caution-bg, transparent);
@@ -976,7 +976,7 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .rationale-panel__evidence li {
@@ -989,7 +989,7 @@
 
 .rationale-panel__meta {
   margin: var(--space-chrome-2) 0 0;
-  padding-top: 9px;
+  padding-top: var(--space-chrome-2);
   border-top: 1px solid var(--row-divider);
   font-size: var(--type-body-xs);
   color: var(--text-faint);

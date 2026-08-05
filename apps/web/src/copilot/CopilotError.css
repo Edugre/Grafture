@@ -19,7 +19,7 @@
 .copilot-error {
   border: 1px solid;
   border-radius: var(--radius-md);
-  padding: 11px var(--space-3) var(--space-chrome-2);
+  padding: var(--space-3) var(--space-3) var(--space-chrome-2);
 }
 
 /* No entrance animation, deliberately: a card that slides in reads as a notification, and this is
@@ -37,7 +37,7 @@
 .copilot-error__head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
 }
 
 .copilot-error__title {
@@ -67,7 +67,7 @@
 }
 
 .copilot-error__cause {
-  margin: 5px 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--type-body-sm);
   line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
@@ -86,11 +86,11 @@
 }
 
 .copilot-error__bullets {
-  margin: 7px 0 0;
+  margin: var(--space-chrome-1) 0 0;
   padding-left: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .copilot-error__bullets li {
@@ -104,7 +104,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: 9px;
+  margin-top: var(--space-chrome-2);
   padding: var(--space-chrome-1) var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--code-chip-bg);
@@ -151,8 +151,8 @@
 /* Inside a fatal or fixable card the ledger sits under a divider in the card's own border colour,
    so it reads as part of the same object rather than a second panel. */
 .copilot-error__ledger--inset {
-  margin-top: 9px;
-  padding-top: 9px;
+  margin-top: var(--space-chrome-2);
+  padding-top: var(--space-chrome-2);
   border-top: 1px solid;
   border-color: inherit;
 }
@@ -168,7 +168,7 @@
 .copilot-error__row {
   display: grid;
   grid-template-columns: 12px 34px 1fr;
-  gap: 9px;
+  gap: var(--space-chrome-2);
   align-items: baseline;
   font-family: var(--font-mono);
   font-size: var(--type-body-xs);
@@ -192,8 +192,8 @@
 .copilot-error__req {
   display: grid;
   grid-template-columns: 12px 1fr;
-  gap: 9px;
-  margin-top: 3px;
+  gap: var(--space-chrome-2);
+  margin-top: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--type-body-xs);
   line-height: var(--leading-body-xs);
@@ -207,7 +207,7 @@
 }
 
 .copilot-error__probe {
-  margin: 9px 0 0;
+  margin: var(--space-chrome-2) 0 0;
   font-size: var(--type-body-sm);
   line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
@@ -218,12 +218,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-top: 11px;
+  margin-top: var(--space-3);
 }
 
 .copilot-error__btn {
   height: 26px;
-  padding: 0 11px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: transparent;
@@ -281,7 +281,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
-  padding: 9px var(--space-chrome-2) 0;
+  padding: var(--space-chrome-2) var(--space-chrome-2) 0;
 }
 
 .copilot-retrying__icon {
@@ -319,8 +319,10 @@
   color: var(--text);
 }
 
+/* Chevron-aligned indent: the left padding tracks the disclosure control above it, so it sits
+   off the spacing spine on purpose. */
 .copilot-retrying__ledger {
-  padding: var(--space-2) var(--space-chrome-2) 9px 33px;
+  padding: var(--space-2) var(--space-chrome-2) var(--space-chrome-2) 33px;
 }
 
 .copilot-retrying__track {
@@ -362,13 +364,13 @@
 
 /* ---- Recovered: the ledger folded to one line above a normal reply ---- */
 .copilot-recovered {
-  margin-bottom: 9px;
+  margin-bottom: var(--space-chrome-2);
 }
 
 .copilot-recovered__head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   width: 100%;
   padding: 0;
   border: none;
