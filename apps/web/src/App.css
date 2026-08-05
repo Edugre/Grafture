@@ -553,7 +553,7 @@
   height: 8px;
   margin-right: var(--space-chrome-1);
   vertical-align: middle;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 1.5px solid var(--prov-user);
   background: transparent;
 }
@@ -563,7 +563,10 @@
   background: var(--prov-ai);
 }
 
-/* Square, not round — shape carries the distinction where hue alone would not. */
+/* Square, not round — shape carries the distinction where hue alone would not.
+   2px is off the radius scale on purpose and must stay there: --radius-sm is 4px, which on an
+   8px dot is exactly half the box, i.e. a circle. Tokenising this would silently delete the
+   distinction the rule exists to draw. */
 .provenance-dot[data-origin="imported"] {
   border-radius: 2px;
   border-color: var(--prov-imported);
@@ -591,7 +594,7 @@
   width: 15px;
   height: 15px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   font-family: var(--font-sans);
   font-size: var(--type-body-xs);
   font-weight: 700;

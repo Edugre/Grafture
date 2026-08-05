@@ -34,6 +34,8 @@
   top: 18px;
   bottom: calc(var(--pipeline-gap, var(--space-chrome-4)) * -1);
   width: 2px;
+  /* Half the rail's width, to round its ends. Below the radius scale by necessity — the
+     smallest token is 4px, twice this element's total width. */
   border-radius: 1px;
 }
 
@@ -61,7 +63,7 @@
   z-index: 1;
   width: 18px;
   height: 18px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   display: grid;
   place-items: center;
   transition: background var(--dur-overlay) var(--ease-out);
@@ -89,7 +91,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--accent);
   animation: pipeline-pulse 1.7s var(--ease-in-out) infinite;
 }
