@@ -163,6 +163,7 @@
   width: 8px;
   height: 1.5px;
   margin-right: var(--space-chrome-1);
+  /* Below the radius scale by necessity: the tick is 1.5px tall and the smallest token is 4px. */
   border-radius: 1px;
   background: var(--border-strong, var(--border-subtle));
 }

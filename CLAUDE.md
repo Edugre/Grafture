@@ -114,6 +114,12 @@ caller declares it**: the copilot passes `"ai"`, building a table from a parsed 
   tracks that width, not the scale, and a ±1px hairline is an optical nudge or a deliberate
   border overlap. Both are commented where they appear. If you need a size the spine lacks for
   real spacing, widen the scale in `index.css` with a comment saying why.
+- **Radii come from `--radius-*`, and a circle is `--radius-full`, never `border-radius: 50%`.**
+  The two are indistinguishable on a fixed square, which is exactly why both idioms took root;
+  `apps/web/test/radiusScale.test.ts` pins the spelling and the scale. A radius _below_ the 4px
+  floor is legal and is the one case to leave alone — a 2px rail or a 1.5px tick cannot take the
+  smallest token, and the imported-provenance dot stays square only because `2px` is not `4px`,
+  which on an 8px box would round it into the circle it must not be.
 
 ## Stack
 
