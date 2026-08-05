@@ -19,14 +19,14 @@
 
 .sources-panel__title {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--type-heading-lg);
   line-height: 28px;
   font-weight: 600;
   color: var(--text);
 }
 
 .sources-panel__subtitle {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   color: var(--text-muted);
 }
 
@@ -86,7 +86,7 @@
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--type-body-md);
   text-align: center;
   cursor: pointer;
   transition:
@@ -134,12 +134,12 @@
 }
 
 .sources-panel__drag-card strong {
-  font-size: 14px;
+  font-size: var(--type-body-lg);
   font-weight: 600;
 }
 
 .sources-panel__drag-card span {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   color: var(--text-muted);
 }
 
@@ -151,7 +151,7 @@
   margin: 0;
   padding: 8px 10px;
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: var(--type-body-sm);
 }
 
 .sources-panel__message--error {
@@ -169,7 +169,7 @@
 .sources-panel__hint {
   display: block;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   color: var(--text-muted);
 }
 
@@ -180,13 +180,13 @@
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-body-sm);
 }
 
 .sources-panel__empty {
   margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--type-body-md);
 }
 
 /* ---- Source cards ---- */
@@ -265,7 +265,7 @@
 
 .sources-panel__source-name {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-mono-md);
   letter-spacing: -0.01em;
   color: var(--text-mono);
   overflow: hidden;
@@ -274,7 +274,7 @@
 }
 
 .sources-panel__source-kind {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   color: var(--text-muted);
 }
 
@@ -305,7 +305,7 @@
   border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   font-weight: 500;
   cursor: pointer;
 }
@@ -368,7 +368,7 @@
 .sources-panel__field-name {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-mono-md);
   letter-spacing: -0.01em;
   color: var(--text-mono);
   overflow: hidden;
@@ -392,7 +392,7 @@
   flex-shrink: 0;
   text-align: right;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--type-mono-sm);
   color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;

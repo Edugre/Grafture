@@ -40,7 +40,7 @@
 }
 
 .suggest-toast__title {
-  font-size: 15px;
+  font-size: var(--type-body-lg);
   line-height: 21px;
   font-weight: 600;
   color: var(--text);
@@ -48,7 +48,7 @@
 
 .suggest-toast__subtitle {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-muted);
 }
@@ -80,7 +80,7 @@
 }
 
 .suggest-toast__summary {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -101,7 +101,7 @@
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 13px;
+  font-size: var(--type-body-md);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
