@@ -79,7 +79,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: 22px var(--space-5) var(--space-chrome-4);
+  padding: var(--space-5) var(--space-5) var(--space-chrome-4);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -143,7 +143,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 22px var(--space-5);
+  padding: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-chrome-5);
@@ -179,7 +179,7 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  padding: 30px var(--space-5);
+  padding: var(--space-6) var(--space-5);
   border: 1.5px dashed var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
@@ -243,8 +243,8 @@
 .npm-filerow {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 9px 11px;
+  gap: var(--space-3);
+  padding: var(--space-chrome-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
@@ -391,12 +391,12 @@
 
 .npm-input {
   height: 40px;
-  padding: 0 13px;
+  padding: 0 var(--space-3);
 }
 
 .npm-textarea {
   height: 96px;
-  padding: 11px 13px;
+  padding: var(--space-3);
   line-height: 20px;
   resize: none;
 }
@@ -464,7 +464,7 @@
 .npm-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   height: 38px;
   border-radius: var(--radius-md);
   font-family: inherit;

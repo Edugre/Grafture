@@ -108,11 +108,12 @@ caller declares it**: the copilot passes `"ai"`, building a table from a parsed 
   `index.css` with a comment saying why — a silent extra size is what the scale exists to prevent.
 - **When a spacing value has a `--space-*` token, write the token.** The spine is the 4px
   `--space-1…8` steps plus the `--space-chrome-*` tier for the 2px control sizes between them, and
-  `apps/web/test/spacingScale.test.ts` fails on any literal that duplicates one. The guard stops
-  there on purpose: the app still carries values the spine has no name for (9px, 7px, 11px), and
-  snapping those moves the UI rather than tidying it, so they are a design call and not drift.
-  Half-tokenised shorthands like `padding: var(--space-2) 9px` are expected and honest — they mark
-  exactly which half is off-spine.
+  `apps/web/test/spacingScale.test.ts` fails on any literal that duplicates one. Everything that
+  could snap has snapped; the ~22 literals left are **not** drift and must not be "fixed":
+  a chevron-aligned indent (25px, 27px, 30px, 33px) is measured off the control above it and
+  tracks that width, not the scale, and a ±1px hairline is an optical nudge or a deliberate
+  border overlap. Both are commented where they appear. If you need a size the spine lacks for
+  real spacing, widen the scale in `index.css` with a comment saying why.
 
 ## Stack
 

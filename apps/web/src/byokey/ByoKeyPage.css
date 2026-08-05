@@ -9,7 +9,7 @@
 .byok__topbar {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-chrome-2);
   height: 56px;
   flex-shrink: 0;
   padding: 0 var(--space-chrome-5);
@@ -55,7 +55,7 @@
 }
 
 .byok__card-header {
-  padding: 28px var(--space-6) 0;
+  padding: var(--space-6) var(--space-6) 0;
 }
 
 .byok__icon-tile {
@@ -221,7 +221,7 @@
 }
 
 .byok__helper {
-  margin: 7px 0 0;
+  margin: var(--space-chrome-1) 0 0;
   font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-faint);
@@ -248,9 +248,9 @@
 
 .byok__trust {
   display: flex;
-  gap: 9px;
+  gap: var(--space-chrome-2);
   margin-top: var(--space-chrome-4);
-  padding: 11px var(--space-3);
+  padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--privacy-bg);
   color: var(--privacy-text);
@@ -269,7 +269,7 @@
 .byok__actions {
   display: flex;
   gap: var(--space-chrome-2);
-  padding: 22px var(--space-6) 28px;
+  padding: var(--space-5) var(--space-6) var(--space-6);
   margin-top: var(--space-chrome-1);
 }
 

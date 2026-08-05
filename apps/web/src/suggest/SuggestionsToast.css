@@ -18,7 +18,7 @@
 .suggest-toast__header {
   display: flex;
   align-items: flex-start;
-  gap: 11px;
+  gap: var(--space-3);
   padding: var(--space-4) var(--space-chrome-4) 0;
 }
 
@@ -94,7 +94,7 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   height: 34px;
   padding: 0 var(--space-chrome-3);
   border-radius: var(--radius-md);

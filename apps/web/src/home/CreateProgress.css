@@ -8,7 +8,7 @@
 .cp {
   display: flex;
   flex-direction: column;
-  padding: 26px var(--space-5) 22px;
+  padding: var(--space-5);
 }
 
 .cp__title {
@@ -33,9 +33,9 @@
 .cp__note {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   margin: var(--space-chrome-5) 0 0;
-  padding: 9px 11px;
+  padding: var(--space-chrome-2) var(--space-3);
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-md);
   background: var(--accent-bg);
@@ -51,7 +51,7 @@
 
 .cp__error {
   margin: var(--space-chrome-5) 0 0;
-  padding: 9px 11px;
+  padding: var(--space-chrome-2) var(--space-3);
   border: 1px solid var(--danger-border);
   border-radius: var(--radius-md);
   background: var(--danger-bg);
@@ -66,7 +66,7 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-chrome-2);
-  margin-top: 22px;
+  margin-top: var(--space-5);
 }
 
 /* Screen-reader-only live region — the visual list is redundant to announce in full. */
@@ -83,7 +83,7 @@
 
 @media (max-width: 520px) {
   .cp {
-    padding: 22px var(--space-chrome-4) var(--space-chrome-4);
+    padding: var(--space-5) var(--space-chrome-4) var(--space-chrome-4);
   }
 
   .cp__actions {

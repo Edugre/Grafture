@@ -71,7 +71,7 @@
   align-items: center;
   gap: var(--space-3);
   max-width: min(780px, calc(100% - 48px));
-  padding: 11px var(--space-chrome-3);
+  padding: var(--space-3) var(--space-chrome-3);
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--border-subtle);
@@ -81,7 +81,7 @@
 
 .preview-caption__badge {
   flex: 0 0 auto;
-  padding: 3px var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-full);
   background: var(--accent-bg);
   border: 1px solid var(--accent-border);

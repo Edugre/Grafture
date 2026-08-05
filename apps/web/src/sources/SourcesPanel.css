@@ -125,7 +125,7 @@
   align-items: center;
   gap: var(--space-chrome-1);
   width: 100%;
-  padding: 28px var(--space-chrome-5);
+  padding: var(--space-6) var(--space-chrome-5);
   border: 1.5px dashed var(--accent);
   border-radius: var(--radius-lg);
   background: var(--accent-bg);
@@ -204,13 +204,15 @@
   flex-shrink: 0;
 }
 
+/* Chevron-aligned indent: the left margin tracks the disclosure control above it, so it sits
+   off the spacing spine on purpose. */
 .sources-panel__nested {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-chrome-1);
   margin-left: 19px;
-  padding: var(--space-chrome-1) 0 0 13px;
+  padding: var(--space-chrome-1) 0 0 var(--space-3);
 }
 
 /* The rail tying the children to the parent card above them. */
@@ -239,9 +241,9 @@
 .sources-panel__source-header {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-chrome-2);
   width: 100%;
-  padding: 11px var(--space-3);
+  padding: var(--space-3);
   border: none;
   background: transparent;
   text-align: left;
@@ -300,7 +302,7 @@
 }
 
 .sources-panel__button {
-  padding: 5px var(--space-chrome-2);
+  padding: var(--space-1) var(--space-chrome-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);

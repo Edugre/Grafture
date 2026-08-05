@@ -25,7 +25,7 @@
 .topbar__brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-chrome-2);
   padding: 0;
   border: none;
   background: transparent;
@@ -61,7 +61,7 @@
 .topbar__btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-chrome-1);
   height: 34px;
   padding: 0 var(--space-chrome-3);
   border-radius: var(--radius-md);
