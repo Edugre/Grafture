@@ -151,7 +151,7 @@
 
 .settings__pane {
   max-width: 620px;
-  padding: var(--space-6) var(--space-7) var(--space-7);
+  padding: var(--space-6);
 }
 
 .settings__pane--keys {
