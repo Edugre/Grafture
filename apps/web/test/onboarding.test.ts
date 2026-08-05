@@ -163,8 +163,21 @@ describe("sameRect", () => {
   });
 });
 
-const LOADED: TourContext = { hasSources: true, hasRelationships: true, hasSuggestions: true };
-const EMPTY: TourContext = { hasSources: false, hasRelationships: false, hasSuggestions: false };
+/** The bundled demo pair loaded — the case three of the cards were written about. */
+const DEMO: TourContext = {
+  hasSources: true,
+  hasRelationships: true,
+  hasSuggestions: true,
+  hasDemoDataset: true,
+};
+/** Someone's own files. Same shape as DEMO in every way except whose data it is. */
+const LOADED: TourContext = { ...DEMO, hasDemoDataset: false };
+const EMPTY: TourContext = {
+  hasSources: false,
+  hasRelationships: false,
+  hasSuggestions: false,
+  hasDemoDataset: false,
+};
 
 describe("TOUR_STEPS", () => {
   it("is the ten steps the tutorial documents, opening and closing untargeted", () => {
@@ -206,7 +219,7 @@ describe("TOUR_STEPS", () => {
     ]);
 
     for (const step of TOUR_STEPS) {
-      for (const target of [step.target, step.variant?.target]) {
+      for (const target of [step.target, ...(step.variants ?? []).map((v) => v.target)]) {
         const required = target == null ? undefined : railed.get(target);
         if (required) {
           expect(step.stage?.[required], `${step.label} must open the ${required} rail`).toBe(true);
@@ -220,31 +233,56 @@ describe("TOUR_STEPS", () => {
       expect(step.label.length).toBeGreaterThan(0);
       expect(step.title.length).toBeGreaterThan(0);
       expect(step.body.length).toBeGreaterThan(0);
-      if (step.variant) {
-        expect(step.variant.title.length).toBeGreaterThan(0);
-        expect(step.variant.body.length).toBeGreaterThan(0);
+      for (const variant of step.variants ?? []) {
+        expect(variant.title ?? "x").not.toBe("");
+        expect(variant.body ?? "x").not.toBe("");
       }
     }
   });
 
   it("gives every requirement either a variant or a deliberate drop", () => {
     // Not an assertion about which — just that no step carries a requirement by accident. A step
-    // that requires something and has no variant is stating "drop me", and that has to be a choice.
+    // that requires something and has no matching variant is stating "drop me", and that has to be
+    // a choice.
     const required = TOUR_STEPS.filter((step) => step.requires !== undefined);
 
-    expect(required.map((step) => [step.label, step.variant !== undefined])).toEqual([
-      ["Welcome", true],
+    expect(
+      required.map((step) => [
+        step.label,
+        step.variants?.some((variant) => variant.when === "no-sources") ?? false,
+      ]),
+    ).toEqual([
       ["Sources", true],
       ["Build", false],
       ["Relationships", false],
       ["Suggestions", false],
     ]);
   });
+
+  it("keeps every demo-specific sentence behind the demo-dataset condition", () => {
+    // The regression this exists for: the handoff wrote three cards about the bundled demo pair,
+    // and gating them on "the project has files" told every user with any data that their project
+    // holds HRSA health-center sites.
+    const DEMO_TERMS = [/HRSA/, /health_centers/, /covered_entities/, /grant number/];
+
+    for (const step of TOUR_STEPS) {
+      const base = `${step.title} ${step.body} ${step.note ?? ""}`;
+      for (const term of DEMO_TERMS) {
+        expect(term.test(base), `${step.label} base copy must not assert ${term}`).toBe(false);
+      }
+      for (const variant of step.variants ?? []) {
+        const text = `${variant.title ?? ""} ${variant.body ?? ""} ${variant.note ?? ""}`;
+        if (DEMO_TERMS.some((term) => term.test(text))) {
+          expect(variant.when, `${step.label}: demo copy must be demo-gated`).toBe("demo-dataset");
+        }
+      }
+    }
+  });
 });
 
 describe("resolveSteps", () => {
-  it("runs all ten, verbatim, on a project that has everything", () => {
-    const resolved = resolveSteps(LOADED);
+  it("runs all ten, verbatim, on the demo dataset the copy was written for", () => {
+    const resolved = resolveSteps(DEMO);
 
     expect(resolved).toHaveLength(10);
     expect(resolved.map((step) => step.eyebrow)).toEqual([
@@ -259,10 +297,11 @@ describe("resolveSteps", () => {
       "Step 9 \u00b7 Export",
       "Done",
     ]);
-    // The handoff's copy, untouched, whenever the project can carry it.
-    expect(resolved[0]?.title).toBe(TOUR_STEPS[0]?.title);
+    // The handoff's copy, untouched, on the data it describes.
+    expect(resolved[0]?.title).toBe("Two files in, one relational schema out.");
+    expect(resolved[0]?.body).toContain("This project already holds");
     expect(resolved[0]?.note).toBe("health_centers.csv \u00b7 covered_entities.json");
-    expect(resolved[1]?.body).toBe(TOUR_STEPS[1]?.body);
+    expect(resolved[5]?.body).toContain("Here they matched the grant number");
   });
 
   it("drops to seven on an empty project, renumbering as it goes", () => {
@@ -292,24 +331,20 @@ describe("resolveSteps", () => {
   });
 
   it("swaps the welcome copy that claims files are already loaded", () => {
-    const loaded = resolveSteps(LOADED)[0];
+    const demo = resolveSteps(DEMO)[0];
     const empty = resolveSteps(EMPTY)[0];
 
-    expect(loaded?.body).toContain("This project already holds");
-    expect(loaded?.note).toBeDefined();
+    expect(demo?.body).toContain("This project already holds");
+    expect(demo?.note).toBeDefined();
     expect(empty?.body).not.toContain("already holds");
-    // The authored note names two files that aren't there — a variant without one drops it.
+    // The demo note names two files that aren't there — the base copy carries no note at all.
     expect(empty?.note).toBeUndefined();
     expect(empty?.nextLabel).toBe("Start");
   });
 
   it("resolves each requirement independently", () => {
     // Sources loaded, nothing joined yet, detectors have findings: only Relationships drops.
-    const resolved = resolveSteps({
-      hasSources: true,
-      hasRelationships: false,
-      hasSuggestions: true,
-    });
+    const resolved = resolveSteps({ ...LOADED, hasRelationships: false });
 
     expect(resolved).toHaveLength(9);
     expect(resolved.map((step) => step.target)).not.toContain("relationship");
@@ -320,10 +355,11 @@ describe("resolveSteps", () => {
     // The regression this guards: dropping step 5 used to leave "Step 6 \u00b7 Suggestions" sitting
     // above a counter reading "05 / 09".
     for (const context of [
+      DEMO,
       LOADED,
       EMPTY,
-      { hasSources: true, hasRelationships: false, hasSuggestions: false },
-      { hasSources: true, hasRelationships: true, hasSuggestions: false },
+      { ...LOADED, hasRelationships: false, hasSuggestions: false },
+      { ...LOADED, hasSuggestions: false },
     ]) {
       const resolved = resolveSteps(context);
       resolved.forEach((step, position) => {
@@ -359,5 +395,51 @@ describe("sameSequence", () => {
 
     expect(loaded).toHaveLength(empty.length);
     expect(sameSequence(loaded, empty)).toBe(false);
+  });
+});
+
+describe("copy that describes the demo dataset", () => {
+  it("never claims a user's own project holds the demo files", () => {
+    // The bug: `requires: "sources"` gated the handoff's welcome copy on the project having *any*
+    // files, so loading sales.csv opened the tour with "This project already holds the HRSA
+    // health-center sites and the covered entities that hold their grants".
+    const welcome = resolveSteps(LOADED)[0];
+
+    expect(welcome?.body).not.toContain("HRSA");
+    expect(welcome?.body).not.toContain("already holds");
+    expect(welcome?.note).toBeUndefined();
+    // …and still says something true and useful.
+    expect(welcome?.body).toContain("CSV, Excel, and JSON");
+  });
+
+  it("never narrates the demo's grant-number finding against other data", () => {
+    const suggestions = resolveSteps(LOADED).find((step) => step.eyebrow.endsWith("Suggestions"));
+
+    expect(suggestions?.body).not.toContain("grant number");
+    expect(suggestions?.body).not.toContain("Here they matched");
+    // The general version still describes what the detectors do, without inventing a finding.
+    expect(suggestions?.body).toContain("Ten detectors read your sample values");
+    expect(suggestions?.body).toContain("join keys");
+  });
+
+  it("still gives the demo project the copy that was written for it", () => {
+    const resolved = resolveSteps(DEMO);
+    const suggestions = resolved.find((step) => step.eyebrow.endsWith("Suggestions"));
+
+    expect(resolved[0]?.body).toContain("HRSA health-center sites");
+    expect(suggestions?.body).toContain("leading zeros");
+  });
+
+  it("prefers the demo variant over the empty one when both could apply", () => {
+    // Defensive: the demo dataset implies sources, so `no-sources` can't also hold — but the
+    // resolution is order-sensitive and this pins the order.
+    expect(resolveSteps({ ...DEMO, hasSources: true })[0]?.note).toBe(
+      "health_centers.csv \u00b7 covered_entities.json",
+    );
+  });
+
+  it("keeps the sequence length independent of whose data it is", () => {
+    // Demo vs. user files changes words, never structure.
+    expect(resolveSteps(DEMO)).toHaveLength(resolveSteps(LOADED).length);
   });
 });

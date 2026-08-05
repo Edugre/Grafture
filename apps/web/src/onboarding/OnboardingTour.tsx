@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { isTextEntry } from "../history/shortcuts.js";
+import { isDemoDataset } from "./demoDataset.js";
 import { useSchemaStore } from "../store/index.js";
 import { XIcon } from "../ui/icons.js";
 import "./OnboardingTour.css";
@@ -67,8 +68,12 @@ export function OnboardingTour({
 }) {
   const replays = useOnboardingReplays();
 
-  const hasSources = useSchemaStore((state) => state.sources.length > 0);
+  const sources = useSchemaStore((state) => state.sources);
   const hasRelationships = useSchemaStore((state) => state.schema.relationships.length > 0);
+  const hasSources = sources.length > 0;
+  // Name + field comparison over the loaded sources, no detector work — see `demoDataset.ts` for
+  // why three of the cards need to know this.
+  const hasDemoDataset = useMemo(() => isDemoDataset(sources), [sources]);
   // `hasSources` stands in for "the detectors found something". The exact answer is `useSuggestions`,
   // but that runs `detectJoinKeys` in a memo — ~3.7s on real files, and per CLAUDE.md that work
   // never goes on an interactive path. The approximation is only ever wrong one way (sources but no
@@ -78,8 +83,14 @@ export function OnboardingTour({
     hasSources,
     hasRelationships,
     hasSuggestions: hasSources,
+    hasDemoDataset,
   });
-  contextRef.current = { hasSources, hasRelationships, hasSuggestions: hasSources };
+  contextRef.current = {
+    hasSources,
+    hasRelationships,
+    hasSuggestions: hasSources,
+    hasDemoDataset,
+  };
 
   const [open, setOpen] = useState(() => !readOnboardingCompleted());
   // Frozen once the tour is under way — a sequence that restructured because the user dropped a
@@ -167,7 +178,7 @@ export function OnboardingTour({
       const resolved = resolveSteps(contextRef.current);
       return sameSequence(current, resolved) ? current : resolved;
     });
-  }, [open, index, hasSources, hasRelationships]);
+  }, [open, index, hasSources, hasRelationships, hasDemoDataset]);
 
   // Ask the editor to open whatever this step points at. Steps that declare no stage leave the
   // arrangement alone rather than collapsing it again — the canvas steps read fine either way, and
