@@ -13,7 +13,7 @@
   justify-content: space-between;
   height: 56px;
   flex-shrink: 0;
-  padding: 0 20px;
+  padding: 0 var(--space-chrome-5);
   background: var(--topbar-bg);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -21,7 +21,7 @@
 .settings__topbar-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--space-chrome-3);
 }
 
 .settings__back {
@@ -29,7 +29,7 @@
   align-items: center;
   gap: 5px;
   height: 32px;
-  padding: 0 11px 0 8px;
+  padding: 0 11px 0 var(--space-2);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: transparent;
@@ -81,15 +81,15 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 18px 12px;
+  gap: var(--space-chrome-0);
+  padding: var(--space-chrome-4) var(--space-3);
   background: var(--bg-panel);
   border-right: 1px solid var(--border-subtle);
   overflow-y: auto;
 }
 
 .settings__nav-label {
-  padding: 4px 10px 8px;
+  padding: var(--space-1) var(--space-chrome-2) var(--space-2);
   font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-faint);
@@ -98,9 +98,9 @@
 .settings__nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-chrome-2);
   height: 36px;
-  padding: 0 10px;
+  padding: 0 var(--space-chrome-2);
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
@@ -151,7 +151,7 @@
 
 .settings__pane {
   max-width: 620px;
-  padding: 32px 40px 40px;
+  padding: var(--space-6) 40px 40px;
 }
 
 .settings__pane--keys {
@@ -163,7 +163,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .settings__title {
@@ -175,7 +175,7 @@
 }
 
 .settings__subtitle {
-  margin: 4px 0 0;
+  margin: var(--space-1) 0 0;
   font-size: var(--type-body-md);
   line-height: 20px;
   color: var(--text-muted);
@@ -187,7 +187,7 @@
   align-items: center;
   gap: 7px;
   height: 38px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-md);
   font-size: var(--type-body-md);
   font-weight: 500;
@@ -222,8 +222,8 @@
 .settings__banner {
   display: flex;
   gap: 9px;
-  margin-top: 18px;
-  padding: 11px 12px;
+  margin-top: var(--space-chrome-4);
+  padding: 11px var(--space-3);
   border-radius: var(--radius-md);
   background: var(--privacy-bg);
   color: var(--privacy-text);
@@ -243,12 +243,12 @@
 .settings__key-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 20px;
+  gap: var(--space-3);
+  margin-top: var(--space-chrome-5);
 }
 
 .settings__key-card {
-  margin-top: 20px;
+  margin-top: var(--space-chrome-5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -263,8 +263,8 @@
 .settings__key-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px;
+  gap: var(--space-chrome-3);
+  padding: var(--space-4);
 }
 
 .settings__key-tile {
@@ -287,7 +287,7 @@
 .settings__key-name {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--type-body-md);
   line-height: 20px;
   font-weight: 600;
@@ -295,7 +295,7 @@
 }
 
 .settings__key-value {
-  margin-top: 2px;
+  margin-top: var(--space-chrome-0);
   font-family: var(--font-mono);
   font-size: var(--type-mono-sm);
   letter-spacing: -0.01em;
@@ -306,7 +306,7 @@
 }
 
 .settings__key-meta {
-  margin-top: 2px;
+  margin-top: var(--space-chrome-0);
   font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-faint);
@@ -315,7 +315,7 @@
 .settings__key-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   flex-shrink: 0;
 }
 
@@ -347,7 +347,7 @@
   align-items: center;
   gap: 5px;
   height: 20px;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-full);
   font-size: var(--type-body-xs);
   font-weight: 500;
@@ -367,12 +367,12 @@
 
 /* ---- Empty state ---- */
 .settings__empty {
-  margin-top: 20px;
+  margin-top: var(--space-chrome-5);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 36px 24px;
+  padding: 36px var(--space-5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -391,14 +391,14 @@
 }
 
 .settings__empty-title {
-  margin: 14px 0 0;
+  margin: var(--space-chrome-3) 0 0;
   font-size: var(--type-body-lg);
   font-weight: 600;
   color: var(--text);
 }
 
 .settings__empty-body {
-  margin: 6px 0 18px;
+  margin: var(--space-chrome-1) 0 var(--space-chrome-4);
   max-width: 360px;
   font-size: var(--type-body-md);
   line-height: 20px;
@@ -408,8 +408,8 @@
 .settings__remember {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 16px;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
   font-size: var(--type-body-sm);
   color: var(--text-muted);
   cursor: pointer;
@@ -434,7 +434,7 @@
 }
 
 .settings__field-label {
-  margin: 6px 0 12px;
+  margin: var(--space-chrome-1) 0 var(--space-3);
   font-size: var(--type-body-md);
   line-height: 20px;
   color: var(--text-muted);
@@ -442,14 +442,14 @@
 
 .settings__field-row {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .settings__field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-chrome-1);
 }
 
 .settings__field-name {
@@ -466,7 +466,7 @@
   width: 100%;
   min-width: 160px;
   height: 38px;
-  padding: 0 10px;
+  padding: 0 var(--space-chrome-2);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -492,7 +492,7 @@
 
 .settings__segments {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   max-width: 340px;
 }
 
@@ -501,7 +501,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-chrome-1);
   height: 38px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
@@ -524,7 +524,7 @@
 }
 
 .settings__hint {
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   font-size: var(--type-body-sm);
   line-height: 16px;
   color: var(--text-faint);

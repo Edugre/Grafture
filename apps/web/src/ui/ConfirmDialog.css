@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: var(--space-6);
   background: rgba(23, 26, 31, 0.34);
   backdrop-filter: blur(1.5px);
   animation: confirm-fade 0.12s ease;
@@ -17,7 +17,7 @@
 .confirm-card {
   width: 400px;
   max-width: 100%;
-  padding: 22px 24px 18px;
+  padding: 22px var(--space-5) var(--space-chrome-4);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -50,7 +50,7 @@
 }
 
 .confirm-message {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--type-body-md);
   line-height: 19px;
   color: var(--text-muted);
@@ -64,13 +64,13 @@
 .confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  gap: var(--space-chrome-2);
+  margin-top: var(--space-chrome-5);
 }
 
 .confirm-btn {
   height: 38px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-md);
   font-family: inherit;
   font-size: var(--type-body-md);
