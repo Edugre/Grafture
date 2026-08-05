@@ -100,6 +100,12 @@ caller declares it**: the copilot passes `"ai"`, building a table from a parsed 
   settled — never a timer, never a synthetic percentage. A step still running gets a pulsing dot
   and nothing more. Both ingest surfaces (`sources/ParsingOverlay`, `home/CreateProgress`) share
   it; keep the app to one loading language.
+- **Every `font-size` in `apps/web/src` comes from a `--type-*` token**, defined once in
+  `index.css` (the only file where a raw px size is legal). `apps/web/test/typeScale.test.ts`
+  enforces it and names the offending `file:line`. The tiers carry meaning, so reach for the one
+  that matches the content, not the nearest number: `--type-body-xs` is badges and counts and
+  never running copy, `--type-mono-xs` is identifiers only. If nothing fits, widen the scale in
+  `index.css` with a comment saying why — a silent extra size is what the scale exists to prevent.
 
 ## Stack
 

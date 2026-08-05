@@ -27,13 +27,13 @@
 }
 
 .history-box__title {
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   font-weight: 600;
   color: var(--text);
 }
 
 .history-box__count {
-  font-size: 11px;
+  font-size: var(--type-body-xs);
   color: var(--text-muted);
 }
 
@@ -64,7 +64,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--type-body-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -111,8 +111,8 @@
 
 .history-box__detail {
   padding: 2px 0;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: var(--type-body-xs);
+  line-height: var(--leading-body-xs);
   color: var(--text-muted);
 }
 
@@ -135,10 +135,13 @@
   text-overflow: ellipsis;
 }
 
+/* Actor and time both sat at a raw 10px. They fold up into body-xs — the tier index.css names
+   for exactly these badge-and-count declarations — rather than earning the scale a 10px step
+   that would exist for two rules in one file. */
 .history-box__actor {
   flex: none;
   margin-left: 6px;
-  font-size: 10px;
+  font-size: var(--type-body-xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-muted);
@@ -147,7 +150,7 @@
 .history-box__time {
   flex: none;
   margin-left: 6px;
-  font-size: 10px;
+  font-size: var(--type-body-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -162,10 +165,12 @@
   background: var(--border-strong, var(--border-subtle));
 }
 
+/* Running copy, so it takes body-sm and the loose leading: mono-xs is the same 11.5px but is
+   reserved for identifiers, and body-xs is badges and counts — neither is a home for a sentence. */
 .history-box__empty {
   margin: 0;
   padding: 6px 8px 10px;
-  font-size: 11.5px;
-  line-height: 1.45;
+  font-size: var(--type-body-sm);
+  line-height: var(--leading-body-sm-loose);
   color: var(--text-muted);
 }
